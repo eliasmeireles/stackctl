@@ -96,7 +96,7 @@ var NewPolicyGetCmdFunc = func() *cobra.Command {
 		},
 	}
 
-	// Adicionando suporte para execução via TUI (run.Command.Execute)
+	// Adding support for TUI execution (run.Command.Execute)
 	originalRunE := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {

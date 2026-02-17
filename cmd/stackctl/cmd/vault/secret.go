@@ -52,7 +52,7 @@ Examples:
 				listPath = args[0]
 			}
 
-			log.Infof("📋 Listing secrets at: %s", listPath)
+			log.Infof("📋 Listing secrets at: %s\n", listPath)
 
 			keys, err := client.ListSecrets(listPath)
 			if err != nil {
@@ -65,10 +65,10 @@ Examples:
 			}
 
 			for _, key := range keys {
-				fmt.Println(key)
+				fmt.Printf(" - %s\n", key)
 			}
 
-			log.Infof("✅ Found %d secret(s)", len(keys))
+			log.Infof("\n✅ Found %d secret(s)", len(keys))
 			return nil
 		},
 	}

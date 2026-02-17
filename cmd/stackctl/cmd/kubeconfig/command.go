@@ -15,14 +15,14 @@ import (
 )
 
 const (
-	CategoryListContexts          = "K8s Config/VaultList Contexts"
+	CategoryListContexts          = "K8s Config/List Contexts"
 	CategoryCleanDuplicates       = "K8s Config/Clean Duplicates"
-	CategoryGetContext            = "K8s Config/VaultGet Context"
+	CategoryGetContext            = "K8s Config/Get Context"
 	CategorySetCurrentContext     = "K8s Config/Set Current Context"
 	CategoryRemoveContext         = "K8s Config/Remove Context"
 	CategoryAddConfiguration      = "K8s Config/Add Configuration"
 	CategoryAddFromVault          = "K8s Config/Add Configuration/From Vault"
-	CategorySaveToVault           = "K8s Config/LocalContext to Vault"
+	CategorySaveToVault           = "K8s Config/Save to Vault"
 	CategoryClustersConfiguration = "K8s Config/Clusters configuration"
 )
 
@@ -69,7 +69,7 @@ func NewListContextsCmd() *cobra.Command {
 var newListContextsCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
 		Use:          "list-contexts",
-		Short:        "VaultList available contexts",
+		Short:        "List available contexts",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfigPath := kubeconfig.GetPath()
@@ -110,7 +110,7 @@ var newGetContextCmdFunc = func() *cobra.Command {
 	var encodeFlag bool
 	cmd := &cobra.Command{
 		Use:          "get-context [context-name]",
-		Short:        "VaultGet configuration for a specific context",
+		Short:        "Get configuration for a specific context",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -248,16 +248,16 @@ Sources:
 
 Examples:
   # Add via SSH with specific path
-  stackctl config add --ssh-user root --host 1.2.3.4 --remote-file /home/elias/.kube/config
+  stackctl kubeconfig add --ssh-user root --host 1.2.3.4 --remote-file /home/elias/.kube/config
 
   # Add from a remote k3s installation
-  stackctl config add --k3s --host 1.2.3.4 --ssh-user root
+  stackctl kubeconfig add --k3s --host 1.2.3.4 --ssh-user root
 
   # Add from a remote file specifying path
-  stackctl config add --host 1.2.3.4 --ssh-user root --remote-file /root/.kube/config
+  stackctl kubeconfig add --host 1.2.3.4 --ssh-user root --remote-file /root/.kube/config
 
   # Add from a local file
-  stackctl config add --file ./new-config.yaml
+  stackctl kubeconfig add --file ./new-config.yaml
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -324,9 +324,9 @@ Examples:
 	cmd.Flags().StringVar(&remoteFile, "remote-file", "", "Remote path to kubeconfig file")
 	cmd.Flags().BoolVar(&isK3s, "k3s", false, "Fetch default k3s config path (/etc/rancher/k3s/k3s.yaml)")
 
-	// Adicionando suporte para execução via TUI (run.Command.Execute)
-	// A lógica do Execute do run.NewDefault chama cmd.Run(cmd, choice)
-	// Precisamos que o Run saiba lidar quando choice[0] é o modo de importação
+	// Adding support for TUI execution (run.Command.Execute)
+	// The Execute logic of run.NewDefault calls cmd.Run(cmd, choice)
+	// We need Run to handle when choice[0] is the import mode
 
 	originalRunE := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -458,13 +458,13 @@ func NewListRemoteCmd() *cobra.Command {
 var newListRemoteCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "list-remote",
-		Short:        "VaultList kubeconfigs stored in Vault",
+		Short:        "List kubeconfigs stored in Vault",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			items := VaultContexts()
 			// Add the k8s icone
 
-			fmt.Println("VaultList of kubeconfigs stored in Vault:")
+			fmt.Println("List of kubeconfigs stored in Vault:")
 			for _, item := range items {
 				fmt.Printf(" - %s\n", item.FilterValue())
 			}

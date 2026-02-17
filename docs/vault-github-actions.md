@@ -1,104 +1,104 @@
-# Vault + GitHub Actions — Guia de Configuração
+# Vault + GitHub Actions — Configuration Guide
 
-Este documento explica como configurar o GitHub Actions para buscar kubeconfig (ou outros secrets) do HashiCorp Vault usando o `stackctl vault-fetch`.
+This document explains how to configure GitHub Actions to fetch kubeconfig (or other secrets) from HashiCorp Vault using `stackctl vault fetch`.
 
 ---
 
-## Pré-requisitos
+## Prerequisites
 
 ### 1. Vault Server
 
-O Vault precisa estar acessível pelo runner do GitHub Actions. Duas opções:
+Vault must be accessible from the GitHub Actions runner. Two options:
 
-- **Vault público** (com TLS): o runner acessa diretamente via internet
-- **Vault privado** (rede interna): o runner conecta via **NetBird VPN** antes de acessar o Vault
+- **Public Vault** (with TLS): The runner accesses it directly via the internet.
+- **Private Vault** (internal network): The runner connects via **NetBird VPN** before accessing Vault.
 
-### 2. Secret armazenado no Vault
+### 2. Secret stored in Vault
 
-O kubeconfig deve estar armazenado no Vault KV v2 como uma string base64:
+The kubeconfig must be stored in Vault KV v2 as a base64 string:
 
 ```bash
-# Codificar o kubeconfig
+# Encode kubeconfig
 KUBECONFIG_B64=$(base64 -w0 -i ~/.kube/config)
 
-# Armazenar no Vault
+# Store in Vault
 vault kv put secret/ci/kubeconfig/home-lab kubeconfig="$KUBECONFIG_B64"
 ```
 
-> O path `secret/ci/kubeconfig/home-lab` é um exemplo. Use o path que fizer sentido para sua organização.
-> O campo `kubeconfig` é o nome padrão. Pode ser alterado via `VAULT_SECRET_FIELD`.
+> The path `secret/ci/kubeconfig/home-lab` is an example. Use a path that makes sense for your organization.
+> The field `kubeconfig` is the default name. It can be changed via `VAULT_SECRET_FIELD`.
 
-### 3. Autenticação no Vault
+### 3. Vault Authentication
 
-Escolha **um** dos métodos abaixo:
+Choose **one** of the methods below:
 
-| Método            | Quando usar                   | O que configurar no Vault                 |
+| Method            | When to use                   | Configuration in Vault                    |
 | ----------------- | ----------------------------- | ----------------------------------------- |
-| **Token**         | CI simples, runners externos  | Criar um token com policy de leitura      |
-| **Kubernetes SA** | Runners dentro do cluster K8s | Configurar Vault K8s auth + role + policy |
-| **AppRole**       | Automação avançada            | Criar AppRole com role_id + secret_id     |
+| **Token**         | Simple CI, external runners   | Create a token with read policy           |
+| **Kubernetes SA** | Runners inside K8s cluster    | Configure Vault K8s auth + role + policy  |
+| **AppRole**       | Advanced automation           | Create AppRole with role_id + secret_id   |
 
-### 4. Binários do stackctl
+### 4. stackctl Binaries
 
-Os binários pré-compilados devem estar no repositório em `bin/<os>-<arch>/stackctl`.
-Gere-os com:
+Pre-compiled binaries should be in the repository at `bin/<os>-<arch>/stackctl`.
+Generate them with:
 
 ```bash
 make build-all
 ```
 
-Isso cria binários para `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`.
+This creates binaries for `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`.
 
 ---
 
-## Configuração dos Secrets no GitHub
+## GitHub Secrets Configuration
 
-Vá em **Settings → Secrets and variables → Actions** do repositório e adicione:
+Go to **Settings → Secrets and variables → Actions** in your repository and add:
 
-### Obrigatórios
+### Required
 
-| Secret       | Descrição             | Exemplo                          |
+| Secret       | Description           | Example                          |
 | ------------ | --------------------- | -------------------------------- |
-| `VAULT_ADDR` | URL do servidor Vault | `https://vault.example.com:8200` |
+| `VAULT_ADDR` | Vault Server URL      | `https://vault.example.com:8200` |
 
-### Autenticação (um dos conjuntos)
+### Authentication (choose one set)
 
-**Opção A — Token:**
+**Option A — Token:**
 
-| Secret        | Descrição                               | Exemplo |
+| Secret        | Description                             | Example |
 | ------------- | --------------------------------------- | ------- |
-| `VAULT_TOKEN` | Token do Vault com permissão de leitura | `s.xxx` |
+| `VAULT_TOKEN` | Vault token with read permission        | `s.xxx` |
 
-**Opção B — AppRole (recomendado para CI):**
+**Option B — AppRole (Recommended for CI):**
 
-| Secret            | Descrição         | Exemplo                                |
+| Secret            | Description       | Example                                |
 | ----------------- | ----------------- | -------------------------------------- |
 | `VAULT_ROLE_ID`   | AppRole role ID   | `12345678-abcd-1234-efgh-123456789abc` |
 | `VAULT_SECRET_ID` | AppRole secret ID | `abcdefgh-1234-5678-abcd-123456789abc` |
 
-> O script obtém o token automaticamente fazendo login no Vault via AppRole com o `role_id` e `secret_id`.
+> The script automatically obtains the token by logging into Vault via AppRole with `role_id` and `secret_id`.
 
-**Opção C — Kubernetes ServiceAccount:**
+**Option C — Kubernetes ServiceAccount:**
 
-| Secret/Variable        | Descrição                      | Exemplo                  |
+| Secret/Variable        | Description                    | Example                  |
 | ---------------------- | ------------------------------ | ------------------------ |
-| `VAULT_K8S_ROLE`       | Nome da role no Vault K8s auth | `ci-kubeconfig`          |
-| `VAULT_K8S_MOUNT_PATH` | Mount path do auth (opcional)  | `auth/k8s-vps-01-oracle` |
+| `VAULT_K8S_ROLE`       | Role name in Vault K8s auth    | `ci-kubeconfig`          |
+| `VAULT_K8S_MOUNT_PATH` | Auth mount path (optional)     | `auth/k8s-vps-01-oracle` |
 
-### Opcionais
+### Optional
 
-| Variable             | Descrição                                | Default      |
+| Variable             | Description                              | Default      |
 | -------------------- | ---------------------------------------- | ------------ |
-| `NETBIRD_ACCESS_KEY` | Chave de acesso do NetBird (se usar VPN) | —            |
-| `VAULT_SECRET_FIELD` | Nome do campo no secret                  | `kubeconfig` |
+| `NETBIRD_ACCESS_KEY` | NetBird access key (if using VPN)        | —            |
+| `VAULT_SECRET_FIELD` | Field name in the secret                 | `kubeconfig` |
 
 ---
 
-## Exemplos de Workflow
+## Workflow Examples
 
-### Exemplo 1 — AppRole (recomendado para CI)
+### Example 1 — AppRole (Recommended for CI)
 
-O script faz login no Vault automaticamente usando `role_id` + `secret_id` e obtém o token.
+The script logs into Vault automatically using `role_id` + `secret_id` and obtains the token.
 
 ```yaml
 name: Deploy
@@ -127,9 +127,9 @@ jobs:
         run: kubectl apply -f k8s/
 ```
 
-### Exemplo 2 — AppRole com NetBird VPN
+### Example 2 — AppRole with NetBird VPN
 
-Vault em rede privada, acessível apenas via VPN. O script conecta na VPN antes de autenticar.
+Vault in a private network, accessible only via VPN. The script connects to the VPN before authenticating.
 
 ```yaml
 name: Deploy (VPN)
@@ -158,9 +158,9 @@ jobs:
         run: kubectl apply -f k8s/
 ```
 
-### Exemplo 3 — Kubernetes ServiceAccount Auth
+### Example 3 — Kubernetes ServiceAccount Auth
 
-Para runners que rodam dentro de um cluster Kubernetes (self-hosted runners).
+For runners running inside a Kubernetes cluster (self-hosted runners).
 
 ```yaml
 name: Deploy (K8s SA)
@@ -189,9 +189,9 @@ jobs:
         run: kubectl apply -f k8s/
 ```
 
-### Exemplo 4 — Exportar secrets como variáveis de ambiente
+### Example 4 — Export secrets as Environment Variables
 
-Busca todos os campos de um secret e exporta como env vars para os steps seguintes.
+Fetches all fields from a secret and exports them as env vars for subsequent steps.
 
 ```yaml
 name: Build with Secrets
@@ -217,16 +217,16 @@ jobs:
           GITHUB_ENV_EXPORT: "true"
         run: ./bin/setup-k8s-vault.sh
 
-      # As env vars do secret ficam disponíveis nos steps seguintes
+      # Env vars from the secret are available in subsequent steps
       - name: Use secrets
         run: |
           echo "Database host: $DATABASE_HOST"
           echo "Redis URL: $REDIS_URL"
 ```
 
-### Exemplo 5 — Token direto (simples)
+### Example 5 — Direct Token (Simple)
 
-Se já tiver um token do Vault pronto:
+If you already have a ready-to-use Vault token:
 
 ```yaml
 - name: Setup K8s via Vault
@@ -239,9 +239,9 @@ Se já tiver um token do Vault pronto:
   run: ./bin/setup-k8s-vault.sh
 ```
 
-### Exemplo 6 — Uso direto do stackctl (sem script)
+### Example 6 — Direct stackctl usage (No script)
 
-Se preferir não usar o script, pode chamar o `stackctl` diretamente:
+If you prefer not to use the script, you can call `stackctl` directly:
 
 ```yaml
 - name: Setup Go
@@ -256,7 +256,7 @@ Se preferir não usar o script, pode chamar o `stackctl` diretamente:
 
 - name: Fetch kubeconfig from Vault
   run: |
-    stackctl vault-fetch \
+    stackctl vault fetch \
       --vault-addr ${{ secrets.VAULT_ADDR }} \
       --vault-role-id ${{ secrets.VAULT_ROLE_ID }} \
       --vault-secret-id ${{ secrets.VAULT_SECRET_ID }} \
@@ -266,9 +266,9 @@ Se preferir não usar o script, pode chamar o `stackctl` diretamente:
 
 ---
 
-## Configuração do Vault
+## Vault Configuration
 
-### Policy de leitura para CI
+### Read Policy for CI
 
 ```hcl
 # vault-policy-ci-kubeconfig.hcl
@@ -281,13 +281,13 @@ path "secret/data/ci/kubeconfig/*" {
 vault policy write ci-kubeconfig vault-policy-ci-kubeconfig.hcl
 ```
 
-### Configurar AppRole para CI (recomendado)
+### Configure AppRole for CI (Recommended)
 
 ```bash
-# Habilitar AppRole auth (se ainda não habilitado)
+# Enable AppRole auth (if not already enabled)
 vault auth enable approle
 
-# Criar role para CI
+# Create role for CI
 vault write auth/approle/role/ci-kubeconfig \
   token_policies=ci-kubeconfig \
   token_ttl=1h \
@@ -295,18 +295,18 @@ vault write auth/approle/role/ci-kubeconfig \
   secret_id_ttl=0 \
   secret_id_num_uses=0
 
-# Obter role_id
+# Get role_id
 vault read auth/approle/role/ci-kubeconfig/role-id
 # → role_id: 12345678-abcd-1234-efgh-123456789abc
 
-# Gerar secret_id
+# Generate secret_id
 vault write -f auth/approle/role/ci-kubeconfig/secret-id
 # → secret_id: abcdefgh-1234-5678-abcd-123456789abc
 ```
 
-> Copie o `role_id` e `secret_id` para os secrets do GitHub (`VAULT_ROLE_ID` e `VAULT_SECRET_ID`).
+> Copy the `role_id` and `secret_id` to GitHub secrets (`VAULT_ROLE_ID` and `VAULT_SECRET_ID`).
 
-### Criar token direto para CI (alternativa simples)
+### Create Direct Token for CI (Simple Alternative)
 
 ```bash
 vault token create \
@@ -316,19 +316,19 @@ vault token create \
   -display-name="github-actions-ci"
 ```
 
-### Configurar Kubernetes Auth (para SA)
+### Configure Kubernetes Auth (for SA)
 
 ```bash
-# Habilitar K8s auth (se ainda não habilitado)
+# Enable K8s auth (if not already enabled)
 vault auth enable -path=k8s-vps-01-oracle kubernetes
 
-# Configurar com CA e endpoint do cluster
+# Configure with CA and cluster endpoint
 vault write auth/k8s-vps-01-oracle/config \
   kubernetes_host="https://k8s-api.example.com:6443" \
   kubernetes_ca_cert=@/path/to/ca.crt \
   token_reviewer_jwt="$(cat /path/to/reviewer-token)"
 
-# Criar role
+# Create role
 vault write auth/k8s-vps-01-oracle/role/ci-kubeconfig \
   bound_service_account_names=github-runner \
   bound_service_account_namespaces=ci \
@@ -338,28 +338,28 @@ vault write auth/k8s-vps-01-oracle/role/ci-kubeconfig \
 
 ---
 
-## Variáveis de Ambiente — Referência Completa
+## Environment Variables — Complete Reference
 
-| Variável               | Descrição                     | Obrigatório | Default                                               |
+| Variable               | Description                   | Required    | Default                                               |
 | ---------------------- | ----------------------------- | ----------- | ----------------------------------------------------- |
-| `VAULT_ADDR`           | Endereço do Vault             | Sim         | —                                                     |
-| `VAULT_SECRET_PATH`    | Path KV v2 do secret          | Sim         | —                                                     |
-| `VAULT_ROLE_ID`        | AppRole role ID (inline)      | Um dos auth | —                                                     |
-| `VAULT_SECRET_ID`      | AppRole secret ID (inline)    | Um dos auth | —                                                     |
-| `VAULT_TOKEN`          | Token direto                  | Um dos auth | —                                                     |
-| `VAULT_K8S_ROLE`       | Role para K8s SA auth         | Um dos auth | —                                                     |
-| `VAULT_K8S_MOUNT_PATH` | Mount path do K8s auth        | Não         | `auth/kubernetes`                                     |
-| `VAULT_SA_TOKEN_PATH`  | Path do token SA              | Não         | `/var/run/secrets/kubernetes.io/serviceaccount/token` |
-| `VAULT_SECRET_FIELD`   | Campo do secret a ler         | Não         | `kubeconfig`                                          |
-| `K8S_RESOURCE_NAME`    | Nome do contexto kubeconfig   | Não         | Último segmento do path                               |
-| `SKIP_NETBIRD`         | Pular conexão VPN             | Não         | `false`                                               |
-| `NETBIRD_ACCESS_KEY`   | Chave de acesso NetBird       | Se usar VPN | —                                                     |
-| `EXPORT_ENV`           | Exportar campos como env vars | Não         | `false`                                               |
-| `GITHUB_ENV_EXPORT`    | Escrever no GITHUB_ENV        | Não         | `false`                                               |
+| `VAULT_ADDR`           | Vault Address                 | Yes         | —                                                     |
+| `VAULT_SECRET_PATH`    | KV v2 Secret Path             | Yes         | —                                                     |
+| `VAULT_ROLE_ID`        | AppRole role ID (inline)      | One of auth | —                                                     |
+| `VAULT_SECRET_ID`      | AppRole secret ID (inline)    | One of auth | —                                                     |
+| `VAULT_TOKEN`          | Direct Token                  | One of auth | —                                                     |
+| `VAULT_K8S_ROLE`       | Role for K8s SA auth          | One of auth | —                                                     |
+| `VAULT_K8S_MOUNT_PATH` | K8s auth mount path           | No          | `auth/kubernetes`                                     |
+| `VAULT_SA_TOKEN_PATH`  | SA token path                 | No          | `/var/run/secrets/kubernetes.io/serviceaccount/token` |
+| `VAULT_SECRET_FIELD`   | Secret field to read          | No          | `kubeconfig`                                          |
+| `K8S_RESOURCE_NAME`    | Kubeconfig context name       | No          | Last segment of path                                  |
+| `SKIP_NETBIRD`         | Skip VPN connection           | No          | `false`                                               |
+| `NETBIRD_ACCESS_KEY`   | NetBird access key            | If using VPN| —                                                     |
+| `EXPORT_ENV`           | Export fields as env vars     | No          | `false`                                               |
+| `GITHUB_ENV_EXPORT`    | Write to GITHUB_ENV           | No          | `false`                                               |
 
 ---
 
-## Fluxo de Execução
+## Execution Flow
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -368,17 +368,17 @@ vault write auth/k8s-vps-01-oracle/role/ci-kubeconfig \
 │                                             │
 │  1. checkout repo                           │
 │  2. ./bin/setup-k8s-vault.sh                │
-│     ├── Instala stackctl                    │
-│     ├── (opcional) Conecta NetBird VPN      │
-│     ├── Autentica no Vault                  │
-│     │   ├── Token direto                    │
+│     ├── Install stackctl                    │
+│     ├── (optional) Connect NetBird VPN      │
+│     ├── Authenticate to Vault               │
+│     │   ├── Direct Token                    │
 │     │   ├── Kubernetes ServiceAccount       │
 │     │   └── AppRole                         │
-│     ├── Lê secret do Vault KV v2            │
-│     └── Modo:                               │
+│     ├── Read secret from Vault KV v2        │
+│     └── Mode:                               │
 │         ├── as-kubeconfig → merge kubectl   │
 │         └── export-env → env vars           │
-│  3. kubectl / app usa os dados              │
+│  3. kubectl / app uses data                 │
 │                                             │
 └─────────────────────────────────────────────┘
 ```
@@ -388,22 +388,22 @@ vault write auth/k8s-vps-01-oracle/role/ci-kubeconfig \
 ## Troubleshooting
 
 ### "Vault authentication failed"
-- Verifique se `VAULT_ADDR` está correto e acessível
-- Se usando AppRole: verifique se `VAULT_ROLE_ID` e `VAULT_SECRET_ID` estão corretos e se o secret_id não expirou
-- Se usando token: verifique se o token não expirou (`vault token lookup`)
-- Se usando K8s SA: verifique se a role e o ServiceAccount estão corretos
+- Verify `VAULT_ADDR` is correct and accessible.
+- If using AppRole: verify `VAULT_ROLE_ID` and `VAULT_SECRET_ID` are correct and secret_id has not expired.
+- If using token: verify token has not expired (`vault token lookup`).
+- If using K8s SA: verify the role and ServiceAccount are correct.
 
 ### "Failed to read secret from Vault"
-- Verifique se o path está correto (inclua `secret/data/` no início para KV v2)
-- Verifique se a policy permite leitura no path
+- Verify the path is correct (include `secret/data/` prefix for KV v2).
+- Verify policy allows reading the path.
 
 ### "Binary not found"
-- Execute `make build-all` e faça commit dos binários em `bin/`
+- Run `make build-all` and commit binaries to `bin/`.
 
 ### "NetBird connection failed"
-- Verifique se `NETBIRD_ACCESS_KEY` está configurado
-- Use `--wait-dns` para aguardar resolução DNS após conectar
+- Verify `NETBIRD_ACCESS_KEY` is configured.
+- Use `--wait-dns` to wait for DNS resolution after connecting.
 
 ### "Kubeconfig field is empty"
-- Verifique se o campo existe no secret: `vault kv get secret/ci/kubeconfig/home-lab`
-- Verifique se o nome do campo está correto (default: `kubeconfig`)
+- Verify the field exists in the secret: `vault kv get secret/ci/kubeconfig/home-lab`.
+- Verify the field name is correct (default: `kubeconfig`).

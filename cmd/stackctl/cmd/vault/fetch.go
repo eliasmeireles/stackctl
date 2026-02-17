@@ -53,14 +53,14 @@ VPN Integration:
 
 Examples:
   # Fetch kubeconfig via AppRole (CI)
-  stackctl vault-fetch --with-netbird --wait-dns \
+  stackctl vault fetch --with-netbird --wait-dns \
     --vault-addr http://vault:8200 \
     --vault-role-id <role-id> --vault-secret-id <secret-id> \
     --secret-path secret/data/ci/kubeconfig/home-lab \
     -r home-lab
 
   # Fetch kubeconfig via Kubernetes ServiceAccount
-  stackctl vault-fetch \
+  stackctl vault fetch \
     --vault-addr http://vault:8200 \
     --vault-k8s-role ci-kubeconfig \
     --vault-k8s-mount-path auth/k8s-vps-01-oracle \
@@ -68,7 +68,7 @@ Examples:
     -r home-lab
 
   # Export all secret fields as env vars (for CI steps)
-  stackctl vault-fetch --export-env --github-env \
+  stackctl vault fetch --export-env --github-env \
     --vault-addr http://vault:8200 --vault-token s.xxx \
     --secret-path secret/data/ci/app-config`,
 		Run: func(cmd *cobra.Command, args []string) {

@@ -77,7 +77,7 @@ func ProcessConfig(k8sConfig string, name string) error {
 	}
 
 	log.Infof("💾 Kubeconfig saved successfully to: %s", kubeconfigPath)
-	log.Info("🎉 Done! Use 'stackctl config list-contexts' to see all available contexts")
+	log.Info("🎉 Done! Use 'stackctl kubeconfig list-contexts' to see all available contexts")
 
 	for _, ctx := range newConfig.Contexts {
 		ValidateConfig(ctx.Name)

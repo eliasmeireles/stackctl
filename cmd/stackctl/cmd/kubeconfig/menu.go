@@ -21,12 +21,12 @@ var (
 
 	configItems = []list.Item{
 		ui.CreateSubMenu("Add Configuration", "Import config from various sources", addConfigItems),
-		ui.CreateItem("VaultList Contexts", "VaultList all available contexts", ui.HoopAction),
+		ui.CreateItem("List Contexts", "List all available contexts", ui.HoopAction),
 		ui.CreateSubMenu("Set Current Context", "Switch to another context", ctxItems),
 		ui.CreateItem("Clean Duplicates", "Remove duplicate entries", ui.HoopAction),
 		ui.CreateSubMenu("Remove Context", "Delete a context from config", ctxItems),
-		ui.CreateDynamicSubMenu("LocalContext to Vault", "LocalContext local context to Vault", LocalContext),
-		ui.CreateDynamicSubMenu("Clusters configuration", "VaultList kubeconfigs stored in Vault", VaultContexts),
+		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext),
+		ui.CreateDynamicSubMenu("Clusters configuration", "List kubeconfigs stored in Vault", VaultContexts),
 	}
 
 	Menu = ui.CreateSubMenu("K8s Config", "Manage Kubernetes configurations", configItems)

@@ -25,7 +25,7 @@ var NewApplyCmdFunc = func() *cobra.Command {
 
 Supports: secrets, policies, auth methods, secrets engines, and roles.
 Execution order: engines -> auth -> policies -> roles -> secrets.
-See examplo.yml for the full reference of all supported fields.
+See example/vault-config.yaml for the full reference of all supported fields.
 
 Examples:
   stackctl vault apply -f vault-config.yml

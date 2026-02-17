@@ -35,11 +35,11 @@ build-cli:
 test-build-cli:
 	 docker buildx build -f ./Dockerfile.cli -t ghcr.io/$${GH_USER}/$${GH_REPO}:latest --load . && \
 	 docker run --rm --privileged --entrypoint /bin/bash ghcr.io/$${GH_USER}/$${GH_REPO}:latest \
-	 -c "nohup netbird service run > /dev/null 2>&1 & sleep 5 && stackctl fetch --resource-name home-lab --with-netbird && echo '✅ Fetch complete, listing pods...' && kubectl get pods -n kube-system"
+	 -c "nohup netbird service run > /dev/null 2>&1 & sleep 5 && stackctl vault fetch --resource-name home-lab --with-netbird && echo '✅ Fetch complete, listing pods...' && kubectl get pods -n kube-system"
 
 test-cli:
 	 docker run --rm --privileged --entrypoint /bin/bash ghcr.io/$${GH_USER}/$${GH_REPO}:latest \
-	 -c "nohup netbird service run > /dev/null 2>&1 & sleep 5 && stackctl fetch --resource-name home-lab --with-netbird && echo '✅ Fetch complete, listing pods...' && kubectl get pods -n kube-system"
+	 -c "nohup netbird service run > /dev/null 2>&1 & sleep 5 && stackctl vault fetch --resource-name home-lab --with-netbird && echo '✅ Fetch complete, listing pods...' && kubectl get pods -n kube-system"
 
 install-cli:
 	@go install ./cmd/stackctl

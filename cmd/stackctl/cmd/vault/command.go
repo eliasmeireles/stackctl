@@ -71,6 +71,7 @@ Subcommands:
 	cmd.AddCommand(NewEngineCmd())
 	cmd.AddCommand(NewRoleCmd())
 	cmd.AddCommand(NewApplyCmd())
+	cmd.AddCommand(NewFetchCommand())
 
 	SharedFlags(cmd)
 
