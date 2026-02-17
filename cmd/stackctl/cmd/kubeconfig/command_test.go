@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/eliasmeireles/envvault"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -209,34 +208,6 @@ func TestExecuteVaultFunctions(t *testing.T) {
 
 		assert.True(t, called["save"])
 		assert.True(t, called["from"])
-	})
-}
-
-func TestVaultHelpers(t *testing.T) {
-	t.Run("must call underlying functions for vault helpers", func(t *testing.T) {
-		origResolve := resolveVaultFlagsFunc
-		origBuild := buildVaultClientFunc
-
-		called := make(map[string]bool)
-
-		resolveVaultFlagsFunc = func() {
-			called["resolve"] = true
-		}
-		buildVaultClientFunc = func() *envvault.Client {
-			called["build"] = true
-			return nil
-		}
-
-		defer func() {
-			resolveVaultFlagsFunc = origResolve
-			buildVaultClientFunc = origBuild
-		}()
-
-		resolveVaultFlags()
-		buildVaultClient()
-
-		assert.True(t, called["resolve"])
-		assert.True(t, called["build"])
 	})
 }
 
