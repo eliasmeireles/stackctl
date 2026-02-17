@@ -7,12 +7,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/eliasmeireles/envvault"
-	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/auth"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -24,19 +23,22 @@ type Secret interface {
 }
 
 type secret struct {
-	auth           auth.Client
-	vaultApi       *api.Client
-	envVaultClient *envvault.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewSecret(auth auth.Client, vaultApi *api.Client, envVaultClient *envvault.Client) Secret {
-	return &secret{auth: auth, vaultApi: vaultApi, envVaultClient: envVaultClient}
+func NewSecret(auth auth.Client, vaultApi client.Api) Secret {
+	return &secret{auth: auth, vaultApi: vaultApi}
 }
 
 func (c *secret) List() ([]list.Item, error) {
 	flags.Resolve()
+	vaultApi, err := c.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
 
-	mounts, err := c.vaultApi.Sys().ListMounts()
+	mounts, err := vaultApi.Sys().ListMounts()
 	if err != nil {
 		return nil, fmt.Errorf("❌ Failed to list engines: %v", err)
 	}
@@ -76,7 +78,12 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 	flags.Resolve()
 
-	secret, err := c.vaultApi.Logical().List(metadataPath)
+	vaultApi, err := c.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := vaultApi.Logical().List(metadataPath)
 	if err != nil {
 		return nil, fmt.Errorf("❌ Failed to list %s: %v", metadataPath, err)
 	}
@@ -151,7 +158,13 @@ func (c *secret) Detail(metadataPath string) (string, string, error) {
 	// e.g. secret/metadata/ci/app -> secret/data/ci/app
 	dataPath := strings.Replace(metadataPath, "/metadata/", "/data/", 1)
 
-	data, err := c.envVaultClient.ReadSecret(dataPath)
+	envVaultClient, err := c.vaultApi.EnvVaultClient()
+
+	if err != nil {
+		return "", "", err
+	}
+
+	data, err := envVaultClient.ReadSecret(dataPath)
 	if err != nil {
 		log.Errorf("❌ Failed to read secret: %v", err)
 		return metadataPath, fmt.Sprintf("  Error: %v", err), err
@@ -178,7 +191,13 @@ func (c *secret) Detail(metadataPath string) (string, string, error) {
 
 // Delete returns a provider for browsing and deleting secrets.
 func (c *secret) Delete() ([]list.Item, error) {
-	mounts, err := c.vaultApi.Sys().ListMounts()
+	vaultApi, err := c.vaultApi.Client()
+
+	if err != nil {
+		return nil, err
+	}
+
+	mounts, err := vaultApi.Sys().ListMounts()
 
 	if err != nil {
 		return nil, fmt.Errorf("❌ Failed to list engines: %v", err)
@@ -209,8 +228,13 @@ func (c *secret) Delete() ([]list.Item, error) {
 
 func (c *secret) delete(metadataPath string) ([]list.Item, error) {
 	flags.Resolve()
+	vaultApi, err := c.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
 
-	secret, err := c.vaultApi.Logical().List(metadataPath)
+	secret, err := vaultApi.Logical().List(metadataPath)
+
 	if err != nil {
 		log.Errorf("❌ Failed to list %s: %v", metadataPath, err)
 		return nil, fmt.Errorf("delete failed on list %s: %v", metadataPath, err)
@@ -286,9 +310,14 @@ func (c *secret) secretDeleteAction(metadataPath string) func(args []string) tea
 				return nil
 			}
 
-			c.vaultApi.SetToken(token)
+			vaultApi, err := c.vaultApi.Client()
+			if err != nil {
+				return err
+			}
 
-			_, err = c.vaultApi.Logical().Delete(metadataPath)
+			vaultApi.SetToken(token)
+
+			_, err = vaultApi.Logical().Delete(metadataPath)
 			if err != nil {
 				fmt.Printf("\n❌ Failed to delete secret at %s: %v\n", metadataPath, err)
 				return nil

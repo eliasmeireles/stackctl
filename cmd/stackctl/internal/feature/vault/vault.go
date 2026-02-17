@@ -1,27 +1,56 @@
 package vault
 
 import (
-	mockvault "github.com/eliasmeireles/envvault/mock/vault"
+	"os"
+
+	"github.com/eliasmeireles/envvault"
 )
 
-// Type aliases re-exported from envvault/mock/vault so that consumers
-// within this package do not need to import the mock package directly.
-type (
-	// PolicyManager abstracts Vault policy CRUD operations.
-	PolicyManager = mockvault.PolicyManager
+// Flags holds the resolved Vault authentication flags.
+// Flags take precedence over environment variables, which take precedence
+// over the $HOME/.vault-token fallback.
+type Flags struct {
+	Addr         string
+	Token        string
+	RoleID       string
+	SecretID     string
+	K8sRole      string
+	K8sMountPath string
+	SATokenPath  string
+}
 
-	// AuthManager abstracts Vault auth method operations.
-	AuthManager = mockvault.AuthManager
+// ResolveFlags merges flag values with environment variables.
+// Flags take precedence; empty flags fall back to env vars.
+func ResolveFlags(f *Flags) {
+	resolveFromEnv(&f.Addr, envvault.EnvVaultAddr)
+	resolveFromEnv(&f.Token, envvault.EnvVaultToken)
+	resolveFromEnv(&f.RoleID, envvault.EnvVaultRoleID)
+	resolveFromEnv(&f.SecretID, envvault.EnvVaultSecretID)
+	resolveFromEnv(&f.K8sRole, envvault.EnvVaultK8sRole)
+	resolveFromEnv(&f.K8sMountPath, envvault.EnvVaultK8sMountPath)
+	resolveFromEnv(&f.SATokenPath, envvault.EnvVaultSATokenPath)
+}
 
-	// AuthMount represents an enabled auth method.
-	AuthMount = mockvault.AuthMount
+// PushToEnv writes non-empty flag values back to environment variables
+// so that envvault.ConfigFromEnvForReadOnly picks them up.
+func (f *Flags) PushToEnv() {
+	setEnvIfNotEmpty(envvault.EnvVaultAddr, f.Addr)
+	setEnvIfNotEmpty(envvault.EnvVaultToken, f.Token)
+	setEnvIfNotEmpty(envvault.EnvVaultRoleID, f.RoleID)
+	setEnvIfNotEmpty(envvault.EnvVaultSecretID, f.SecretID)
+	setEnvIfNotEmpty(envvault.EnvVaultK8sRole, f.K8sRole)
+	setEnvIfNotEmpty(envvault.EnvVaultK8sMountPath, f.K8sMountPath)
+	setEnvIfNotEmpty(envvault.EnvVaultSATokenPath, f.SATokenPath)
+}
 
-	// EngineManager abstracts Vault secrets engine operations.
-	EngineManager = mockvault.EngineManager
+func resolveFromEnv(flag *string, envKey string) {
+	if *flag == "" {
+		*flag = os.Getenv(envKey)
+	}
+}
 
-	// EngineMount represents an enabled secrets engine.
-	EngineMount = mockvault.EngineMount
-
-	// LogicalWriter abstracts Vault logical read/write/delete operations.
-	LogicalWriter = mockvault.LogicalWriter
-)
+func setEnvIfNotEmpty(key, value string) {
+	if value != "" {
+		_ = os.Setenv(key, value)
+	}
+}

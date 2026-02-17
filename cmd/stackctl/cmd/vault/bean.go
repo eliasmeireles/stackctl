@@ -12,9 +12,7 @@ import (
 )
 
 var (
-	ApiClient        *api.Client
 	AuthClient       auth.Client
-	EnvVaultClient   *envvault.Client
 	SecretClient     client.Secret
 	PolicyClient     client.Policy
 	EngineClient     client.EngineWithMenu
@@ -23,17 +21,6 @@ var (
 )
 
 func init() {
-	ApiClient = client.NewApi()
-	AuthClient = auth.NewClient(ApiClient)
-
-	var err error
-
-	EnvVaultClient, err = vault.NewEnvVaultClient()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	SecretClient = client.NewSecret(AuthClient, ApiClient, EnvVaultClient)
 	PolicyClient = client.NewPolicy(AuthClient, ApiClient)
 	EngineClient = client.NewEngineWithMenu(AuthClient, ApiClient)
