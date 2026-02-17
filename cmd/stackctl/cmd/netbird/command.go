@@ -9,7 +9,6 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/env"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/netbird"
-	netbirdFeature "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/netbird"
 )
 
 const (
@@ -130,15 +129,15 @@ var NewUpCmdFunc = func() *cobra.Command {
 		"API host URL (can also be set via API_HOST env var)",
 	)
 	cmd.PersistentFlags().BoolVar(
-		&netbirdFeature.DNSResolution, "wait-dns", false,
+		&netbird.DNSResolution, "wait-dns", false,
 		"Wait for DNS resolution for NetBird based on API host",
 	)
 	cmd.PersistentFlags().IntVar(
-		&netbirdFeature.MaxRetries, "wait-dns-max-retries", 10,
+		&netbird.MaxRetries, "wait-dns-max-retries", 10,
 		"Max retries for DNS resolution",
 	)
 	cmd.PersistentFlags().IntVar(
-		&netbirdFeature.SleepTime, "wait-dns-sleep-time", 2,
+		&netbird.SleepTime, "wait-dns-sleep-time", 2,
 		"Sleep time between DNS resolution retries",
 	)
 	return cmd

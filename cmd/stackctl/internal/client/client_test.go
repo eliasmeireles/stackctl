@@ -62,7 +62,7 @@ func TestFetchK8sResource_Success(t *testing.T) {
 			Config: expectedConfig,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -80,7 +80,7 @@ func TestFetchK8sResource_Success(t *testing.T) {
 func TestFetchK8sResource_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Unauthorized"))
+		_, _ = w.Write([]byte("Unauthorized"))
 	}))
 	defer server.Close()
 
@@ -95,7 +95,7 @@ func TestFetchK8sResource_Unauthorized(t *testing.T) {
 func TestFetchK8sResource_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Resource not found"))
+		_, _ = w.Write([]byte("Resource not found"))
 	}))
 	defer server.Close()
 
@@ -110,7 +110,7 @@ func TestFetchK8sResource_NotFound(t *testing.T) {
 func TestFetchK8sResource_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -149,7 +149,7 @@ func TestLogin_Success(t *testing.T) {
 			IssuedAt: 1766168748,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

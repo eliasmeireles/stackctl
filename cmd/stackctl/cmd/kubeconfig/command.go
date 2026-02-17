@@ -206,7 +206,7 @@ var newSetNamespaceCmdFunc = func() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&setCtx, "context", "", "Specific context to set namespace for")
-	cmd.RegisterFlagCompletionFunc("context", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	_ = cmd.RegisterFlagCompletionFunc("context", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		contexts, err := kubeconfig.GetContextNames(kubeconfig.GetPath())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveError
@@ -298,7 +298,7 @@ Examples:
 				configStr = base64.StdEncoding.EncodeToString(content)
 			} else {
 				if len(args) == 0 {
-					cmd.Help()
+					_ = cmd.Help()
 					return fmt.Errorf("❌ Error: Valid base64 config argument, --file or --scp flag required")
 				}
 				configStr = args[0]
@@ -342,7 +342,7 @@ Examples:
 				return nil
 			case "From Local File":
 				if len(remainingArgs) > 0 {
-					cmd.Flags().Set("file", remainingArgs[0])
+					_ = cmd.Flags().Set("file", remainingArgs[0])
 					return originalRunE(cmd, []string{})
 				}
 				return nil
@@ -352,9 +352,9 @@ Examples:
 					if sshUser == "" {
 						sshUser = "root"
 					}
-					cmd.Flags().Set("host", remainingArgs[0])
-					cmd.Flags().Set(sshUserFlag, sshUser)
-					cmd.Flags().Set("remote-file", remainingArgs[2])
+					_ = cmd.Flags().Set("host", remainingArgs[0])
+					_ = cmd.Flags().Set(sshUserFlag, sshUser)
+					_ = cmd.Flags().Set("remote-file", remainingArgs[2])
 					return originalRunE(cmd, []string{})
 				}
 				return nil
@@ -364,9 +364,9 @@ Examples:
 					if sshUser == "" {
 						sshUser = "root"
 					}
-					cmd.Flags().Set("host", remainingArgs[0])
-					cmd.Flags().Set(sshUserFlag, sshUser)
-					cmd.Flags().Set("k3s", "true")
+					_ = cmd.Flags().Set("host", remainingArgs[0])
+					_ = cmd.Flags().Set(sshUserFlag, sshUser)
+					_ = cmd.Flags().Set("k3s", "true")
 					return originalRunE(cmd, []string{})
 				}
 				return nil

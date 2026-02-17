@@ -139,7 +139,7 @@ var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEn
 
 	for key, value := range data {
 		strValue := fmt.Sprintf("%v", value)
-		os.Setenv(key, strValue)
+		_ = os.Setenv(key, strValue)
 		if githubEnv {
 			writeGitHubEnv(key, strValue)
 		}
@@ -164,9 +164,10 @@ var writeGitHubEnvFunc = func(name, value string) {
 		log.Errorf("❌ Failed to open GITHUB_ENV: %v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	if _, err := f.WriteString(fmt.Sprintf("%s=%s\n", name, value)); err != nil {
+	_, err = fmt.Fprintf(f, "%s=%s\n", name, value)
+	if err != nil {
 		log.Errorf("❌ Failed to write to GITHUB_ENV: %v", err)
 	}
 }

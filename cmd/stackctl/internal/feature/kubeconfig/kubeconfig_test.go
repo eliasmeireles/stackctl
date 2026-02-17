@@ -9,8 +9,7 @@ import (
 func TestGetPath(t *testing.T) {
 	// Test with KUBECONFIG env var
 	expectedPath := "/custom/path/config"
-	os.Setenv("KUBECONFIG", expectedPath)
-	defer os.Unsetenv("KUBECONFIG")
+	t.Setenv("KUBECONFIG", expectedPath)
 
 	path := GetPath()
 	if path != expectedPath {
@@ -18,7 +17,7 @@ func TestGetPath(t *testing.T) {
 	}
 
 	// Test without KUBECONFIG env var
-	os.Unsetenv("KUBECONFIG")
+	_ = os.Unsetenv("KUBECONFIG")
 	path = GetPath()
 	homeDir, _ := os.UserHomeDir()
 	expectedDefault := filepath.Join(homeDir, ".kube", "config")

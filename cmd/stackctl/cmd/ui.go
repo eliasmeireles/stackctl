@@ -78,10 +78,10 @@ func waitForReturn() bool {
 	if err != nil {
 		// Fallback to Scanln if raw mode fails
 		var input string
-		fmt.Scanln(&input)
+		_, _ = fmt.Scanln(&input)
 		return !strings.HasPrefix(strings.ToLower(input), "q")
 	}
-	defer term.Restore(int(syscall.Stdin), oldState)
+	defer func() { _ = term.Restore(int(syscall.Stdin), oldState) }()
 
 	b := make([]byte, 3)
 	n, err := os.Stdin.Read(b)

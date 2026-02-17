@@ -303,11 +303,6 @@ func getContextName(clusterName string) string {
 	return clusterName
 }
 
-// getUserName generates a user name from cluster name
-func getUserName(clusterName string) string {
-	return clusterName + "-user"
-}
-
 // GetContextName returns the context name for a cluster (exported for main)
 func GetContextName(clusterName string) string {
 	return getContextName(clusterName)

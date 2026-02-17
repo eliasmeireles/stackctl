@@ -21,7 +21,7 @@ var rootCmd = &cobra.Command{
 			RunUI()
 			return
 		}
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 

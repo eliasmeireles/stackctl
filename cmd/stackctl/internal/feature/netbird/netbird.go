@@ -117,7 +117,7 @@ func CheckStatus() {
 // but we just need to start the process/service manually or via the 'service' command.
 func StartDaemon() {
 	// Try installing service (ignore error as it might be installed)
-	execCommand(NetBirdBinary, "service", "install").Run()
+	_ = execCommand(NetBirdBinary, "service", "install").Run()
 
 	// Start service
 	log.Info("⚙️  Starting NetBird daemon...")

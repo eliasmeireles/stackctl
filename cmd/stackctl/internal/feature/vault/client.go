@@ -117,7 +117,7 @@ func validateVaultConnectivity(addr string) error {
 			addr, DefaultVaultTimeout, err,
 		)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Vault health endpoint returns various status codes:
 	// 200 = initialized, unsealed, active
@@ -169,6 +169,6 @@ func resolveFromEnv(flag *string, envKey string) {
 
 func setEnvIfNotEmpty(key, value string) {
 	if value != "" {
-		os.Setenv(key, value)
+			_ = os.Setenv(key, value)
 	}
 }

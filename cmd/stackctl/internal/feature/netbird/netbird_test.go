@@ -104,17 +104,16 @@ func TestIsConnected(t *testing.T) {
 	execCommand = mockExecCommand
 
 	// Case 1: Connected
-	os.Setenv("MOCK_NETBIRD_STATUS", "connected")
+	t.Setenv("MOCK_NETBIRD_STATUS", "connected")
 	assert.True(t, IsConnected())
 
 	// Case 2: Disconnected
-	os.Setenv("MOCK_NETBIRD_STATUS", "disconnected")
+	t.Setenv("MOCK_NETBIRD_STATUS", "disconnected")
 	assert.False(t, IsConnected())
 
 	// Case 3: Error
-	os.Setenv("MOCK_NETBIRD_STATUS", "fail")
+	t.Setenv("MOCK_NETBIRD_STATUS", "fail")
 	assert.False(t, IsConnected())
-	os.Unsetenv("MOCK_NETBIRD_STATUS")
 }
 
 func TestInstall(t *testing.T) {
@@ -140,6 +139,11 @@ func TestInstall(t *testing.T) {
 	}
 	err = Install()
 	assert.NoError(t, err)
+
+	// Case 3: Fail
+	t.Setenv("MOCK_NETBIRD_UP_FAIL", "1")
+	err = Up("setup-key", "")
+	assert.Error(t, err)
 }
 
 func TestUp(t *testing.T) {
@@ -168,10 +172,9 @@ func TestUp(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Case 3: Fail
-	os.Setenv("MOCK_NETBIRD_UP_FAIL", "1")
+	t.Setenv("MOCK_NETBIRD_UP_FAIL", "1")
 	err = Up("setup-key", "")
 	assert.Error(t, err)
-	os.Unsetenv("MOCK_NETBIRD_UP_FAIL")
 }
 
 func TestWaitForDNS(t *testing.T) {

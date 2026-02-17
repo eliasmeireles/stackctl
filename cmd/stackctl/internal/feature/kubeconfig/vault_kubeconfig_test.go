@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"testing"
-
-	"gopkg.in/yaml.v3"
 )
 
 func TestDecodeBase64Config(t *testing.T) {
@@ -160,29 +158,4 @@ func TestNewVaultKubeconfigService_WithOptions(t *testing.T) {
 	if svc.secretKey != "MY_KEY" {
 		t.Errorf("expected secret key 'MY_KEY', got %q", svc.secretKey)
 	}
-}
-
-// Helper to create a valid base64-encoded kubeconfig for testing.
-func makeEncodedKubeconfig(t *testing.T, contextName string) string {
-	t.Helper()
-	config := &Config{
-		APIVersion: "v1",
-		Kind:       "Config",
-		Clusters: []Cluster{
-			{Name: contextName, Cluster: ClusterConfig{Server: "https://10.0.0.1:6443"}},
-		},
-		Contexts: []Context{
-			{Name: contextName, Context: ContextConfig{Cluster: contextName, User: contextName + "-user"}},
-		},
-		Users: []User{
-			{Name: contextName + "-user", User: UserConfig{Token: "test-token"}},
-		},
-		CurrentContext: contextName,
-	}
-
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		t.Fatalf("failed to marshal test kubeconfig: %v", err)
-	}
-	return base64.StdEncoding.EncodeToString(data)
 }
