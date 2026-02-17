@@ -3,7 +3,6 @@ package vault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -521,7 +520,7 @@ func secretDeleteAction(metadataPath string) func(args []string) tea.Cmd {
 		return func() tea.Msg {
 			if len(args) < 2 {
 				fmt.Println("\n❌ Error: username and password required")
-				os.Exit(1)
+				return nil
 			}
 
 			username := args[0]
@@ -532,7 +531,7 @@ func secretDeleteAction(metadataPath string) func(args []string) tea.Cmd {
 			token, err := authenticateAndValidate(username, password, metadataPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				os.Exit(1)
+				return nil
 			}
 
 			apiClient := mustVaultAPIClient()
@@ -542,12 +541,11 @@ func secretDeleteAction(metadataPath string) func(args []string) tea.Cmd {
 			if err != nil {
 				log.Errorf("❌ Failed to delete secret: %v", err)
 				fmt.Printf("\n❌ Failed to delete secret at %s: %v\n", metadataPath, err)
-				os.Exit(1)
+				return nil
 			}
 
 			log.Infof("✅ Secret deleted: %s", metadataPath)
 			fmt.Printf("\n✅ Secret deleted: %s\n", metadataPath)
-			os.Exit(0)
 			return nil
 		}
 	}
@@ -603,7 +601,7 @@ func policyDeleteAction(policyName string) func(args []string) tea.Cmd {
 		return func() tea.Msg {
 			if len(args) < 2 {
 				fmt.Println("\n❌ Error: username and password required")
-				os.Exit(1)
+				return nil
 			}
 
 			username := args[0]
@@ -615,7 +613,7 @@ func policyDeleteAction(policyName string) func(args []string) tea.Cmd {
 			token, err := authenticateAndValidate(username, password, policyPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				os.Exit(1)
+				return nil
 			}
 
 			apiClient := mustVaultAPIClient()
@@ -624,12 +622,11 @@ func policyDeleteAction(policyName string) func(args []string) tea.Cmd {
 			if err := apiClient.Sys().DeletePolicy(policyName); err != nil {
 				log.Errorf("❌ Failed to delete policy: %v", err)
 				fmt.Printf("\n❌ Failed to delete policy %s: %v\n", policyName, err)
-				os.Exit(1)
+				return nil
 			}
 
 			log.Infof("✅ Policy deleted: %s", policyName)
 			fmt.Printf("\n✅ Policy deleted: %s\n", policyName)
-			os.Exit(0)
 			return nil
 		}
 	}
@@ -678,7 +675,7 @@ func authDisableAction(path string) func(args []string) tea.Cmd {
 		return func() tea.Msg {
 			if len(args) < 2 {
 				fmt.Println("\n❌ Error: username and password required")
-				os.Exit(1)
+				return nil
 			}
 
 			username := args[0]
@@ -690,7 +687,7 @@ func authDisableAction(path string) func(args []string) tea.Cmd {
 			token, err := authenticateAndValidate(username, password, authPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				os.Exit(1)
+				return nil
 			}
 
 			apiClient := mustVaultAPIClient()
@@ -699,12 +696,11 @@ func authDisableAction(path string) func(args []string) tea.Cmd {
 			if err := apiClient.Sys().DisableAuth(path); err != nil {
 				log.Errorf("❌ Failed to disable auth method: %v", err)
 				fmt.Printf("\n❌ Failed to disable auth method at %s: %v\n", path, err)
-				os.Exit(1)
+				return nil
 			}
 
 			log.Infof("✅ Auth method disabled: %s", path)
 			fmt.Printf("\n✅ Auth method disabled: %s\n", path)
-			os.Exit(0)
 			return nil
 		}
 	}
@@ -753,7 +749,7 @@ func engineDisableAction(path string) func(args []string) tea.Cmd {
 		return func() tea.Msg {
 			if len(args) < 2 {
 				fmt.Println("\n❌ Error: username and password required")
-				os.Exit(1)
+				return nil
 			}
 
 			username := args[0]
@@ -765,7 +761,7 @@ func engineDisableAction(path string) func(args []string) tea.Cmd {
 			token, err := authenticateAndValidate(username, password, mountPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				os.Exit(1)
+				return nil
 			}
 
 			apiClient := mustVaultAPIClient()
@@ -774,12 +770,11 @@ func engineDisableAction(path string) func(args []string) tea.Cmd {
 			if err := apiClient.Sys().Unmount(path); err != nil {
 				log.Errorf("❌ Failed to disable engine: %v", err)
 				fmt.Printf("\n❌ Failed to disable engine at %s: %v\n", path, err)
-				os.Exit(1)
+				return nil
 			}
 
 			log.Infof("✅ Secrets engine disabled: %s", path)
 			fmt.Printf("\n✅ Secrets engine disabled: %s\n", path)
-			os.Exit(0)
 			return nil
 		}
 	}

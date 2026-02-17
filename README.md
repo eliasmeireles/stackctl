@@ -323,13 +323,13 @@ stackctl kubeconfig add-from-vault secret/data/kubeconfig/prod-cluster \
 List all kubeconfigs stored in Vault.
 
 ```bash
-stackctl kubeconfig list-remote
+stackctl kubeconfig contexts
 ```
 
 **Example:**
 
 ```bash
-stackctl kubeconfig list-remote \
+stackctl kubeconfig contexts \
   --addr https://vault.example.com \
   --token hvs.xxxxx
 # List of kubeconfigs stored in Vault:
@@ -1023,7 +1023,7 @@ stackctl kubeconfig save-to-vault dev-cluster
 stackctl kubeconfig save-to-vault staging-cluster
 
 # List remote configs
-stackctl kubeconfig list-remote
+stackctl kubeconfig contexts
 
 # Switch between clusters
 stackctl kubeconfig set-context prod-cluster

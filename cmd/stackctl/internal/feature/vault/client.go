@@ -55,11 +55,11 @@ func (f *Flags) PushToEnv() {
 	setEnvIfNotEmpty(envvault.EnvVaultSATokenPath, f.SATokenPath)
 }
 
-// NewEnvvaultClient creates and authenticates an envvault.Client
+// NewEnvVaultClient creates and authenticates an envvault.Client
 // using the current environment variables (after PushToEnv).
 // It pre-validates Vault connectivity and token validity with a timeout
 // to avoid hanging when the server is unreachable or the token is expired.
-func NewEnvvaultClient() (*envvault.Client, error) {
+func NewEnvVaultClient() (*envvault.Client, error) {
 	cfg, err := envvault.ConfigFromEnvForReadOnly()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Vault config: %w", err)
@@ -84,7 +84,7 @@ func NewEnvvaultClient() (*envvault.Client, error) {
 // NewAPIClient creates and authenticates a raw HashiCorp Vault API client.
 // Includes pre-validation of connectivity and token validity.
 func NewAPIClient() (*api.Client, error) {
-	evClient, err := NewEnvvaultClient()
+	evClient, err := NewEnvVaultClient()
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +169,6 @@ func resolveFromEnv(flag *string, envKey string) {
 
 func setEnvIfNotEmpty(key, value string) {
 	if value != "" {
-			_ = os.Setenv(key, value)
+		_ = os.Setenv(key, value)
 	}
 }

@@ -1,8 +1,6 @@
 package kubeconfig
 
 import (
-	"os"
-
 	"github.com/eliasmeireles/envvault"
 	log "github.com/sirupsen/logrus"
 
@@ -31,10 +29,10 @@ func buildVaultClient() *envvault.Client {
 }
 
 var buildVaultClientFunc = func() *envvault.Client {
-	client, err := vaultpkg.NewEnvvaultClient()
+	client, err := vaultpkg.NewEnvVaultClient()
 	if err != nil {
 		log.Errorf("❌ %v", err)
-		os.Exit(1)
+		return nil
 	}
 	return client
 }

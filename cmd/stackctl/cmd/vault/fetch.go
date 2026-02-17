@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/envvault"
+
 	featureKubeconfig "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 )
 
@@ -86,7 +87,7 @@ Examples:
 
 			if vaultSecretPath == "" {
 				log.Error("❌ --secret-path or VAULT_SECRET_PATH is required")
-				os.Exit(1)
+				return
 			}
 
 			vaultClient := buildVaultClient()
@@ -134,7 +135,7 @@ var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEn
 	data, err := client.ReadSecret(secretPath)
 	if err != nil {
 		log.Errorf("❌ Failed to read secret from Vault: %v", err)
-		os.Exit(1)
+		return
 	}
 
 	for key, value := range data {
@@ -182,13 +183,11 @@ var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resou
 	data, err := client.ReadSecret(secretPath)
 	if err != nil {
 		log.Errorf("❌ Failed to read secret: %v", err)
-		os.Exit(1)
 	}
 
 	kubeconfigBase64, ok := data[field].(string)
 	if !ok {
 		log.Errorf("❌ Field %q not found or not a string in %s", field, secretPath)
-		os.Exit(1)
 	}
 
 	kubeconfigPath := featureKubeconfig.GetPath()
@@ -200,7 +199,7 @@ var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resou
 	svc := featureKubeconfig.NewVaultKubeconfigService(nil)
 	if err := svc.FetchKubeconfigFromVault(secretPath, kubeconfigPath, name); err != nil {
 		log.Errorf("❌ Failed to merge kubeconfig: %v", err)
-		os.Exit(1)
+		return
 	}
 
 	log.Infof("✅ Kubeconfig from %s[%s] merged into %s", secretPath, field, kubeconfigPath)

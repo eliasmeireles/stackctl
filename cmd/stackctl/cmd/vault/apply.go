@@ -48,7 +48,7 @@ Examples:
 
 			resolveVaultFlags()
 
-			evClient, err := vaultpkg.NewEnvvaultClient()
+			evClient, err := vaultpkg.NewEnvVaultClient()
 			if err != nil {
 				return fmt.Errorf("❌ %v", err)
 			}

@@ -76,7 +76,7 @@ func TestNewCommand(t *testing.T) {
 		expectedSubs := []string{
 			"list-contexts", "clean", "get-context", "set-context",
 			"set-namespace", "add", "remove",
-			"add-from-vault", "save-to-vault", "list-remote",
+			"add-from-vault", "save-to-vault", "contexts",
 		}
 
 		for _, expected := range expectedSubs {

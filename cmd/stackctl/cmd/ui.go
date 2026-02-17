@@ -31,7 +31,7 @@ func RunUI() {
 		finalModel, err := p.Run()
 		if err != nil {
 			fmt.Printf("Error running UI: %v", err)
-			os.Exit(1)
+			break
 		}
 
 		m = finalModel.(ui.Model)
