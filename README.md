@@ -996,7 +996,7 @@ stackctl vault apply -f vault-config.yaml --addr $VAULT_ADDR --token $VAULT_TOKE
 
 # 2. Store kubeconfig in Vault
 stackctl vault secret put secret/data/ci/kubeconfig/prod \
-  kubeconfig="$(base64 -w0 ~/.kube/config)"
+  kubeconfig="$(base64 -w0 -i ~/.kube/config)"
 
 # 3. Create AppRole for CI
 stackctl vault role put auth/approle ci-deployer \
