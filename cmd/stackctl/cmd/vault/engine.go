@@ -5,10 +5,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/hashicorp/vault/api"
-
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func NewEngineCmd() *cobra.Command {
@@ -38,12 +34,9 @@ var NewEngineListCmdFunc = func() *cobra.Command {
 		Short:        "List enabled secrets engines",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			mounts, err := apiClient.Sys().ListMounts()
+			mounts, err := EngineClient.List()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to list secrets engines: %v", err)
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			for path, mount := range mounts {
@@ -77,32 +70,16 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
 			engType := args[0]
+
+			if err := EngineClient.Enable(engType, enginePath, engineDescription, engineVersion); err != nil {
+				return fmt.Errorf("❌ %v", err)
+			}
+
 			mountPath := enginePath
 			if mountPath == "" {
 				mountPath = engType
 			}
-
-			opts := &api.MountInput{
-				Type:        engType,
-				Description: engineDescription,
-			}
-
-			if engType == "kv-v2" || engType == "kv" {
-				opts.Type = "kv"
-				if engineVersion == "" {
-					engineVersion = "2"
-				}
-				opts.Options = map[string]string{"version": engineVersion}
-			}
-
-			if err := apiClient.Sys().Mount(mountPath, opts); err != nil {
-				return fmt.Errorf("❌ Failed to enable engine %q at %q: %v", engType, mountPath, err)
-			}
-
 			log.Infof("✅ Secrets engine %q enabled at %q", engType, mountPath)
 			return nil
 		},
@@ -131,11 +108,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			if err := apiClient.Sys().Unmount(args[0]); err != nil {
-				return fmt.Errorf("❌ Failed to disable engine at %q: %v", args[0], err)
+			if err := EngineClient.Disable(args[0]); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			log.Infof("✅ Secrets engine at %q disabled", args[0])

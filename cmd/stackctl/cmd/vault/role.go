@@ -3,12 +3,9 @@ package vault
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 // NewRoleCmd creates the role subcommand.
@@ -50,31 +47,21 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			listPath := fmt.Sprintf("%s/role", strings.TrimRight(args[0], "/"))
-
-			secret, err := apiClient.Logical().List(listPath)
+			roles, err := RoleClient.List(args[0])
 			if err != nil {
-				return fmt.Errorf("❌ Failed to list roles at %q: %v", listPath, err)
+				return fmt.Errorf("❌ %v", err)
 			}
 
-			if secret == nil || secret.Data == nil {
+			if len(roles) == 0 {
 				log.Info("No roles found.")
 				return nil
 			}
 
-			keysRaw, ok := secret.Data["keys"].([]interface{})
-			if !ok {
-				return fmt.Errorf("❌ Unexpected response format")
+			for _, role := range roles {
+				fmt.Println(role)
 			}
 
-			for _, k := range keysRaw {
-				fmt.Println(k)
-			}
-
-			log.Infof("✅ Found %d role(s)", len(keysRaw))
+			log.Infof("✅ Found %d role(s)", len(roles))
 			return nil
 		},
 	}
@@ -98,21 +85,12 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(args[0], "/"), args[1])
-
-			secret, err := apiClient.Logical().Read(rolePath)
+			data, err := RoleClient.Get(args[0], args[1])
 			if err != nil {
-				return fmt.Errorf("❌ Failed to read role %q: %v", rolePath, err)
+				return fmt.Errorf("❌ %v", err)
 			}
 
-			if secret == nil || secret.Data == nil {
-				return fmt.Errorf("❌ Role not found at %q", rolePath)
-			}
-
-			output, err := json.MarshalIndent(secret.Data, "", "  ")
+			output, err := json.MarshalIndent(data, "", "  ")
 			if err != nil {
 				return fmt.Errorf("❌ Failed to format output: %v", err)
 			}
@@ -164,12 +142,8 @@ For AppRole auth:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			authMount := strings.TrimRight(args[0], "/")
+			authMount := args[0]
 			roleName := args[1]
-			rolePath := fmt.Sprintf("%s/role/%s", authMount, roleName)
 
 			data := make(map[string]interface{})
 
@@ -202,15 +176,10 @@ For AppRole auth:
 				data["secret_id_num_uses"] = roleSecretIDNumUses
 			}
 
-			if len(data) == 0 {
-				return fmt.Errorf("❌ No role parameters specified")
-			}
-
 			log.Infof("📝 Writing role %q at %q", roleName, authMount)
 
-			_, err := apiClient.Logical().Write(rolePath, data)
-			if err != nil {
-				return fmt.Errorf("❌ Failed to write role %q: %v", rolePath, err)
+			if err := RoleClient.Put(authMount, roleName, data); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			log.Infof("✅ Role %q written successfully", roleName)
@@ -252,17 +221,11 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.resolveVaultFlags()
-			apiClient := flags.mustVaultAPIClient()
-
-			rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(args[0], "/"), args[1])
-
-			_, err := apiClient.Logical().Delete(rolePath)
-			if err != nil {
-				return fmt.Errorf("❌ Failed to delete role at %q: %v", rolePath, err)
+			if err := RoleClient.Delete(args[0], args[1]); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
-			log.Infof("✅ Role at %q deleted successfully", rolePath)
+			log.Infof("✅ Role deleted successfully")
 			return nil
 		},
 	}

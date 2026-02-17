@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 )
 
@@ -423,7 +423,7 @@ var newAddFromVaultCmdFunc = func() *cobra.Command {
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }
 
@@ -446,7 +446,7 @@ var newSaveToVaultCmdFunc = func() *cobra.Command {
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }
 
@@ -471,6 +471,6 @@ var newListRemoteCmdFunc = func() *cobra.Command {
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }

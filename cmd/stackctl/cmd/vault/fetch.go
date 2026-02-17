@@ -12,6 +12,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	featureKubeconfig "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
+	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 )
 
 // NewFetchCommand creates a new Fetch command.
@@ -74,7 +75,7 @@ Examples:
     --vault-addr http://vault:8200 --vault-token s.xxx \
     --secret-path secret/data/ci/app-config`,
 		Run: func(cmd *cobra.Command, args []string) {
-			flags.resolveVaultFlags()
+			flags.Resolve()
 
 			if vaultSecretPath == "" {
 				vaultSecretPath = os.Getenv("VAULT_SECRET_PATH")
@@ -91,7 +92,12 @@ Examples:
 				return
 			}
 
-			vaultClient := flags.buildVaultClient()
+			evClient, err := vaultpkg.NewEnvVaultClient()
+			if err != nil {
+				log.Errorf("❌ Failed to create Vault client: %v", err)
+				return
+			}
+			vaultClient := evClient
 
 			if !vaultExportEnv && !vaultAsKubeconfig {
 				vaultAsKubeconfig = true
@@ -107,13 +113,13 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&Flags.Addr, "vault-addr", "", "Vault server address (env: VAULT_ADDR)")
-	cmd.Flags().StringVar(&Flags.Token, "vault-token", "", "Vault token for direct auth (env: VAULT_TOKEN)")
-	cmd.Flags().StringVar(&Flags.RoleID, "vault-role-id", "", "AppRole role ID (env: VAULT_ROLE_ID)")
-	cmd.Flags().StringVar(&Flags.SecretID, "vault-secret-id", "", "AppRole secret ID (env: VAULT_SECRET_ID)")
-	cmd.Flags().StringVar(&Flags.K8sRole, "vault-k8s-role", "", "Vault role for K8s ServiceAccount auth (env: VAULT_K8S_ROLE)")
-	cmd.Flags().StringVar(&Flags.K8sMountPath, "vault-k8s-mount-path", "", "Vault K8s auth mount path (env: VAULT_K8S_MOUNT_PATH)")
-	cmd.Flags().StringVar(&Flags.SATokenPath, "vault-sa-token-path", "", "ServiceAccount token file path (env: VAULT_SA_TOKEN_PATH)")
+	cmd.Flags().StringVar(&flags.Flags.Addr, "vault-addr", "", "Vault server address (env: VAULT_ADDR)")
+	cmd.Flags().StringVar(&flags.Flags.Token, "vault-token", "", "Vault token for direct auth (env: VAULT_TOKEN)")
+	cmd.Flags().StringVar(&flags.Flags.RoleID, "vault-role-id", "", "AppRole role ID (env: VAULT_ROLE_ID)")
+	cmd.Flags().StringVar(&flags.Flags.SecretID, "vault-secret-id", "", "AppRole secret ID (env: VAULT_SECRET_ID)")
+	cmd.Flags().StringVar(&flags.Flags.K8sRole, "vault-k8s-role", "", "Vault role for K8s ServiceAccount auth (env: VAULT_K8S_ROLE)")
+	cmd.Flags().StringVar(&flags.Flags.K8sMountPath, "vault-k8s-mount-path", "", "Vault K8s auth mount path (env: VAULT_K8S_MOUNT_PATH)")
+	cmd.Flags().StringVar(&flags.Flags.SATokenPath, "vault-sa-token-path", "", "ServiceAccount token file path (env: VAULT_SA_TOKEN_PATH)")
 	cmd.Flags().StringVar(&vaultSecretPath, "secret-path", "", "Vault KV v2 secret path (env: VAULT_SECRET_PATH)")
 	cmd.Flags().StringVar(&vaultSecretField, "secret-field", "", "Field name for kubeconfig (default: kubeconfig, env: VAULT_SECRET_FIELD)")
 	cmd.Flags().BoolVar(&vaultExportEnv, "export-env", false, "Export all secret fields as environment variables")

@@ -3,13 +3,11 @@ package vault
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/eliasmeireles/envvault"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func TestVaultCommand(t *testing.T) {
@@ -50,77 +48,12 @@ func TestCommandsInitialization(t *testing.T) {
 }
 
 func TestVaultProviders(t *testing.T) {
-	t.Run("must call underlying functions for providers", func(t *testing.T) {
-		origSecretList := SecretListProviderFunc
-		origPolicyList := PolicyListProviderFunc
-		origAuthList := AuthListProviderFunc
-		origEngineList := EngineListProviderFunc
-		origSecretFetch := SecretFetchProviderFunc
-		origSecretDelete := SecretDeleteProviderFunc
-		origPolicyDelete := PolicyDeleteProviderFunc
-		origAuthDisable := AuthDisableProviderFunc
-		origEngineDisable := EngineDisableProviderFunc
-
-		called := make(map[string]bool)
-
-		SecretListProviderFunc = func() []list.Item { called["secretList"] = true; return nil }
-		PolicyListProviderFunc = func() []list.Item { called["policyList"] = true; return nil }
-		AuthListProviderFunc = func() []list.Item { called["authList"] = true; return nil }
-		EngineListProviderFunc = func() []list.Item { called["engineList"] = true; return nil }
-		SecretFetchProviderFunc = func() []list.Item { called["secretFetch"] = true; return nil }
-		SecretDeleteProviderFunc = func() []list.Item { called["secretDelete"] = true; return nil }
-		PolicyDeleteProviderFunc = func() []list.Item { called["policyDelete"] = true; return nil }
-		AuthDisableProviderFunc = func() []list.Item { called["authDisable"] = true; return nil }
-		EngineDisableProviderFunc = func() []list.Item { called["engineDisable"] = true; return nil }
-
-		defer func() {
-			SecretListProviderFunc = origSecretList
-			PolicyListProviderFunc = origPolicyList
-			AuthListProviderFunc = origAuthList
-			EngineListProviderFunc = origEngineList
-			SecretFetchProviderFunc = origSecretFetch
-			SecretDeleteProviderFunc = origSecretDelete
-			PolicyDeleteProviderFunc = origPolicyDelete
-			AuthDisableProviderFunc = origAuthDisable
-			EngineDisableProviderFunc = origEngineDisable
-		}()
-
-		SecretListProvider()
-		PolicyListProvider()
-		AuthListProvider()
-		EngineListProvider()
-		SecretFetchProvider()
-		SecretDeleteProvider()
-		PolicyDeleteProvider()
-		AuthDisableProvider()
-		EngineDisableProvider()
-
-		assert.True(t, called["secretList"])
-		assert.True(t, called["policyList"])
-		assert.True(t, called["authList"])
-		assert.True(t, called["engineList"])
-		assert.True(t, called["secretFetch"])
-		assert.True(t, called["secretDelete"])
-		assert.True(t, called["policyDelete"])
-		assert.True(t, called["authDisable"])
-		assert.True(t, called["engineDisable"])
-	})
-}
-
-func TestAuthenticateAndValidateHelper(t *testing.T) {
-	t.Run("must call underlying function for authenticateAndValidate", func(t *testing.T) {
-		orig := authenticateAndValidateFunc
-		called := false
-		authenticateAndValidateFunc = func(username, password, path, action string) (string, error) {
-			called = true
-			return "test-token", nil
-		}
-		defer func() { authenticateAndValidateFunc = orig }()
-
-		token, err := authenticateAndValidate("user", "pass", "path", "read")
-		assert.NoError(t, err)
-		assert.Equal(t, "test-token", token)
-		assert.True(t, called)
+	t.Run("client methods are accessible", func(t *testing.T) {
+		// Test that client interfaces are properly initialized
+		assert.NotNil(t, SecretClient, "SecretClient should be initialized")
+		assert.NotNil(t, PolicyClient, "PolicyClient should be initialized")
+		assert.NotNil(t, EngineClient, "EngineClient should be initialized")
+		assert.NotNil(t, AuthMethodClient, "AuthMethodClient should be initialized")
 	})
 }
 

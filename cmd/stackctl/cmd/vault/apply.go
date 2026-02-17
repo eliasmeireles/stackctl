@@ -47,7 +47,7 @@ Examples:
 				return fmt.Errorf("❌ Failed to parse YAML: %v", err)
 			}
 
-			flags.resolveVaultFlags()
+			flags.Resolve()
 
 			evClient, err := vaultpkg.NewEnvVaultClient()
 			if err != nil {

@@ -48,7 +48,7 @@ func (c *secret) List() ([]list.Item, error) {
 		}
 		enginePath := strings.TrimRight(path, "/")
 		metadataRoot := enginePath + "/metadata"
-		desc := fmt.Sprintf("KV engine (type=%c)", mount.Type)
+		desc := fmt.Sprintf("KV engine (type=%s)", mount.Type)
 
 		provider, err := c.PathProvider(metadataRoot)
 
@@ -78,18 +78,18 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 	secret, err := c.vaultApi.Logical().List(metadataPath)
 	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to list %c: %v", metadataPath, err)
+		return nil, fmt.Errorf("❌ Failed to list %s: %v", metadataPath, err)
 	}
 
 	if secret == nil || secret.Data == nil {
 		return []list.Item{
-			ui.CreateItem("Empty", fmt.Sprintf("No keys at %c", metadataPath), nil),
+			ui.CreateItem("Empty", fmt.Sprintf("No keys at %s", metadataPath), nil),
 		}, nil
 	}
 
 	keysRaw, ok := secret.Data["keys"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unexpected response format at %c", metadataPath)
+		return nil, fmt.Errorf("unexpected response format at %s", metadataPath)
 	}
 
 	var items []list.Item
@@ -109,7 +109,7 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 			items = append(items, ui.CreateDynamicSubMenu(
 				displayName,
-				fmt.Sprintf("Browse %c", childPath),
+				fmt.Sprintf("Browse %s", childPath),
 				func() ([]list.Item, error) {
 					return its, err
 				},
@@ -126,7 +126,7 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 			items = append(items, ui.CreateDetailItem(
 				key,
-				fmt.Sprintf("View secret at %c", fullMetadataPath),
+				fmt.Sprintf("View secret at %s", fullMetadataPath),
 				func() (string, string) {
 					return sKey, sValue
 				},
@@ -136,7 +136,7 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 	if len(items) == 0 {
 		return []list.Item{
-			ui.CreateItem("Empty", fmt.Sprintf("No keys at %c", metadataPath), nil),
+			ui.CreateItem("Empty", fmt.Sprintf("No keys at %s", metadataPath), nil),
 		}, nil
 	}
 	return items, nil
@@ -212,19 +212,19 @@ func (c *secret) delete(metadataPath string) ([]list.Item, error) {
 
 	secret, err := c.vaultApi.Logical().List(metadataPath)
 	if err != nil {
-		log.Errorf("❌ Failed to list %c: %v", metadataPath, err)
-		return nil, fmt.Errorf("delete failed on list %c: %v", metadataPath, err)
+		log.Errorf("❌ Failed to list %s: %v", metadataPath, err)
+		return nil, fmt.Errorf("delete failed on list %s: %v", metadataPath, err)
 	}
 
 	if secret == nil || secret.Data == nil {
 		return []list.Item{
-			ui.CreateItem("Empty", fmt.Sprintf("No keys at %c", metadataPath), nil),
+			ui.CreateItem("Empty", fmt.Sprintf("No keys at %s", metadataPath), nil),
 		}, nil
 	}
 
 	keysRaw, ok := secret.Data["keys"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unexpected response format at %c", metadataPath)
+		return nil, fmt.Errorf("unexpected response format at %s", metadataPath)
 	}
 
 	var items []list.Item
@@ -242,7 +242,7 @@ func (c *secret) delete(metadataPath string) ([]list.Item, error) {
 
 			items = append(items, ui.CreateDynamicSubMenu(
 				displayName,
-				fmt.Sprintf("Browse %c", childPath),
+				fmt.Sprintf("Browse %s", childPath),
 				func() ([]list.Item, error) {
 					return value, err
 				},
@@ -251,7 +251,7 @@ func (c *secret) delete(metadataPath string) ([]list.Item, error) {
 			fullMetadataPath := metadataPath + "/" + key
 			items = append(items, ui.CreateMultiPromptItemWithArgs(
 				key,
-				fmt.Sprintf("Delete %c (requires authentication)", fullMetadataPath),
+				fmt.Sprintf("Delete %s (requires authentication)", fullMetadataPath),
 				auth.LoginEntry,
 				c.secretDeleteAction(fullMetadataPath),
 			))
@@ -260,7 +260,7 @@ func (c *secret) delete(metadataPath string) ([]list.Item, error) {
 
 	if len(items) == 0 {
 		return []list.Item{
-			ui.CreateItem("Empty", fmt.Sprintf("No keys at %c", metadataPath), nil),
+			ui.CreateItem("Empty", fmt.Sprintf("No keys at %s", metadataPath), nil),
 		}, nil
 	}
 	return items, nil
