@@ -5,7 +5,9 @@ import (
 
 	"github.com/hashicorp/vault/api"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 type AuthMethod interface {
@@ -15,17 +17,22 @@ type AuthMethod interface {
 }
 
 type authMethod struct {
-	vaultApi *api.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewAuthMethod(vaultApi *api.Client) AuthMethod {
-	return &authMethod{vaultApi: vaultApi}
+func NewAuthMethod(auth auth.Client, vaultApi client.Api) AuthMethod {
+	return &authMethod{auth: auth, vaultApi: vaultApi}
 }
 
 func (a *authMethod) List() (map[string]*api.AuthMount, error) {
 	flags.Resolve()
 
-	auths, err := a.vaultApi.Sys().ListAuth()
+	vaultApi, err := a.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
+	auths, err := vaultApi.Sys().ListAuth()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list auth methods: %w", err)
 	}
@@ -46,7 +53,12 @@ func (a *authMethod) Enable(authType, path, description string) error {
 		Description: description,
 	}
 
-	if err := a.vaultApi.Sys().EnableAuthWithOptions(mountPath, opts); err != nil {
+	vaultApi, err := a.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
+	if err := vaultApi.Sys().EnableAuthWithOptions(mountPath, opts); err != nil {
 		return fmt.Errorf("failed to enable auth method %q at %q: %w", authType, mountPath, err)
 	}
 
@@ -56,7 +68,12 @@ func (a *authMethod) Enable(authType, path, description string) error {
 func (a *authMethod) Disable(path string) error {
 	flags.Resolve()
 
-	if err := a.vaultApi.Sys().DisableAuth(path); err != nil {
+	vaultApi, err := a.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
+	if err := vaultApi.Sys().DisableAuth(path); err != nil {
 		return fmt.Errorf("failed to disable auth method at %q: %w", path, err)
 	}
 

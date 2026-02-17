@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 func NewApplyCmd() *cobra.Command {
@@ -49,12 +49,14 @@ Examples:
 
 			flags.Resolve()
 
-			evClient, err := vaultpkg.NewEnvVaultClient()
+			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
+
 			if err != nil {
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			apiClient, err := evClient.VaultClient()
+			apiClient, err := vaultpkg.ApiClient.Client()
+
 			if err != nil {
 				return fmt.Errorf("❌ Failed to get Vault API client: %v", err)
 			}

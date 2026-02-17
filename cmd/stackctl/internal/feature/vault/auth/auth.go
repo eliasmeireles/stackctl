@@ -6,7 +6,8 @@ import (
 
 	"github.com/hashicorp/vault/api"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 var LoginEntry = []string{"Username", "Password (will be hidden"}
@@ -15,15 +16,15 @@ type Client interface {
 	Authenticate(username, password, path, action string) (string, error)
 }
 
-type client struct {
-	clientApi *api.Client
+type clientImpl struct {
+	clientApi client.Api
 }
 
-func NewClient(clientApi *api.Client) Client {
-	return &client{clientApi: clientApi}
+func NewClient(clientApi client.Api) Client {
+	return &clientImpl{clientApi: clientApi}
 }
 
-func (c *client) Authenticate(username, password, path, action string) (string, error) {
+func (c *clientImpl) Authenticate(username, password, path, action string) (string, error) {
 	// Authenticate
 	token, err := c.authenticateUserpass(username, password)
 	if err != nil {
@@ -44,14 +45,20 @@ func (c *client) Authenticate(username, password, path, action string) (string, 
 }
 
 // authenticateUserpass authenticates a user via userpass auth method in Vault.
-// Returns the client token on success, or an error if authentication fails.
-func (c *client) authenticateUserpass(username, password string) (string, error) {
+// Returns the clientImpl token on success, or an error if authentication fails.
+func (c *clientImpl) authenticateUserpass(username, password string) (string, error) {
+	clientApi, err := c.clientApi.Client()
+
+	if err != nil {
+		return "", err
+	}
+
 	// Authenticate via userpass
 	data := map[string]interface{}{
 		"password": password,
 	}
 
-	secret, err := c.clientApi.Logical().Write(fmt.Sprintf("auth/userpass/login/%s", username), data)
+	secret, err := clientApi.Logical().Write(fmt.Sprintf("auth/userpass/login/%s", username), data)
 	if err != nil {
 		return "", fmt.Errorf("authentication failed: %w", err)
 	}
@@ -65,9 +72,7 @@ func (c *client) authenticateUserpass(username, password string) (string, error)
 
 // validatePermission checks if the given token has permission to perform an operation
 // on the specified path. Returns true if allowed, false otherwise.
-func (c *client) validatePermission(token, path, capability string) (bool, error) {
-	flags.Resolve()
-
+func (c *clientImpl) validatePermission(token, path, capability string) (bool, error) {
 	config := api.DefaultConfig()
 	config.Address = flags.Flags.Addr
 
@@ -104,8 +109,8 @@ func (c *client) validatePermission(token, path, capability string) (bool, error
 	}
 
 	// Check if the required capability is present
-	for _, cap := range caps {
-		capStr, ok := cap.(string)
+	for _, c := range caps {
+		capStr, ok := c.(string)
 		if !ok {
 			continue
 		}

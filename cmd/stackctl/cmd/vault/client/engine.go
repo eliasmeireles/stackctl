@@ -5,7 +5,9 @@ import (
 
 	"github.com/hashicorp/vault/api"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 type Engine interface {
@@ -15,17 +17,22 @@ type Engine interface {
 }
 
 type engine struct {
-	vaultApi *api.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewEngine(vaultApi *api.Client) Engine {
-	return &engine{vaultApi: vaultApi}
+func NewEngine(auth auth.Client, vaultApi client.Api) Engine {
+	return &engine{auth: auth, vaultApi: vaultApi}
 }
 
 func (e *engine) List() (map[string]*api.MountOutput, error) {
 	flags.Resolve()
+	vaultApi, err := e.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
 
-	mounts, err := e.vaultApi.Sys().ListMounts()
+	mounts, err := vaultApi.Sys().ListMounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets engines: %w", err)
 	}
@@ -54,7 +61,12 @@ func (e *engine) Enable(engineType, path, description, version string) error {
 		opts.Options = map[string]string{"version": version}
 	}
 
-	if err := e.vaultApi.Sys().Mount(mountPath, opts); err != nil {
+	vaultApi, err := e.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
+	if err := vaultApi.Sys().Mount(mountPath, opts); err != nil {
 		return fmt.Errorf("failed to enable engine %q at %q: %w", engineType, mountPath, err)
 	}
 
@@ -64,7 +76,12 @@ func (e *engine) Enable(engineType, path, description, version string) error {
 func (e *engine) Disable(path string) error {
 	flags.Resolve()
 
-	if err := e.vaultApi.Sys().Unmount(path); err != nil {
+	vaultApi, err := e.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
+	if err := vaultApi.Sys().Unmount(path); err != nil {
 		return fmt.Errorf("failed to disable engine at %q: %w", path, err)
 	}
 

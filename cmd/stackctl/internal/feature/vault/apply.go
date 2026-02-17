@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/eliasmeireles/envvault"
 	"github.com/hashicorp/vault/api"
 )
 
@@ -17,10 +18,10 @@ const DefaultAutoGenSize = 20
 // Applier executes declarative Vault operations from an ApplyConfig.
 type Applier struct {
 	secrets  SecretReadWriter
-	policies PolicyManager
-	auth     AuthManager
-	engines  EngineManager
-	logical  LogicalWriter
+	policies envvault.PolicyManager
+	auth     envvault.AuthManager
+	engines  envvault.EngineManager
+	logical  envvault.LogicalWriter
 }
 
 // SecretReadWriter abstracts envvault.Client methods used by the applier.
@@ -45,10 +46,10 @@ func NewApplier(apiClient *api.Client, evClient SecretReadWriter) *Applier {
 // This is primarily used for testing with mock implementations.
 func NewApplierFromInterfaces(
 	secrets SecretReadWriter,
-	policies PolicyManager,
-	auth AuthManager,
-	engines EngineManager,
-	logical LogicalWriter,
+	policies envvault.PolicyManager,
+	auth envvault.AuthManager,
+	engines envvault.EngineManager,
+	logical envvault.LogicalWriter,
 ) *Applier {
 	return &Applier{
 		secrets:  secrets,

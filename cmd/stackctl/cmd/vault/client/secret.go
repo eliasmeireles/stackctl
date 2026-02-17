@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/auth"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -296,7 +296,7 @@ func (c *secret) secretDeleteAction(metadataPath string) func(args []string) tea
 		return func() tea.Msg {
 			if len(args) < 2 {
 				fmt.Println("\n❌ Error: username and password required")
-				return nil
+				return fmt.Errorf("username and password required")
 			}
 
 			username := args[0]
@@ -304,10 +304,11 @@ func (c *secret) secretDeleteAction(metadataPath string) func(args []string) tea
 
 			fmt.Println("\n🔐 Authenticating...")
 
+			flags.Resolve()
 			token, err := c.auth.Authenticate(username, password, metadataPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				return nil
+				return err
 			}
 
 			vaultApi, err := c.vaultApi.Client()
@@ -320,7 +321,7 @@ func (c *secret) secretDeleteAction(metadataPath string) func(args []string) tea
 			_, err = vaultApi.Logical().Delete(metadataPath)
 			if err != nil {
 				fmt.Printf("\n❌ Failed to delete secret at %s: %v\n", metadataPath, err)
-				return nil
+				return err
 			}
 
 			fmt.Printf("\n✅ secret deleted: %s\n", metadataPath)

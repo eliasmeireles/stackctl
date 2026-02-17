@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 const defaultListPath = "secret/metadata/resources/kubeconfig"
@@ -48,7 +48,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.Resolve()
-			client, err := vaultpkg.NewEnvVaultClient()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
 				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
 			}
@@ -99,7 +99,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.Resolve()
-			client, err := vaultpkg.NewEnvVaultClient()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
 				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
 			}
@@ -166,7 +166,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.Resolve()
-			client, err := vaultpkg.NewEnvVaultClient()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
 				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
 			}
@@ -212,7 +212,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.Resolve()
-			client, err := vaultpkg.NewEnvVaultClient()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
 				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
 			}

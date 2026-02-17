@@ -10,9 +10,9 @@ import (
 
 	"github.com/eliasmeireles/envvault"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	featureKubeconfig "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 // NewFetchCommand creates a new Fetch command.
@@ -92,7 +92,7 @@ Examples:
 				return
 			}
 
-			evClient, err := vaultpkg.NewEnvVaultClient()
+			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
 				log.Errorf("❌ Failed to create Vault client: %v", err)
 				return

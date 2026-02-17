@@ -5,10 +5,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -20,14 +21,12 @@ type AuthMethodWithMenu interface {
 
 type authMethodWithMenu struct {
 	*authMethod
-	auth auth.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewAuthMethodWithMenu(authClient auth.Client, vaultApi *api.Client) AuthMethodWithMenu {
-	return &authMethodWithMenu{
-		authMethod: &authMethod{vaultApi: vaultApi},
-		auth:       authClient,
-	}
+func NewAuthMethodWithMenu(auth auth.Client, vaultApi client.Api) AuthMethodWithMenu {
+	return &authMethodWithMenu{auth: auth, vaultApi: vaultApi}
 }
 
 func (a *authMethodWithMenu) ListForMenu() ([]list.Item, error) {
@@ -111,21 +110,25 @@ func (a *authMethodWithMenu) authDisableAction(path string) func(args []string) 
 			fmt.Println("\n🔐 Authenticating...")
 
 			authPath := fmt.Sprintf("sys/auth/%s", path)
+			flags.Resolve()
 			token, err := a.auth.Authenticate(username, password, authPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
-				return nil
+				return err
 			}
 
-			a.vaultApi.SetToken(token)
+			vaultApi, err := a.vaultApi.Client()
+			if err != nil {
+				return err
+			}
+
+			vaultApi.SetToken(token)
 
 			if err := a.Disable(path); err != nil {
-				log.Errorf("❌ Failed to disable auth method: %v", err)
 				fmt.Printf("\n❌ Failed to disable auth method at %s: %v\n", path, err)
 				return nil
 			}
 
-			log.Infof("✅ Auth method disabled: %s", path)
 			fmt.Printf("\n✅ Auth method disabled: %s\n", path)
 			return nil
 		}

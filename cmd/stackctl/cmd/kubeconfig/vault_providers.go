@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -61,12 +62,15 @@ var vaultSaveToRemoteProviderFunc = func() []list.Item {
 
 var vaultContexts = func() []list.Item {
 	resolveVaultFlags()
-	client := buildVaultClient()
+	client, err := vault.ApiClient.EnvVaultClient()
+
+	if err != nil {
+		return errorItem("Failed to create Vault client: %v", err)
+	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
 	if err != nil {
-		log.Errorf("❌ Failed to Clusters configuration kubeconfigs: %v", err)
 		return errorItem("Failed to Clusters configuration kubeconfigs: %v", err)
 	}
 
@@ -125,7 +129,11 @@ var vaultFromVaultProviderFunc = func() []list.Item {
 
 var vaultList = func() []list.Item {
 	resolveVaultFlags()
-	client := buildVaultClient()
+	client, err := vault.ApiClient.EnvVaultClient()
+
+	if err != nil {
+		return errorItem("Failed to create Vault client: %v", err)
+	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
@@ -171,13 +179,17 @@ var executeSaveToVaultFunc = func(contextName string) {
 
 var saveToVault = func(contextName string) {
 	resolveVaultFlags()
-	client := buildVaultClient()
+	client, err := vault.ApiClient.EnvVaultClient()
+
+	if err != nil {
+		fmt.Printf("Failed to create Vault client: %v", err)
+		return
+	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	kubeconfigPath := kubeconfig.GetPath()
 
 	if err := svc.SaveContextToVault(kubeconfigPath, contextName, contextName); err != nil {
-		log.Errorf("❌ Failed to save context to Vault: %v", err)
 		fmt.Printf("❌ Failed to save context '%s' to Vault: %v\n", contextName, err)
 		return
 	}
@@ -196,7 +208,12 @@ var get = func(dataPath string) {
 
 var vaultGet = func(dataPath string) {
 	resolveVaultFlags()
-	client := buildVaultClient()
+	client, err := vault.ApiClient.EnvVaultClient()
+
+	if err != nil {
+		fmt.Printf("Failed to create Vault client: %v", err)
+		return
+	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	kubeconfigPath := kubeconfig.GetPath()

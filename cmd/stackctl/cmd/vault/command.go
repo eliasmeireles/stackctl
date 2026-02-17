@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 const (

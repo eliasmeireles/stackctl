@@ -5,10 +5,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -20,14 +21,12 @@ type EngineWithMenu interface {
 
 type engineWithMenu struct {
 	*engine
-	auth auth.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewEngineWithMenu(authClient auth.Client, vaultApi *api.Client) EngineWithMenu {
-	return &engineWithMenu{
-		engine: &engine{vaultApi: vaultApi},
-		auth:   authClient,
-	}
+func NewEngineWithMenu(auth auth.Client, vaultApi client.Api) EngineWithMenu {
+	return &engineWithMenu{auth: auth, vaultApi: vaultApi}
 }
 
 func (e *engineWithMenu) ListForMenu() ([]list.Item, error) {
@@ -111,21 +110,26 @@ func (e *engineWithMenu) engineDisableAction(path string) func(args []string) te
 			fmt.Println("\n🔐 Authenticating...")
 
 			mountPath := fmt.Sprintf("sys/mounts/%s", path)
+			flags.Resolve()
 			token, err := e.auth.Authenticate(username, password, mountPath, "delete")
 			if err != nil {
 				fmt.Printf("\n❌ Authentication/Authorization failed: %v\n", err)
 				return nil
 			}
 
-			e.vaultApi.SetToken(token)
+			vaultApi, err := e.vaultApi.Client()
+
+			if err != nil {
+				return err
+			}
+
+			vaultApi.SetToken(token)
 
 			if err := e.Disable(path); err != nil {
-				log.Errorf("❌ Failed to disable engine: %v", err)
 				fmt.Printf("\n❌ Failed to disable engine at %s: %v\n", path, err)
 				return nil
 			}
 
-			log.Infof("✅ Secrets engine disabled: %s", path)
 			fmt.Printf("\n✅ Secrets engine disabled: %s\n", path)
 			return nil
 		}

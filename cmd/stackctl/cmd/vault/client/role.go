@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/vault/api"
-
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/auth"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 type Role interface {
@@ -17,19 +17,25 @@ type Role interface {
 }
 
 type role struct {
-	vaultApi *api.Client
+	auth     auth.Client
+	vaultApi client.Api
 }
 
-func NewRole(vaultApi *api.Client) Role {
-	return &role{vaultApi: vaultApi}
+func NewRole(auth auth.Client, vaultApi client.Api) Role {
+	return &role{auth: auth, vaultApi: vaultApi}
 }
 
 func (r *role) List(authMount string) ([]string, error) {
 	flags.Resolve()
 
+	vaultApi, err := r.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
+
 	listPath := fmt.Sprintf("%s/role", strings.TrimRight(authMount, "/"))
 
-	secret, err := r.vaultApi.Logical().List(listPath)
+	secret, err := vaultApi.Logical().List(listPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list roles at %q: %w", listPath, err)
 	}
@@ -56,9 +62,14 @@ func (r *role) List(authMount string) ([]string, error) {
 func (r *role) Get(authMount, roleName string) (map[string]interface{}, error) {
 	flags.Resolve()
 
+	vaultApi, err := r.vaultApi.Client()
+	if err != nil {
+		return nil, err
+	}
+
 	rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(authMount, "/"), roleName)
 
-	secret, err := r.vaultApi.Logical().Read(rolePath)
+	secret, err := vaultApi.Logical().Read(rolePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read role %q: %w", rolePath, err)
 	}
@@ -73,13 +84,18 @@ func (r *role) Get(authMount, roleName string) (map[string]interface{}, error) {
 func (r *role) Put(authMount, roleName string, data map[string]interface{}) error {
 	flags.Resolve()
 
+	vaultApi, err := r.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
 	rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(authMount, "/"), roleName)
 
 	if len(data) == 0 {
 		return fmt.Errorf("no role parameters specified")
 	}
 
-	_, err := r.vaultApi.Logical().Write(rolePath, data)
+	_, err = vaultApi.Logical().Write(rolePath, data)
 	if err != nil {
 		return fmt.Errorf("failed to write role %q: %w", rolePath, err)
 	}
@@ -90,9 +106,14 @@ func (r *role) Put(authMount, roleName string, data map[string]interface{}) erro
 func (r *role) Delete(authMount, roleName string) error {
 	flags.Resolve()
 
+	vaultApi, err := r.vaultApi.Client()
+	if err != nil {
+		return err
+	}
+
 	rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(authMount, "/"), roleName)
 
-	_, err := r.vaultApi.Logical().Delete(rolePath)
+	_, err = vaultApi.Logical().Delete(rolePath)
 	if err != nil {
 		return fmt.Errorf("failed to delete role at %q: %w", rolePath, err)
 	}
