@@ -65,7 +65,7 @@ func TestNewCommand(t *testing.T) {
 	t.Run("must create the main config command with all subcommands", func(t *testing.T) {
 		cmd := NewCommand()
 		assert.NotNil(t, cmd)
-		assert.Equal(t, "config", cmd.Use)
+		assert.Equal(t, "kubeconfig", cmd.Use)
 		assert.NotEmpty(t, cmd.Commands())
 
 		subCommands := make(map[string]bool)
@@ -75,7 +75,7 @@ func TestNewCommand(t *testing.T) {
 
 		expectedSubs := []string{
 			"list-contexts", "clean", "get-context", "set-context",
-			"set-namespace", "add", "remove", "save", "update",
+			"set-namespace", "add", "remove",
 			"add-from-vault", "save-to-vault", "list-remote",
 		}
 
@@ -140,7 +140,6 @@ func TestNewCommand(t *testing.T) {
 
 		expectedCalls := []string{
 			"list", "clean", "get", "set", "namespace", "add", "remove",
-			"save-remote", "update-remote",
 		}
 
 		for _, expected := range expectedCalls {

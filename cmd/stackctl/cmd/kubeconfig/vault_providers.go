@@ -15,6 +15,10 @@ import (
 // LocalContext returns a dynamic submenu listing local kubeconfig
 // contexts. Selecting a context saves it to Vault under the configured base path.
 func LocalContext() []list.Item {
+	return listContexts()
+}
+
+var listContexts = func() []list.Item {
 	return localContext()
 }
 
@@ -48,6 +52,10 @@ var localContext = func() []list.Item {
 // VaultContexts fetches all kubeconfig secrets from Vault,
 // decodes each one, and displays the context names found inside.
 func VaultContexts() []list.Item {
+	return vaultSaveToRemoteProviderFunc()
+}
+
+var vaultSaveToRemoteProviderFunc = func() []list.Item {
 	return vaultContexts()
 }
 
@@ -108,6 +116,10 @@ func vaultFetch(r kubeconfig2.RemoteKubeconfig) func() (string, string) {
 // VaultList lists remote kubeconfig secrets from Vault.
 // Selecting one fetches it and merges it into the local kubeconfig.
 func VaultList() []list.Item {
+	return vaultFromVaultProviderFunc()
+}
+
+var vaultFromVaultProviderFunc = func() []list.Item {
 	return vaultList()
 }
 
@@ -150,6 +162,10 @@ var vaultList = func() []list.Item {
 // SaveToVault saves a local kubeconfig context to Vault.
 // It uses the context name as the default secret name.
 func SaveToVault(contextName string) {
+	executeSaveToVaultFunc(contextName)
+}
+
+var executeSaveToVaultFunc = func(contextName string) {
 	saveToVault(contextName)
 }
 
@@ -171,6 +187,10 @@ var saveToVault = func(contextName string) {
 
 // VaultGet fetches a kubeconfig from Vault and merges it into the local config.
 func VaultGet(dataPath string) {
+	get(dataPath)
+}
+
+var get = func(dataPath string) {
 	vaultGet(dataPath)
 }
 

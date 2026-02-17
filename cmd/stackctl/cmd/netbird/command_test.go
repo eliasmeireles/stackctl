@@ -33,8 +33,9 @@ func TestCommandsInitialization(t *testing.T) {
 
 		assert.NotNil(t, cmd.Cmd())
 
-		cmdInstance, ok := cmd.Cmd().Get(CategoryUp)
-		assert.True(t, ok, "missing category: "+CategoryUp)
+		fullCategory := CategoryNetbird + "/" + CategoryUp
+		cmdInstance, ok := cmd.Cmd().Get(fullCategory)
+		assert.True(t, ok, "missing category: "+fullCategory)
 		assert.NotNil(t, cmdInstance)
 	})
 }
