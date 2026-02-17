@@ -1,8 +1,16 @@
-.PHONY: build push buildx all
+.PHONY: build push buildx test lint all
 
 
 GH_USER = ?
 GH_REPO = stackctl
+
+lint:
+	@golangci-lint run --timeout=5m
+
+test:
+	# https://github.com/gotestyourself/gotestsum
+	# go install gotest.tools/gotestsum@latest
+	@gotestsum --format testname
 
 update:
 	@go mod tidy
