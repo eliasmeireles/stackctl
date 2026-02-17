@@ -1,0 +1,245 @@
+# =============================================================================
+# Vault Apply - Arquivo de configuracao declarativa
+# =============================================================================
+#
+# Uso:
+#   stackctl vault apply -f examplo.yml
+#   stackctl vault apply -f examplo.yml --vault-addr http://vault.local:8200
+#   stackctl vault apply -f examplo.yml --vault-token hvs.xxxxx
+#
+# A ordem de execucao e: engines -> auth -> policies -> roles -> secrets
+# Cada secao e opcional. Inclua apenas o que precisar.
+#
+# Autenticacao (em ordem de prioridade):
+#   1. Flags: --vault-addr, --vault-token, --vault-role-id, --vault-secret-id
+#   2. Env vars: VAULT_ADDR, VAULT_TOKEN, VAULT_ROLE_ID, VAULT_SECRET_ID
+#   3. Fallback: $HOME/.vault-token (criado por 'vault login')
+# =============================================================================
+
+# =============================================================================
+# SECRETS ENGINES
+# =============================================================================
+# Gerencia secrets engines (mounts) do Vault.
+# Equivalente a: vault secrets enable / vault secrets disable
+#
+# Tipos comuns: kv (v1/v2), transit, pki, database, aws, ssh
+# Para KV, use type: kv-v2 (auto-configura version: 2)
+engines:
+  # Habilitar novos engines
+  enable:
+    # KV v2 - engine padrao para armazenar secrets key/value
+    - type: kv-v2
+      path: secret                        # mount path (default: mesmo nome do type)
+      description: "KV v2 secrets engine para armazenamento geral"
+      # version: "2"                      # opcional, default "2" para kv-v2
+
+    # Transit - engine para criptografia como servico
+    # - type: transit
+    #   path: transit
+    #   description: "Transit engine para encrypt/decrypt"
+
+    # PKI - engine para certificados TLS
+    # - type: pki
+    #   path: pki
+    #   description: "PKI engine para certificados internos"
+
+  # Desabilitar engines (CUIDADO: remove todos os dados do mount!)
+  disable: []
+    # - old-secret-engine
+    # - transit-deprecated
+
+# =============================================================================
+# AUTH METHODS
+# =============================================================================
+# Gerencia metodos de autenticacao do Vault.
+# Equivalente a: vault auth enable / vault auth disable
+#
+# Tipos comuns: kubernetes, approle, userpass, ldap, oidc, token
+auth:
+  # Habilitar novos auth methods
+  enable:
+    # Kubernetes auth - para pods se autenticarem via ServiceAccount
+    - type: kubernetes
+      path: k8s-vps-01-oracle             # mount path (default: mesmo nome do type)
+      description: "Kubernetes auth para cluster VPS Oracle"
+
+    # AppRole auth - para CI/CD e automacoes
+    - type: approle
+      path: approle                        # mount path
+      description: "AppRole auth para pipelines CI/CD"
+
+    # Userpass - para usuarios humanos (dev/staging)
+    # - type: userpass
+    #   path: userpass
+    #   description: "Userpass auth para ambiente de dev"
+
+  # Desabilitar auth methods
+  disable: []
+    # - old-kubernetes-auth
+    # - userpass-deprecated
+
+# =============================================================================
+# POLICIES
+# =============================================================================
+# Gerencia policies do Vault (HCL ou inline).
+# Equivalente a: vault policy write / vault policy delete
+#
+# Cada policy pode ser definida de duas formas:
+#   1. file: caminho para arquivo .hcl
+#   2. rules: regras HCL inline (string multiline)
+policies:
+  # Criar/atualizar policies
+  add:
+    # Policy para leitura de kubeconfig via CI
+    - name: ci-kubeconfig-read
+      rules: |
+        # Permite leitura de secrets de kubeconfig
+        path "secret/data/resources/kubeconfig/*" {
+          capabilities = ["read", "list"]
+        }
+        # Permite listar metadata
+        path "secret/metadata/resources/kubeconfig/*" {
+          capabilities = ["read", "list"]
+        }
+
+    # Policy para gerenciamento completo de secrets de um projeto
+    - name: project-oracle-admin
+      rules: |
+        # CRUD completo no path do projeto
+        path "secret/data/resources/kubeconfig/oracle-elias" {
+          capabilities = ["create", "read", "update", "delete"]
+        }
+        path "secret/metadata/resources/kubeconfig/oracle-elias" {
+          capabilities = ["read", "list", "delete"]
+        }
+
+    # Policy a partir de arquivo HCL externo
+    # - name: custom-policy
+    #   file: policies/custom-policy.hcl
+
+  # Atualizar policies existentes (mesma sintaxe de add)
+  update:
+    - name: ci-kubeconfig-read
+      rules: |
+        path "secret/data/resources/kubeconfig/*" {
+          capabilities = ["read", "list"]
+        }
+        path "secret/metadata/resources/kubeconfig/*" {
+          capabilities = ["read", "list"]
+        }
+        # Adicionado: permite ler configs de apps tambem
+        path "secret/data/apps/*" {
+          capabilities = ["read"]
+        }
+
+  # Deletar policies
+  delete: []
+    # - old-policy-name
+    # - deprecated-ci-policy
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# Gerencia roles dentro de auth methods.
+# Equivalente a: vault write auth/<mount>/role/<name>
+#
+# Campos disponiveis:
+#   auth_mount:                       mount path do auth method (ex: auth/kubernetes)
+#   name:                             nome do role
+#   action:                           add | update | delete (default: add)
+#
+# Para Kubernetes auth:
+#   bound_service_account_names:      nomes de ServiceAccounts (comma-separated)
+#   bound_service_account_namespaces: namespaces permitidos (comma-separated)
+#   policies:                         policies a anexar (comma-separated)
+#   ttl:                              TTL do token (ex: 1h, 24h)
+#
+# Para AppRole auth:
+#   token_policies:                   policies do token (comma-separated)
+#   ttl:                              TTL do token
+#   token_max_ttl:                    TTL maximo do token
+#   token_type:                       tipo do token (default, batch, service)
+#   secret_id_ttl:                    TTL do secret_id (0 = sem expiracao)
+#   secret_id_num_uses:               num de usos do secret_id (0 = ilimitado)
+roles:
+  # Role Kubernetes - permite pods do namespace 'ci' se autenticarem
+  - auth_mount: auth/k8s-vps-01-oracle
+    name: ci-kubeconfig
+    action: add                            # add | update | delete
+    bound_service_account_names: "github-runner,ci-runner"
+    bound_service_account_namespaces: "ci,github-actions"
+    policies: "ci-kubeconfig-read"
+    ttl: "1h"
+
+  # Role AppRole - para pipeline CI/CD
+  - auth_mount: auth/approle
+    name: ci-kubeconfig
+    action: add
+    token_policies: "ci-kubeconfig-read"
+    ttl: "1h"
+    token_max_ttl: "4h"
+    token_type: "service"
+    secret_id_ttl: "0"                     # 0 = sem expiracao
+    secret_id_num_uses: 0                  # 0 = ilimitado
+
+  # Deletar um role
+  # - auth_mount: auth/kubernetes
+  #   name: old-role
+  #   action: delete
+
+# =============================================================================
+# SECRETS
+# =============================================================================
+# Gerencia secrets KV v2 do Vault.
+# Equivalente a: vault kv put / vault kv patch / vault kv delete
+#
+# Campos de cada entry:
+#   name:           nome da chave dentro do secret
+#   value:          valor fixo (string)
+#   auto_generate:  true para gerar valor aleatorio (hex)
+#   size:           tamanho em bytes do valor gerado (default: 20 = 40 hex chars)
+#                   equivalente a: openssl rand -hex <size>
+#
+# O path deve usar o prefixo 'secret/data/' para KV v2.
+secrets:
+  path: secret/data/resources/kubeconfig/oracle-elias
+
+  # Adicionar novas chaves (merge com existentes)
+  add:
+    # Valor fixo - ex: kubeconfig codificado em base64
+    - name: KUBECONFIG
+      value: "kubeconfig-base64-encoded-content-here"
+
+    # Valor auto-gerado - gera 25 bytes = 50 caracteres hex
+    - name: DATABASE_PASSWORD
+      auto_generate: true
+      size: 25
+
+    # Valor auto-gerado com tamanho menor
+    - name: DATABASE_USER
+      auto_generate: true
+      size: 15
+
+    # Valor auto-gerado com tamanho padrao (20 bytes = 40 hex chars)
+    # - name: API_KEY
+    #   auto_generate: true
+
+  # Atualizar chaves existentes (le o secret atual e faz merge)
+  update:
+    - name: KUBECONFIG
+      value: "kubeconfig-v2-base64-encoded"
+
+    - name: DATABASE_PASSWORD
+      auto_generate: true
+      size: 25
+
+    - name: DATABASE_USER
+      auto_generate: true
+      size: 20
+
+  # Deletar chaves individuais do secret (remove a key, nao o secret inteiro)
+  delete:
+    - name: OLD_API_KEY
+    - name: DEPRECATED_TOKEN
+    # Para deletar o secret inteiro, use o CLI:
+    #   stackctl vault secret delete secret/metadata/resources/kubeconfig/oracle-elias

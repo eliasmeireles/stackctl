@@ -1,0 +1,58 @@
+# =========================
+# 🧱 Build stage (Golang)
+# =========================
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o stackctl ./cmd/stackctl
+
+
+
+# =========================
+# 🚀 Final stage (Debian + systemd)
+# =========================
+FROM debian:bookworm-slim
+
+# Install essential dependencies and systemd
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+  systemd \
+  bash \
+  zsh \
+  curl \
+  ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root/
+
+# Install kubectl (latest stable version)
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+  chmod +x kubectl && \
+  mv kubectl /usr/local/bin/
+
+# Install NetBird
+RUN curl -fsSL https://pkgs.netbird.io/install.sh | sh
+
+
+# Copy the compiled binary
+COPY --from=builder /app/stackctl /usr/local/bin/stackctl
+
+# Configure systemd stop signal
+STOPSIGNAL SIGRTMIN+3
+
+# Important: Keep systemd functional inside the container
+VOLUME [ "/sys/fs/cgroup" ]
+
+ENTRYPOINT ["/usr/local/bin/stackctl"]
+
