@@ -111,6 +111,9 @@ func (s *VaultKubeconfigService) SaveContextToVault(kubeconfigPath, contextName,
 // configured base path. For each secret, it reads the KUBECONFIG field,
 // decodes the base64 content, and extracts the context names.
 func (s *VaultKubeconfigService) ListRemoteKubeconfigs() ([]RemoteKubeconfig, error) {
+	if s.client == nil {
+		return nil, fmt.Errorf("failed to list secrets")
+	}
 	keys, err := s.client.ListSecrets(s.metadataBase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets at %s: %w", s.metadataBase, err)

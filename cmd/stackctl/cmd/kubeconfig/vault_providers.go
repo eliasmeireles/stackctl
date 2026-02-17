@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	log "github.com/sirupsen/logrus"
 
-	kubeconfig2 "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -23,7 +23,7 @@ var listContexts = func() []list.Item {
 }
 
 var localContext = func() []list.Item {
-	names, err := kubeconfig2.GetContextNames(kubeconfig2.GetPath())
+	names, err := kubeconfig.GetContextNames(kubeconfig.GetPath())
 	if err != nil {
 		log.Errorf("❌ Failed to load local contexts: %v", err)
 		return errorItem("Failed to load contexts: %v", err)
@@ -63,7 +63,7 @@ var vaultContexts = func() []list.Item {
 	resolveVaultFlags()
 	client := buildVaultClient()
 
-	svc := kubeconfig2.NewVaultKubeconfigService(client)
+	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
 	if err != nil {
 		log.Errorf("❌ Failed to Clusters configuration kubeconfigs: %v", err)
@@ -94,12 +94,12 @@ var vaultContexts = func() []list.Item {
 
 // vaultFetch returns a fetcher that displays the details
 // of a remote kubeconfig stored in Vault.
-func vaultFetch(r kubeconfig2.RemoteKubeconfig) func() (string, string) {
+func vaultFetch(r kubeconfig.RemoteKubeconfig) func() (string, string) {
 	return func() (string, string) {
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("  Secret: %s\n", r.SecretName))
 		sb.WriteString(fmt.Sprintf("  Path:   %s\n", r.DataPath))
-		sb.WriteString(fmt.Sprintf("  Key:    %s\n\n", kubeconfig2.DefaultKubeconfigSecretKey))
+		sb.WriteString(fmt.Sprintf("  Key:    %s\n\n", kubeconfig.DefaultKubeconfigSecretKey))
 
 		if len(r.ContextNames) == 0 {
 			sb.WriteString("  No contexts found in this kubeconfig")
@@ -127,7 +127,7 @@ var vaultList = func() []list.Item {
 	resolveVaultFlags()
 	client := buildVaultClient()
 
-	svc := kubeconfig2.NewVaultKubeconfigService(client)
+	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
 	if err != nil {
 		log.Errorf("❌ Failed to Clusters configuration kubeconfigs: %v", err)
@@ -173,8 +173,8 @@ var saveToVault = func(contextName string) {
 	resolveVaultFlags()
 	client := buildVaultClient()
 
-	svc := kubeconfig2.NewVaultKubeconfigService(client)
-	kubeconfigPath := kubeconfig2.GetPath()
+	svc := kubeconfig.NewVaultKubeconfigService(client)
+	kubeconfigPath := kubeconfig.GetPath()
 
 	if err := svc.SaveContextToVault(kubeconfigPath, contextName, contextName); err != nil {
 		log.Errorf("❌ Failed to save context to Vault: %v", err)
@@ -198,8 +198,8 @@ var vaultGet = func(dataPath string) {
 	resolveVaultFlags()
 	client := buildVaultClient()
 
-	svc := kubeconfig2.NewVaultKubeconfigService(client)
-	kubeconfigPath := kubeconfig2.GetPath()
+	svc := kubeconfig.NewVaultKubeconfigService(client)
+	kubeconfigPath := kubeconfig.GetPath()
 
 	// Derive resource name from the data path (last segment)
 	name := deriveResourceName(dataPath)

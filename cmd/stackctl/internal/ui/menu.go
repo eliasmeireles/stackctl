@@ -231,6 +231,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.spinner.Tick,
 						func() tea.Msg {
 							items := provider()
+
 							return dynamicProviderResultMsg{
 								title: title,
 								items: items,
