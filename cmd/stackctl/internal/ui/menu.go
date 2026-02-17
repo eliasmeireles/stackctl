@@ -51,7 +51,7 @@ type item struct {
 	action          func() tea.Cmd
 	actionWithArgs  func(args []string) tea.Cmd
 	subMenu         []list.Item
-	dynamicProvider func() []list.Item
+	dynamicProvider func() ([]list.Item, error)
 	detailFetcher   func() (path string, content string)
 	prompts         []string
 	prompt          string
@@ -230,7 +230,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Batch(
 						m.spinner.Tick,
 						func() tea.Msg {
-							items := provider()
+							items, err := provider()
+
+							if err != nil {
+								return fmt.Errorf("failed to load dynamic submenu: %w", err)
+							}
 
 							return dynamicProviderResultMsg{
 								title: title,
@@ -437,7 +441,7 @@ func CreateMultiPromptItem(title, desc string, prompts []string, action func() t
 
 // CreateDynamicSubMenu creates a menu item that calls provider() at selection
 // time to generate its submenu items dynamically (e.g. fetching from an API).
-func CreateDynamicSubMenu(title, desc string, provider func() []list.Item) list.Item {
+func CreateDynamicSubMenu(title, desc string, provider func() ([]list.Item, error)) list.Item {
 	return item{title: title, desc: desc, dynamicProvider: provider}
 }
 

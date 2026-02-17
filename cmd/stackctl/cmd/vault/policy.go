@@ -6,6 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func NewPolicyCmd() *cobra.Command {
@@ -40,8 +42,8 @@ var NewPolicyListCmdFunc = func() *cobra.Command {
 		Short:        "List all policies",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
+			flags.resolveVaultFlags()
+			vc := flags.buildVaultClient()
 
 			apiClient, err := vc.VaultClient()
 			if err != nil {
@@ -74,8 +76,8 @@ var NewPolicyGetCmdFunc = func() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
+			flags.resolveVaultFlags()
+			vc := flags.buildVaultClient()
 
 			apiClient, err := vc.VaultClient()
 			if err != nil {
@@ -136,8 +138,8 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
+			flags.resolveVaultFlags()
+			vc := flags.buildVaultClient()
 
 			apiClient, err := vc.VaultClient()
 			if err != nil {
@@ -171,8 +173,8 @@ var NewPolicyDeleteCmdFunc = func() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
+			flags.resolveVaultFlags()
+			vc := flags.buildVaultClient()
 
 			apiClient, err := vc.VaultClient()
 			if err != nil {

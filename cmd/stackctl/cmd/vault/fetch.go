@@ -10,6 +10,7 @@ import (
 
 	"github.com/eliasmeireles/envvault"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	featureKubeconfig "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 )
 
@@ -73,7 +74,7 @@ Examples:
     --vault-addr http://vault:8200 --vault-token s.xxx \
     --secret-path secret/data/ci/app-config`,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveVaultFlags()
+			flags.resolveVaultFlags()
 
 			if vaultSecretPath == "" {
 				vaultSecretPath = os.Getenv("VAULT_SECRET_PATH")
@@ -90,7 +91,7 @@ Examples:
 				return
 			}
 
-			vaultClient := buildVaultClient()
+			vaultClient := flags.buildVaultClient()
 
 			if !vaultExportEnv && !vaultAsKubeconfig {
 				vaultAsKubeconfig = true

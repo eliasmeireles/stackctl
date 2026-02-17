@@ -1,32 +1,57 @@
-package vault
+package auth
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
+
+var LoginEntry = []string{"Username", "Password (will be hidden"}
+
+type Client interface {
+	Authenticate(username, password, path, action string) (string, error)
+}
+
+type client struct {
+	clientApi *api.Client
+}
+
+func NewClient(clientApi *api.Client) Client {
+	return &client{clientApi: clientApi}
+}
+
+func (c *client) Authenticate(username, password, path, action string) (string, error) {
+	// Authenticate
+	token, err := c.authenticateUserpass(username, password)
+	if err != nil {
+		return "", err
+	}
+
+	// Validate permission
+	allowed, err := c.validatePermission(token, path, action)
+	if err != nil {
+		return "", err
+	}
+
+	if !allowed {
+		return "", fmt.Errorf("permission denied: insufficient privileges")
+	}
+
+	return token, nil
+}
 
 // authenticateUserpass authenticates a user via userpass auth method in Vault.
 // Returns the client token on success, or an error if authentication fails.
-func authenticateUserpass(username, password string) (string, error) {
-	resolveVaultFlags()
-
-	// Create a new Vault API client without authentication
-	config := api.DefaultConfig()
-	config.Address = Flags.Addr
-
-	client, err := api.NewClient(config)
-	if err != nil {
-		return "", fmt.Errorf("failed to create Vault client: %w", err)
-	}
-
+func (c *client) authenticateUserpass(username, password string) (string, error) {
 	// Authenticate via userpass
 	data := map[string]interface{}{
 		"password": password,
 	}
 
-	secret, err := client.Logical().Write(fmt.Sprintf("auth/userpass/login/%s", username), data)
+	secret, err := c.clientApi.Logical().Write(fmt.Sprintf("auth/userpass/login/%s", username), data)
 	if err != nil {
 		return "", fmt.Errorf("authentication failed: %w", err)
 	}
@@ -40,11 +65,11 @@ func authenticateUserpass(username, password string) (string, error) {
 
 // validatePermission checks if the given token has permission to perform an operation
 // on the specified path. Returns true if allowed, false otherwise.
-func validatePermission(token, path, capability string) (bool, error) {
-	resolveVaultFlags()
+func (c *client) validatePermission(token, path, capability string) (bool, error) {
+	flags.Resolve()
 
 	config := api.DefaultConfig()
-	config.Address = Flags.Addr
+	config.Address = flags.Flags.Addr
 
 	client, err := api.NewClient(config)
 	if err != nil {
@@ -97,30 +122,4 @@ func validatePermission(token, path, capability string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-var authenticateAndValidateFunc = func(username, password, path, action string) (string, error) {
-	// Authenticate
-	token, err := authenticateUserpass(username, password)
-	if err != nil {
-		return "", err
-	}
-
-	// Validate permission
-	allowed, err := validatePermission(token, path, action)
-	if err != nil {
-		return "", err
-	}
-
-	if !allowed {
-		return "", fmt.Errorf("permission denied: insufficient privileges")
-	}
-
-	return token, nil
-}
-
-// authenticateAndValidate prompts for credentials, authenticates, and validates permissions.
-// Returns the authenticated token if successful, or an error.
-func authenticateAndValidate(username, password, path, action string) (string, error) {
-	return authenticateAndValidateFunc(username, password, path, action)
 }

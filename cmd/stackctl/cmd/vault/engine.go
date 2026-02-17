@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/hashicorp/vault/api"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func NewEngineCmd() *cobra.Command {
@@ -36,8 +38,8 @@ var NewEngineListCmdFunc = func() *cobra.Command {
 		Short:        "List enabled secrets engines",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			mounts, err := apiClient.Sys().ListMounts()
 			if err != nil {
@@ -75,8 +77,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			engType := args[0]
 			mountPath := enginePath
@@ -129,8 +131,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			if err := apiClient.Sys().Unmount(args[0]); err != nil {
 				return fmt.Errorf("❌ Failed to disable engine at %q: %v", args[0], err)

@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/hashicorp/vault/api"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -36,8 +38,8 @@ var NewAuthListCmdFunc = func() *cobra.Command {
 		Short:        "List enabled auth methods",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			auths, err := apiClient.Sys().ListAuth()
 			if err != nil {
@@ -73,8 +75,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			authType := args[0]
 			mountPath := authPath
@@ -118,8 +120,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			if err := apiClient.Sys().DisableAuth(args[0]); err != nil {
 				return fmt.Errorf("❌ Failed to disable auth method at %q: %v", args[0], err)

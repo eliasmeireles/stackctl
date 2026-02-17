@@ -7,6 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 const defaultListPath = "secret/metadata/resources/kubeconfig"
@@ -44,8 +46,8 @@ Examples:
   stackctl vault secret list secret/metadata/ci/kubeconfig`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.resolveVaultFlags()
+			client := flags.buildVaultClient()
 
 			listPath := defaultListPath
 			if len(args) > 0 {
@@ -92,8 +94,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.resolveVaultFlags()
+			client := flags.buildVaultClient()
 
 			path := args[0]
 			log.Infof("🔍 Reading secret: %s", path)
@@ -156,8 +158,8 @@ Examples:
 		Args:         cobra.MinimumNArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.resolveVaultFlags()
+			client := flags.buildVaultClient()
 
 			path := args[0]
 			data := make(map[string]interface{})
@@ -199,8 +201,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.resolveVaultFlags()
+			client := flags.buildVaultClient()
 
 			path := args[0]
 			log.Info("🗑️  Deleting secret")

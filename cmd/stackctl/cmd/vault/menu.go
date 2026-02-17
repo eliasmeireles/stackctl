@@ -8,10 +8,10 @@ import (
 
 var (
 	vaultSecretItems = []list.Item{
-		ui.CreateDynamicSubMenu("List", "List all secret metadata paths", SecretListProvider),
+		ui.CreateDynamicSubMenu("List", "List all secret metadata paths", SecretClient.List),
 		ui.CreatePromptItem("Get", "Read a secret", "Data Path (e.g. secret/data/ci/kubeconfig/home-lab)", nil),
 		ui.CreateItem("Put", "Create/update a secret (use CLI)", nil),
-		ui.CreateDynamicSubMenu("Delete", "Select a secret to delete", SecretDeleteProvider),
+		ui.CreateDynamicSubMenu("Delete", "Select a secret to delete", SecretClient.Delete),
 	}
 
 	vaultPolicyItems = []list.Item{

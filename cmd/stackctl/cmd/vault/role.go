@@ -7,6 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 // NewRoleCmd creates the role subcommand.
@@ -48,8 +50,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			listPath := fmt.Sprintf("%s/role", strings.TrimRight(args[0], "/"))
 
@@ -96,8 +98,8 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(args[0], "/"), args[1])
 
@@ -162,8 +164,8 @@ For AppRole auth:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			authMount := strings.TrimRight(args[0], "/")
 			roleName := args[1]
@@ -250,8 +252,8 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
+			flags.resolveVaultFlags()
+			apiClient := flags.mustVaultAPIClient()
 
 			rolePath := fmt.Sprintf("%s/role/%s", strings.TrimRight(args[0], "/"), args[1])
 

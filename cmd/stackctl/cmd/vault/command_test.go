@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 )
 
 func TestVaultCommand(t *testing.T) {
@@ -45,34 +46,6 @@ func TestCommandsInitialization(t *testing.T) {
 			assert.True(t, ok, "missing category: "+cat)
 			assert.NotNil(t, cmdInstance)
 		}
-	})
-}
-
-func TestVaultHelpers(t *testing.T) {
-	t.Run("must call underlying functions for vault helpers", func(t *testing.T) {
-		origResolve := resolveVaultFlagsFunc
-		origBuild := buildVaultClientFunc
-
-		called := make(map[string]bool)
-
-		resolveVaultFlagsFunc = func() {
-			called["resolve"] = true
-		}
-		buildVaultClientFunc = func() *envvault.Client {
-			called["build"] = true
-			return nil
-		}
-
-		defer func() {
-			resolveVaultFlagsFunc = origResolve
-			buildVaultClientFunc = origBuild
-		}()
-
-		resolveVaultFlags()
-		buildVaultClient()
-
-		assert.True(t, called["resolve"])
-		assert.True(t, called["build"])
 	})
 }
 

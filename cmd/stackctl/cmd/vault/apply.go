@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/flags"
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 )
 
@@ -46,7 +47,7 @@ Examples:
 				return fmt.Errorf("❌ Failed to parse YAML: %v", err)
 			}
 
-			resolveVaultFlags()
+			flags.resolveVaultFlags()
 
 			evClient, err := vaultpkg.NewEnvVaultClient()
 			if err != nil {
