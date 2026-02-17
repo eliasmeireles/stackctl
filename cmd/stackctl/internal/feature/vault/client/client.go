@@ -18,10 +18,12 @@ type Api interface {
 	Client() (*api.Client, error)
 	EnvVaultClient() (*envvault.Client, error)
 	VaultConnectivity(addr string) error
-	ValidateToken() error
+	validateToken() error
 }
 
 type apiImpl struct {
+	clientApi   *api.Client
+	envVaultApi *envvault.Client
 }
 
 func NewApi() Api {
@@ -29,6 +31,10 @@ func NewApi() Api {
 }
 
 func (a *apiImpl) Client() (*api.Client, error) {
+	if a.clientApi != nil {
+		return a.clientApi, nil
+	}
+
 	evClient, err := a.EnvVaultClient()
 
 	if err != nil {
@@ -40,10 +46,16 @@ func (a *apiImpl) Client() (*api.Client, error) {
 		return nil, fmt.Errorf("failed to get Vault API client: %w", err)
 	}
 
+	a.clientApi = apiClient
+
 	return apiClient, nil
 }
 
 func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
+	if a.envVaultApi != nil {
+		return a.envVaultApi, nil
+	}
+
 	cfg, err := envvault.ConfigFromEnvForReadOnly()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Vault config: %w", err)
@@ -54,14 +66,24 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 	}
 
 	client := envvault.NewClient(cfg)
+	a.envVaultApi = client
+
+	apiClient, err := client.VaultClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Vault API client: %w", err)
+	}
+
+	a.clientApi = apiClient
+
 	if err := client.Authenticate(); err != nil {
 		return nil, fmt.Errorf("vault authentication failed: %w", err)
 	}
 
-	if err := a.ValidateToken(); err != nil {
+	if err := a.validateToken(); err != nil {
 		return nil, err
 	}
 
+	a.envVaultApi = client
 	return client, nil
 }
 
@@ -101,16 +123,10 @@ func (a *apiImpl) VaultConnectivity(addr string) error {
 // ValidateToken performs a token self-lookup to verify the token is valid
 // and not expired. This provides a fast-fail with a clear error message
 // instead of hanging on subsequent API calls.
-func (a *apiImpl) ValidateToken() error {
-	apiClient, err := a.Client()
+func (a *apiImpl) validateToken() error {
+	a.clientApi.SetClientTimeout(DefaultVaultTimeout)
 
-	if err != nil {
-		return fmt.Errorf("failed to create Vault API client: %w", err)
-	}
-
-	apiClient.SetClientTimeout(DefaultVaultTimeout)
-
-	secret, err := apiClient.Auth().Token().LookupSelf()
+	secret, err := a.clientApi.Auth().Token().LookupSelf()
 	if err != nil {
 		return fmt.Errorf(
 			"vault token is invalid or expired: %w\n"+
