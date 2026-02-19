@@ -2,14 +2,15 @@ package flags
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/eliasmeireles/envvault"
 	"github.com/spf13/cobra"
 )
 
 // VaultFlags holds the resolved Vault authentication flags.
-// VaultFlags take precedence over environment variables, which take precedence
-// over the $HOME/.vault-token fallback.
+// Priority: CLI flags > original VAULT_TOKEN env var > ~/.vault-token file.
 type VaultFlags struct {
 	Addr         string
 	Token        string
@@ -21,8 +22,16 @@ type VaultFlags struct {
 }
 
 var (
-	// Flags shared by all vault subcommands
+	// Flags holds the fully resolved values, rebuilt on every Resolve() call.
 	Flags VaultFlags
+
+	// cliFlags holds only values bound directly to cobra flags.
+	// It is never mutated after cobra parses the command line.
+	cliFlags VaultFlags
+
+	// originalEnvToken captures VAULT_TOKEN from the user's environment at
+	// startup, before any PushToEnv call can pollute it with our own writes.
+	originalEnvToken = os.Getenv(envvault.EnvVaultToken)
 )
 
 // ResolveFlags merges flag values with environment variables.
@@ -49,12 +58,52 @@ func (f *VaultFlags) PushToEnv() {
 	setEnvIfNotEmpty(envvault.EnvVaultSATokenPath, f.SATokenPath)
 }
 
-// Resolve merges flag values with env vars (flags take precedence)
-// and pushes them back to env so envvault.ConfigFromEnvForReadOnly picks them up.
+// Resolve rebuilds Flags fresh on every call so that retries always pick up
+// the latest credentials. Resolution order:
+//  1. Cobra CLI flags (highest priority, set once at startup via cliFlags)
+//  2. Non-token env vars (VAULT_ADDR, VAULT_ROLE_ID, etc.)
+//  3. Original VAULT_TOKEN from the user's environment (captured at startup)
+//  4. ~/.vault-token file — re-read every call to detect fresh `vault login`
 func Resolve() {
-	ResolveFlags(&Flags)
+	// Start from cobra-provided CLI flags; these never change after startup.
+	Flags = cliFlags
+
+	// Resolve non-token fields from current env vars.
+	resolveFromEnv(&Flags.Addr, envvault.EnvVaultAddr)
+	resolveFromEnv(&Flags.RoleID, envvault.EnvVaultRoleID)
+	resolveFromEnv(&Flags.SecretID, envvault.EnvVaultSecretID)
+	resolveFromEnv(&Flags.K8sRole, envvault.EnvVaultK8sRole)
+	resolveFromEnv(&Flags.K8sMountPath, envvault.EnvVaultK8sMountPath)
+	resolveFromEnv(&Flags.SATokenPath, envvault.EnvVaultSATokenPath)
+
+	// For the token, prefer the original user-set VAULT_TOKEN over any value
+	// we may have written ourselves in a previous PushToEnv call.
+	if Flags.Token == "" && originalEnvToken != "" {
+		Flags.Token = originalEnvToken
+	}
+
+	// File fallback: always re-read ~/.vault-token so a fresh `vault login`
+	// is detected on the very next retry without restarting the app.
+	if Flags.Token == "" && Flags.RoleID == "" && Flags.K8sRole == "" {
+		if token := ReadVaultTokenFile(); token != "" {
+			Flags.Token = token
+		}
+	}
 
 	Flags.PushToEnv()
+}
+
+// ReadVaultTokenFile reads the token written by `vault login` at $HOME/.vault-token.
+func ReadVaultTokenFile() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".vault-token"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func resolveFromEnv(flag *string, envKey string) {
@@ -70,35 +119,33 @@ func setEnvIfNotEmpty(key, value string) {
 }
 
 func SharedFlags(cmd *cobra.Command) {
-	// Shared persistent flags for all vault subcommands
+	// Bind directly to cliFlags so cobra values are isolated from Resolve() rewrites.
 	cmd.PersistentFlags().StringVar(
-		&Flags.Addr, "addr", "",
+		&cliFlags.Addr, "addr", "",
 		"Vault server address (env: VAULT_ADDR)",
 	)
 	cmd.PersistentFlags().StringVar(
-		&Flags.Token, "token", "",
+		&cliFlags.Token, "token", "",
 		"Vault token for direct auth (env: VAULT_TOKEN)",
 	)
 	cmd.PersistentFlags().StringVar(
-		&Flags.RoleID, "role-id", "",
+		&cliFlags.RoleID, "role-id", "",
 		"AppRole role ID (env: VAULT_ROLE_ID)",
 	)
 	cmd.PersistentFlags().StringVar(
-		&Flags.SecretID, "secret-id", "",
+		&cliFlags.SecretID, "secret-id", "",
 		"AppRole secret ID (env: VAULT_SECRET_ID)",
 	)
-
 	cmd.PersistentFlags().StringVar(
-		&Flags.K8sRole, "k8s-role", "",
+		&cliFlags.K8sRole, "k8s-role", "",
 		"Vault role for K8s ServiceAccount auth (env: VAULT_K8S_ROLE)",
 	)
-
 	cmd.PersistentFlags().StringVar(
-		&Flags.K8sMountPath, "k8s-mount-path", "",
+		&cliFlags.K8sMountPath, "k8s-mount-path", "",
 		"Vault K8s auth mount path (env: VAULT_K8S_MOUNT_PATH), default: kubernetes",
 	)
 	cmd.PersistentFlags().StringVar(
-		&Flags.SATokenPath, "sa-token-path", "",
+		&cliFlags.SATokenPath, "sa-token-path", "",
 		"ServiceAccount token file path (env: VAULT_SA_TOKEN_PATH)",
 	)
 }

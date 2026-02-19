@@ -79,6 +79,7 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 	a.clientApi = apiClient
 
 	if err := a.validateToken(); err != nil {
+		a.clientApi = nil // don't cache a client with a bad/expired token
 		return nil, err
 	}
 

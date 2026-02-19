@@ -16,6 +16,5 @@ func resolveVaultFlags() {
 }
 
 var resolveVaultFlagsFunc = func() {
-	vaultpkg.ResolveFlags(&VaultFlags)
-	VaultFlags.PushToEnv()
+	vaultpkg.Resolve()
 }
