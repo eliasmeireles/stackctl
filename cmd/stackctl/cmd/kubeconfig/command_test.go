@@ -174,9 +174,9 @@ func TestVaultProviders(t *testing.T) {
 			vaultFromVaultProviderFunc = origFrom
 		}()
 
-		LocalContext()
-		VaultContexts()
-		VaultList()
+		_, _ = LocalContext()
+		_, _ = VaultContexts()
+		_, _ = VaultList()
 
 		assert.True(t, called["save"])
 		assert.True(t, called["list"])

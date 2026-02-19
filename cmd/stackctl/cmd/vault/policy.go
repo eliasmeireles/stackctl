@@ -30,10 +30,6 @@ func NewPolicyListCmd() *cobra.Command {
 	return NewPolicyListCmdFunc()
 }
 
-const (
-	errVaultClient = "❌ Failed to get Vault client: %v"
-)
-
 var NewPolicyListCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
 		Use:          "list",
