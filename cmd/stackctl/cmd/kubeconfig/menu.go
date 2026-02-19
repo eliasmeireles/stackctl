@@ -21,9 +21,9 @@ var (
 
 	configItems = []list.Item{
 		ui.CreateSubMenu("Add Configuration", "Import config from various sources", addConfigItems),
-		ui.CreateItem("Local Contexts", "List kubeconfig contexts available in local host", ui.HoopAction),
+		ui.CreateItem("List Contexts", "List kubeconfig contexts available in local host", ui.HoopAction),
 		ui.CreateSubMenu("Set Current Context", "Switch to another context", ctxItems),
-		ui.CreateItem("Cleanup Duplicates", "Remove duplicate entries", ui.HoopAction),
+		ui.CreateItem("Clean Duplicates", "Remove duplicate entries", ui.HoopAction),
 		ui.CreateSubMenu("Remove Context", "Delete a context from config", ctxItems),
 		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext),
 		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", VaultContexts),
