@@ -4,8 +4,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/add"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/delete"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/get"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/update"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 )
 
@@ -38,6 +42,10 @@ func init() {
 	log.SetFormatter(new(PlainFormatter))
 
 	// Register subcommands
+	rootCmd.AddCommand(add.NewCommand())
+	rootCmd.AddCommand(delete.NewCommand())
+	rootCmd.AddCommand(update.NewCommand())
+	rootCmd.AddCommand(get.NewCommand())
 	rootCmd.AddCommand(netbird.NewCommand())
 	rootCmd.AddCommand(vault.NewCommand())
 	rootCmd.AddCommand(kubeconfig.NewCommand())

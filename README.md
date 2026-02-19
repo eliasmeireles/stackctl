@@ -12,11 +12,14 @@ integration.
   secrets engines, and roles.
 - **Vault-Kubeconfig Sync**: Securely store and retrieve kubeconfigs from Vault, enabling centralized configuration
   management.
+- **Password Management**: `stackctl get/add/update/delete pass <KEY>` — manage passwords stored in Vault as individual
+  fields. Values are never printed to the terminal; `get` and auto-generated passwords are copied directly to clipboard.
 - **NetBird VPN**: Built-in commands to install, connect, and check the status of NetBird VPN, with DNS resolution
   support.
 - **Interactive TUI**: A user-friendly Terminal User Interface (TUI) for navigating all features without remembering CLI
-  flags.
-- **CI/CD Ready**: Specialized commands (`vault-fetch`) and scripts for GitHub Actions and other CI pipelines.
+  flags. Automatically retries Vault authentication every 5 seconds when credentials are not yet available.
+- **CI/CD Ready**: Specialized commands (`stackctl vault vault-fetch`) and scripts for GitHub Actions and other CI
+  pipelines.
 
 ---
 
@@ -29,6 +32,7 @@ integration.
     - [Kubeconfig Management](#2-kubeconfig-management)
     - [Vault Operations](#3-vault-operations)
     - [NetBird VPN](#4-netbird-vpn)
+    - [Password Management](#5-password-management)
 - [CI/CD Integration](#cicd-integration)
 - [Examples](#examples)
 
@@ -435,15 +439,15 @@ stackctl vault secret delete secret/metadata/ci/kubeconfig/old-cluster
 Specialized command for fetching secrets in CI/CD pipelines with multiple modes.
 
 ```bash
-stackctl vault-fetch [flags]
+stackctl vault vault-fetch [flags]
 ```
 
 **Flags:**
 
-- `--vault-addr`: Vault server address
-- `--vault-token`: Direct token authentication
-- `--vault-role-id` / `--vault-secret-id`: AppRole authentication
-- `--vault-k8s-role`: Kubernetes ServiceAccount authentication
+- `--addr`: Vault server address (env: `VAULT_ADDR`)
+- `--token`: Direct token authentication (env: `VAULT_TOKEN`)
+- `--role-id` / `--secret-id`: AppRole authentication (env: `VAULT_ROLE_ID` / `VAULT_SECRET_ID`)
+- `--k8s-role`: Kubernetes ServiceAccount authentication (env: `VAULT_K8S_ROLE`)
 - `--secret-path`: Path to the secret (e.g., `secret/data/ci/kubeconfig`)
 - `--secret-field`: Field containing the data (default: `kubeconfig`)
 - `--as-kubeconfig`: Merge the field value (Base64) into local kubeconfig (default)
@@ -456,10 +460,10 @@ stackctl vault-fetch [flags]
 ##### Fetch Kubeconfig via AppRole (CI/CD)
 
 ```bash
-stackctl vault-fetch \
-  --vault-addr https://vault.example.com \
-  --vault-role-id $VAULT_ROLE_ID \
-  --vault-secret-id $VAULT_SECRET_ID \
+stackctl vault vault-fetch \
+  --addr https://vault.example.com \
+  --role-id $VAULT_ROLE_ID \
+  --secret-id $VAULT_SECRET_ID \
   --secret-path secret/data/ci/kubeconfig/prod \
   -r prod-cluster
 # ✅ Kubeconfig from secret/data/ci/kubeconfig/prod[kubeconfig] merged into ~/.kube/config
@@ -468,10 +472,10 @@ stackctl vault-fetch \
 ##### Fetch Kubeconfig via Kubernetes ServiceAccount
 
 ```bash
-stackctl vault-fetch \
-  --vault-addr http://vault.local:8200 \
-  --vault-k8s-role ci-kubeconfig \
-  --vault-k8s-mount-path auth/k8s-vps-01 \
+stackctl vault vault-fetch \
+  --addr http://vault.local:8200 \
+  --k8s-role ci-kubeconfig \
+  --k8s-mount-path auth/k8s-vps-01 \
   --secret-path secret/data/ci/kubeconfig/home-lab \
   -r home-lab
 ```
@@ -479,11 +483,11 @@ stackctl vault-fetch \
 ##### Export Environment Variables
 
 ```bash
-stackctl vault-fetch \
+stackctl vault vault-fetch \
   --export-env \
   --github-env \
-  --vault-addr https://vault.example.com \
-  --vault-token hvs.xxxxx \
+  --addr https://vault.example.com \
+  --token hvs.xxxxx \
   --secret-path secret/data/ci/app-config
 # ✅ Exported DB_HOST
 # ✅ Exported DB_PORT
@@ -868,6 +872,89 @@ stackctl netbird status
 
 ---
 
+### 5. Password Management
+
+Manage passwords stored as individual fields inside a Vault KV v2 secret. The password value is **never printed**
+to the terminal — it is copied directly to your clipboard when needed.
+
+**Path resolution order** (for all `pass` subcommands):
+
+1. `--path` flag
+2. `STACK_CTL_DEFAULT_PASS_PATH` environment variable
+3. Default: `secret/data/users/all/passwords`
+
+**Vault flags** (`--addr`, `--token`, `--role-id`, etc.) follow the same
+[resolution order](#vault-authentication) as all other Vault commands.
+
+#### Get Password (copy to clipboard)
+
+```bash
+stackctl get pass <KEY> [--path <vault-path>]
+```
+
+```bash
+stackctl get pass MY_PASSWORD
+# ✅ 'MY_PASSWORD' copied to clipboard
+
+stackctl get pass DB_PASS --path secret/data/team/credentials
+# ✅ 'DB_PASS' copied to clipboard
+```
+
+#### Add Password
+
+```bash
+stackctl add pass <KEY> [--pass <value>] [--size <bytes>] [--path <vault-path>]
+```
+
+If `--pass` is not provided, a cryptographically random hex string is auto-generated using `--size` bytes
+(default 20 bytes = 40 hex characters). Auto-generated passwords are copied to clipboard automatically.
+
+```bash
+# Store an explicit password
+stackctl add pass MY_PASSWORD --pass s3cr3t
+# ✅ 'MY_PASSWORD' added
+
+# Auto-generate a 32-byte password (64 hex chars) — copied to clipboard
+stackctl add pass MY_PASSWORD --size 32
+# ✅ 'MY_PASSWORD' added and copied to clipboard
+
+# Use a custom path
+stackctl add pass DB_PASS --pass s3cr3t --path secret/data/team/credentials
+# ✅ 'DB_PASS' added
+```
+
+#### Update Password
+
+```bash
+stackctl update pass <KEY> [--pass <value>] [--size <bytes>] [--path <vault-path>]
+```
+
+Same as `add` but for updating an existing field. Auto-generated passwords are copied to clipboard.
+
+```bash
+stackctl update pass MY_PASSWORD --pass newvalue
+# ✅ 'MY_PASSWORD' updated
+
+stackctl update pass MY_PASSWORD --size 32
+# ✅ 'MY_PASSWORD' updated and copied to clipboard
+```
+
+#### Delete Password
+
+```bash
+stackctl delete pass <KEY> [--path <vault-path>]
+```
+
+```bash
+stackctl delete pass MY_PASSWORD
+# ✅ 'MY_PASSWORD' deleted
+
+stackctl delete pass DB_PASS --path secret/data/team/credentials
+# ✅ 'DB_PASS' deleted
+```
+
+---
+
 ## CI/CD Integration
 
 `stackctl` is designed to be the single tool needed in your CI pipelines for setting up Kubernetes access and managing
@@ -906,7 +993,7 @@ jobs:
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
         run: |
-          stackctl vault-fetch \
+          stackctl vault vault-fetch \
             --secret-path secret/data/ci/kubeconfig/prod \
             -r prod-cluster
 
@@ -932,10 +1019,10 @@ deploy:
     - stackctl netbird up --netbird-key $NETBIRD_KEY --wait-dns
   script:
     - |
-      stackctl vault-fetch \
-        --vault-addr $VAULT_ADDR \
-        --vault-role-id $VAULT_ROLE_ID \
-        --vault-secret-id $VAULT_SECRET_ID \
+      stackctl vault vault-fetch \
+        --addr $VAULT_ADDR \
+        --role-id $VAULT_ROLE_ID \
+        --secret-id $VAULT_SECRET_ID \
         --secret-path secret/data/ci/kubeconfig/prod \
         -r prod-cluster
     - kubectl apply -f k8s/
@@ -950,7 +1037,7 @@ deploy:
     VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
     VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
   run: |
-    stackctl vault-fetch \
+    stackctl vault vault-fetch \
       --export-env \
       --github-env \
       --secret-path secret/data/ci/app-config
