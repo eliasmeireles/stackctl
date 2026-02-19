@@ -51,7 +51,7 @@ func TestResolvePassPath(t *testing.T) {
 	})
 
 	t.Run("uses default when flag and env are empty", func(t *testing.T) {
-		os.Unsetenv(envPassPath)
+		_ = os.Unsetenv(envPassPath)
 		p := ""
 		assert.Equal(t, defaultPassPath, resolvePassPath(&p))
 	})
