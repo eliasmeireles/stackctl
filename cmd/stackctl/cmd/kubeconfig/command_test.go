@@ -155,17 +155,17 @@ func TestVaultProviders(t *testing.T) {
 
 		called := make(map[string]bool)
 
-		vaultSaveToRemoteProviderFunc = func() []list.Item {
+		vaultSaveToRemoteProviderFunc = func() ([]list.Item, error) {
 			called["save"] = true
-			return nil
+			return nil, nil
 		}
-		listContexts = func() []list.Item {
+		listContexts = func() ([]list.Item, error) {
 			called["list"] = true
-			return nil
+			return nil, nil
 		}
-		vaultFromVaultProviderFunc = func() []list.Item {
+		vaultFromVaultProviderFunc = func() ([]list.Item, error) {
 			called["from"] = true
-			return nil
+			return nil, nil
 		}
 
 		defer func() {
@@ -231,9 +231,4 @@ func TestVaultEdgeCases(t *testing.T) {
 		assert.Equal(t, "", deriveResourceName(""))
 	})
 
-	t.Run("errorItem must return list item with error message", func(t *testing.T) {
-		items := errorItem("test error %s", "details")
-		require.Len(t, items, 1)
-		assert.Equal(t, "Error", items[0].FilterValue())
-	})
 }
