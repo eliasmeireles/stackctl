@@ -101,16 +101,16 @@ var vaultContexts = func() ([]list.Item, error) {
 func vaultFetch(r kubeconfig.RemoteKubeconfig) func() (string, string) {
 	return func() (string, string) {
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("  Secret: %s\n", r.SecretName))
-		sb.WriteString(fmt.Sprintf("  Path:   %s\n", r.DataPath))
-		sb.WriteString(fmt.Sprintf("  Key:    %s\n\n", kubeconfig.DefaultKubeconfigSecretKey))
+		_, _ = fmt.Fprintf(&sb, "  Secret: %s\n", r.SecretName)
+		_, _ = fmt.Fprintf(&sb, "  Path:   %s\n", r.DataPath)
+		_, _ = fmt.Fprintf(&sb, "  Key:    %s\n\n", kubeconfig.DefaultKubeconfigSecretKey)
 
 		if len(r.ContextNames) == 0 {
 			sb.WriteString("  No contexts found in this kubeconfig")
 		} else {
 			sb.WriteString("  Contexts:\n")
 			for _, name := range r.ContextNames {
-				sb.WriteString(fmt.Sprintf("    - %s\n", name))
+				_, _ = fmt.Fprintf(&sb, "    - %s\n", name)
 			}
 		}
 		return r.SecretName, sb.String()

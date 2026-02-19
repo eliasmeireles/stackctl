@@ -1,7 +1,6 @@
 package add
 
 import (
-	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -62,7 +61,6 @@ func TestResolvePassPath(t *testing.T) {
 	})
 
 	t.Run("uses default when flag and env are empty", func(t *testing.T) {
-		os.Unsetenv(envPassPath)
 		p := ""
 		assert.Equal(t, defaultPassPath, resolvePassPath(&p))
 	})
