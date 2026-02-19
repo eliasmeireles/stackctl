@@ -32,47 +32,37 @@ var NewFetchCommandFunc = func() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "vault-fetch",
+		Use:   "fetch",
 		Short: "Fetch secrets from HashiCorp Vault and export to environment",
 		Long: `Fetch secrets from HashiCorp Vault using ServiceAccount, token, or AppRole authentication.
 
-All auth parameters can be provided via flags or environment variables (flags take precedence).
-
-Authentication (one of):
-  --vault-token / VAULT_TOKEN              Direct Vault token
-  --vault-role-id / VAULT_ROLE_ID          AppRole role ID (inline)
-  --vault-secret-id / VAULT_SECRET_ID      AppRole secret ID (inline)
-  --vault-k8s-role / VAULT_K8S_ROLE        Kubernetes ServiceAccount auth
-  --vault-k8s-mount-path / VAULT_K8S_MOUNT_PATH  Auth mount (default: auth/kubernetes)
-  --vault-sa-token-path / VAULT_SA_TOKEN_PATH     SA token file
+Auth flags (--addr, --token, --role-id, etc.) are inherited from the parent 'vault' command.
+All auth parameters can also be provided via environment variables (flags take precedence).
 
 Modes:
   --export-env       Export all secret fields as environment variables
   --as-kubeconfig    Treat the secret field as a base64 kubeconfig and merge it
   (default)          If neither is set, --as-kubeconfig is assumed
 
-VPN Integration:
-  Use --with-netbird (global flag) to connect to NetBird VPN before accessing Vault.
-
 Examples:
   # Fetch kubeconfig via AppRole (CI)
-  stackctl vault fetch --with-netbird --wait-dns \
-    --vault-addr http://vault:8200 \
-    --vault-role-id <role-id> --vault-secret-id <secret-id> \
+  stackctl vault fetch \
+    --addr http://vault:8200 \
+    --role-id <role-id> --secret-id <secret-id> \
     --secret-path secret/data/ci/kubeconfig/home-lab \
     -r home-lab
 
   # Fetch kubeconfig via Kubernetes ServiceAccount
   stackctl vault fetch \
-    --vault-addr http://vault:8200 \
-    --vault-k8s-role ci-kubeconfig \
-    --vault-k8s-mount-path auth/k8s-vps-01-oracle \
+    --addr http://vault:8200 \
+    --k8s-role ci-kubeconfig \
+    --k8s-mount-path auth/k8s-vps-01-oracle \
     --secret-path secret/data/ci/kubeconfig/home-lab \
     -r home-lab
 
   # Export all secret fields as env vars (for CI steps)
   stackctl vault fetch --export-env --github-env \
-    --vault-addr http://vault:8200 --vault-token s.xxx \
+    --addr http://vault:8200 --token s.xxx \
     --secret-path secret/data/ci/app-config`,
 		Run: func(cmd *cobra.Command, args []string) {
 			flags.Resolve()
@@ -113,13 +103,6 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Flags.Addr, "vault-addr", "", "Vault server address (env: VAULT_ADDR)")
-	cmd.Flags().StringVar(&flags.Flags.Token, "vault-token", "", "Vault token for direct auth (env: VAULT_TOKEN)")
-	cmd.Flags().StringVar(&flags.Flags.RoleID, "vault-role-id", "", "AppRole role ID (env: VAULT_ROLE_ID)")
-	cmd.Flags().StringVar(&flags.Flags.SecretID, "vault-secret-id", "", "AppRole secret ID (env: VAULT_SECRET_ID)")
-	cmd.Flags().StringVar(&flags.Flags.K8sRole, "vault-k8s-role", "", "Vault role for K8s ServiceAccount auth (env: VAULT_K8S_ROLE)")
-	cmd.Flags().StringVar(&flags.Flags.K8sMountPath, "vault-k8s-mount-path", "", "Vault K8s auth mount path (env: VAULT_K8S_MOUNT_PATH)")
-	cmd.Flags().StringVar(&flags.Flags.SATokenPath, "vault-sa-token-path", "", "ServiceAccount token file path (env: VAULT_SA_TOKEN_PATH)")
 	cmd.Flags().StringVar(&vaultSecretPath, "secret-path", "", "Vault KV v2 secret path (env: VAULT_SECRET_PATH)")
 	cmd.Flags().StringVar(&vaultSecretField, "secret-field", "", "Field name for kubeconfig (default: kubeconfig, env: VAULT_SECRET_FIELD)")
 	cmd.Flags().BoolVar(&vaultExportEnv, "export-env", false, "Export all secret fields as environment variables")
