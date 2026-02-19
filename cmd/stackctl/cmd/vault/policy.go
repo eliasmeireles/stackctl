@@ -30,27 +30,15 @@ func NewPolicyListCmd() *cobra.Command {
 	return NewPolicyListCmdFunc()
 }
 
-const (
-	errVaultClient = "❌ Failed to get Vault client: %v"
-)
-
 var NewPolicyListCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
 		Use:          "list",
 		Short:        "List all policies",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
-
-			apiClient, err := vc.VaultClient()
+			policies, err := PolicyClient.List()
 			if err != nil {
-				return fmt.Errorf(errVaultClient, err)
-			}
-
-			policies, err := apiClient.Sys().ListPolicies()
-			if err != nil {
-				return fmt.Errorf("❌ Failed to list policies: %v", err)
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			for _, p := range policies {
@@ -74,21 +62,9 @@ var NewPolicyGetCmdFunc = func() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
-
-			apiClient, err := vc.VaultClient()
+			policy, err := PolicyClient.Get(args[0])
 			if err != nil {
-				return fmt.Errorf(errVaultClient, err)
-			}
-
-			policy, err := apiClient.Sys().GetPolicy(args[0])
-			if err != nil {
-				return fmt.Errorf("❌ Failed to read policy %q: %v", args[0], err)
-			}
-
-			if policy == "" {
-				return fmt.Errorf("❌ Policy %q not found", args[0])
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			fmt.Println(policy)
@@ -136,22 +112,14 @@ Examples:
 		Args:         cobra.ExactArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
-
-			apiClient, err := vc.VaultClient()
-			if err != nil {
-				return fmt.Errorf(errVaultClient, err)
-			}
-
 			name := args[0]
 			content, err := os.ReadFile(args[1])
 			if err != nil {
 				return fmt.Errorf("❌ Failed to read file %q: %v", args[1], err)
 			}
 
-			if err := apiClient.Sys().PutPolicy(name, string(content)); err != nil {
-				return fmt.Errorf("❌ Failed to write policy %q: %v", name, err)
+			if err := PolicyClient.Put(name, string(content)); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			log.Infof("✅ Policy %q written successfully", name)
@@ -171,16 +139,8 @@ var NewPolicyDeleteCmdFunc = func() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			vc := buildVaultClient()
-
-			apiClient, err := vc.VaultClient()
-			if err != nil {
-				return fmt.Errorf(errVaultClient, err)
-			}
-
-			if err := apiClient.Sys().DeletePolicy(args[0]); err != nil {
-				return fmt.Errorf("❌ Failed to delete policy %q: %v", args[0], err)
+			if err := PolicyClient.Delete(args[0]); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			log.Infof("✅ Policy %q deleted successfully", args[0])

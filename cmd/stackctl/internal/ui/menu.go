@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -51,7 +52,7 @@ type item struct {
 	action          func() tea.Cmd
 	actionWithArgs  func(args []string) tea.Cmd
 	subMenu         []list.Item
-	dynamicProvider func() []list.Item
+	dynamicProvider func() ([]list.Item, error)
 	detailFetcher   func() (path string, content string)
 	prompts         []string
 	prompt          string
@@ -91,12 +92,39 @@ const (
 	StateInput
 	StateDetail
 	StateLoading
+	StateError
+	StateRetrying
 )
+
+const retryInterval = 5 * time.Second
 
 // dynamicProviderResultMsg is sent when an async dynamic provider finishes loading.
 type dynamicProviderResultMsg struct {
 	title string
 	items []list.Item
+}
+
+// retryMsg is sent after retryInterval to trigger a new attempt at the provider.
+type retryMsg struct{}
+
+// scheduleRetry returns a command that fires retryMsg after retryInterval.
+func scheduleRetry() tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(retryInterval)
+		return retryMsg{}
+	}
+}
+
+// isAuthError reports whether err looks like a Vault authentication failure
+// that may self-resolve once the user logs in.
+func isAuthError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not authenticated") ||
+		strings.Contains(msg, "authentication failed") ||
+		strings.Contains(msg, "vault token") ||
+		strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "permission denied") ||
+		strings.Contains(msg, "403")
 }
 
 type Model struct {
@@ -112,6 +140,9 @@ type Model struct {
 	detailContent string
 	detailPath    string
 	loadingLabel  string
+	errorMsg      string
+	retryProvider func() ([]list.Item, error)
+	retryTitle    string
 	quitting      bool
 	action        func(args []string) tea.Cmd
 	// pendingAction stores an action to be executed AFTER the TUI exits.
@@ -131,10 +162,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newList := newList(breadcrumb, msg.items)
 		m.listStack = append(m.listStack, newList)
 		m.state = StateList
+		m.retryProvider = nil
+		m.retryTitle = ""
 		return m, nil
 
+	case error:
+		if isAuthError(msg) && m.retryProvider != nil {
+			m.state = StateRetrying
+			m.errorMsg = msg.Error()
+			return m, tea.Batch(m.spinner.Tick, scheduleRetry())
+		}
+		m.state = StateError
+		m.errorMsg = msg.Error()
+		m.retryProvider = nil
+		return m, nil
+
+	case retryMsg:
+		if m.state != StateRetrying || m.retryProvider == nil {
+			return m, nil
+		}
+		m.state = StateLoading
+		provider := m.retryProvider
+		title := m.retryTitle
+		return m, tea.Batch(
+			m.spinner.Tick,
+			func() tea.Msg {
+				items, err := provider()
+				if err != nil {
+					return fmt.Errorf("failed to load dynamic submenu: %w", err)
+				}
+				return dynamicProviderResultMsg{title: title, items: items}
+			},
+		)
+
 	case spinner.TickMsg:
-		if m.state == StateLoading {
+		if m.state == StateLoading || m.state == StateRetrying {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
@@ -147,6 +209,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.String() == "ctrl+c" {
 				m.quitting = true
 				return m, tea.Quit
+			}
+			return m, nil
+		}
+
+		if m.state == StateError {
+			if msg.String() == "ctrl+c" || msg.String() == "q" {
+				m.quitting = true
+				return m, tea.Quit
+			}
+			m.state = StateList
+			m.errorMsg = ""
+			return m, nil
+		}
+
+		if m.state == StateRetrying {
+			switch msg.String() {
+			case "ctrl+c", "q":
+				m.quitting = true
+				return m, tea.Quit
+			case "esc", "backspace":
+				m.state = StateList
+				m.errorMsg = ""
+				m.retryProvider = nil
+				m.retryTitle = ""
+				return m, nil
 			}
 			return m, nil
 		}
@@ -225,12 +312,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if i.dynamicProvider != nil {
 					m.state = StateLoading
 					m.loadingLabel = i.title
+					m.retryProvider = i.dynamicProvider
+					m.retryTitle = i.title
 					provider := i.dynamicProvider
 					title := i.title
 					return m, tea.Batch(
 						m.spinner.Tick,
 						func() tea.Msg {
-							items := provider()
+							items, err := provider()
+
+							if err != nil {
+								return fmt.Errorf("failed to load dynamic submenu: %w", err)
+							}
+
 							return dynamicProviderResultMsg{
 								title: title,
 								items: items,
@@ -340,9 +434,27 @@ func (m Model) View() string {
 		) + "\n"
 	}
 
+	if m.state == StateError {
+		errorStyle := lipgloss.NewStyle().Margin(1, 2).Foreground(lipgloss.Color("9"))
+		return "\n" + errorStyle.Render("❌ Error: "+m.errorMsg) +
+			"\n\n" + helpStyle.Render("(press any key to go back)")
+	}
+
+	if m.state == StateRetrying {
+		warnStyle := lipgloss.NewStyle().Margin(1, 2).Foreground(lipgloss.Color("11"))
+		return fmt.Sprintf(
+			"\n  %s %s\n\n%s\n\n%s",
+			m.spinner.View(),
+			titleStyle.Render("Waiting for Vault authentication..."),
+			warnStyle.Render("⚠️  "+m.errorMsg),
+			helpStyle.Render("Retrying every 5 seconds  •  esc to go back"),
+		)
+	}
+
 	if m.quitting {
 		return quitTextStyle.Render("Bye!")
 	}
+
 	return "\n" + m.currentList().View()
 }
 
@@ -436,7 +548,7 @@ func CreateMultiPromptItem(title, desc string, prompts []string, action func() t
 
 // CreateDynamicSubMenu creates a menu item that calls provider() at selection
 // time to generate its submenu items dynamically (e.g. fetching from an API).
-func CreateDynamicSubMenu(title, desc string, provider func() []list.Item) list.Item {
+func CreateDynamicSubMenu(title, desc string, provider func() ([]list.Item, error)) list.Item {
 	return item{title: title, desc: desc, dynamicProvider: provider}
 }
 

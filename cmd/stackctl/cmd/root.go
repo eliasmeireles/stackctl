@@ -1,13 +1,15 @@
 package cmd
 
 import (
-	"os"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/add"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/delete"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/get"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/update"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 )
 
@@ -26,9 +28,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+	_ = rootCmd.Execute()
 }
 
 func init() {
@@ -42,6 +42,10 @@ func init() {
 	log.SetFormatter(new(PlainFormatter))
 
 	// Register subcommands
+	rootCmd.AddCommand(add.NewCommand())
+	rootCmd.AddCommand(delete.NewCommand())
+	rootCmd.AddCommand(update.NewCommand())
+	rootCmd.AddCommand(get.NewCommand())
 	rootCmd.AddCommand(netbird.NewCommand())
 	rootCmd.AddCommand(vault.NewCommand())
 	rootCmd.AddCommand(kubeconfig.NewCommand())

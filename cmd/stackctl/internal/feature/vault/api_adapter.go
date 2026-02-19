@@ -3,6 +3,7 @@ package vault
 import (
 	"fmt"
 
+	"github.com/eliasmeireles/envvault"
 	"github.com/hashicorp/vault/api"
 )
 
@@ -44,14 +45,14 @@ func (a *apiAuthAdapter) DisableAuth(path string) error {
 	return a.client.Sys().DisableAuth(path)
 }
 
-func (a *apiAuthAdapter) ListAuth() (map[string]AuthMount, error) {
+func (a *apiAuthAdapter) ListAuth() (map[string]envvault.AuthMount, error) {
 	auths, err := a.client.Sys().ListAuth()
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]AuthMount, len(auths))
+	result := make(map[string]envvault.AuthMount, len(auths))
 	for path, auth := range auths {
-		result[path] = AuthMount{
+		result[path] = envvault.AuthMount{
 			Type:        auth.Type,
 			Description: auth.Description,
 		}
@@ -80,14 +81,14 @@ func (a *apiEngineAdapter) UnmountEngine(path string) error {
 	return a.client.Sys().Unmount(path)
 }
 
-func (a *apiEngineAdapter) ListEngines() (map[string]EngineMount, error) {
+func (a *apiEngineAdapter) ListEngines() (map[string]envvault.EngineMount, error) {
 	mounts, err := a.client.Sys().ListMounts()
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]EngineMount, len(mounts))
+	result := make(map[string]envvault.EngineMount, len(mounts))
 	for path, m := range mounts {
-		result[path] = EngineMount{
+		result[path] = envvault.EngineMount{
 			Type:        m.Type,
 			Description: m.Description,
 			Options:     m.Options,

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/eliasmeireles/envvault"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +75,7 @@ func TestNewCommand(t *testing.T) {
 		expectedSubs := []string{
 			"list-contexts", "clean", "get-context", "set-context",
 			"set-namespace", "add", "remove",
-			"add-from-vault", "save-to-vault", "list-remote",
+			"add-from-vault", "save-to-vault", "contexts",
 		}
 
 		for _, expected := range expectedSubs {
@@ -156,17 +155,17 @@ func TestVaultProviders(t *testing.T) {
 
 		called := make(map[string]bool)
 
-		vaultSaveToRemoteProviderFunc = func() []list.Item {
+		vaultSaveToRemoteProviderFunc = func() ([]list.Item, error) {
 			called["save"] = true
-			return nil
+			return nil, nil
 		}
-		listContexts = func() []list.Item {
+		listContexts = func() ([]list.Item, error) {
 			called["list"] = true
-			return nil
+			return nil, nil
 		}
-		vaultFromVaultProviderFunc = func() []list.Item {
+		vaultFromVaultProviderFunc = func() ([]list.Item, error) {
 			called["from"] = true
-			return nil
+			return nil, nil
 		}
 
 		defer func() {
@@ -175,9 +174,9 @@ func TestVaultProviders(t *testing.T) {
 			vaultFromVaultProviderFunc = origFrom
 		}()
 
-		LocalContext()
-		VaultContexts()
-		VaultList()
+		_, _ = LocalContext()
+		_, _ = VaultContexts()
+		_, _ = VaultList()
 
 		assert.True(t, called["save"])
 		assert.True(t, called["list"])
@@ -212,34 +211,6 @@ func TestExecuteVaultFunctions(t *testing.T) {
 	})
 }
 
-func TestVaultHelpers(t *testing.T) {
-	t.Run("must call underlying functions for vault helpers", func(t *testing.T) {
-		origResolve := resolveVaultFlagsFunc
-		origBuild := buildVaultClientFunc
-
-		called := make(map[string]bool)
-
-		resolveVaultFlagsFunc = func() {
-			called["resolve"] = true
-		}
-		buildVaultClientFunc = func() *envvault.Client {
-			called["build"] = true
-			return nil
-		}
-
-		defer func() {
-			resolveVaultFlagsFunc = origResolve
-			buildVaultClientFunc = origBuild
-		}()
-
-		resolveVaultFlags()
-		buildVaultClient()
-
-		assert.True(t, called["resolve"])
-		assert.True(t, called["build"])
-	})
-}
-
 func TestVaultEdgeCases(t *testing.T) {
 	t.Run("vaultFetch must return correct details", func(t *testing.T) {
 		r := featureKubeconfig.RemoteKubeconfig{
@@ -260,9 +231,4 @@ func TestVaultEdgeCases(t *testing.T) {
 		assert.Equal(t, "", deriveResourceName(""))
 	})
 
-	t.Run("errorItem must return list item with error message", func(t *testing.T) {
-		items := errorItem("test error %s", "details")
-		require.Len(t, items, 1)
-		assert.Equal(t, "Error", items[0].FilterValue())
-	})
 }

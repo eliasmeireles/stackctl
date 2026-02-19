@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 func NewApplyCmd() *cobra.Command {
@@ -46,14 +47,16 @@ Examples:
 				return fmt.Errorf("❌ Failed to parse YAML: %v", err)
 			}
 
-			resolveVaultFlags()
+			flags.Resolve()
 
-			evClient, err := vaultpkg.NewEnvvaultClient()
+			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
+
 			if err != nil {
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			apiClient, err := evClient.VaultClient()
+			apiClient, err := vaultpkg.ApiClient.Client()
+
 			if err != nil {
 				return fmt.Errorf("❌ Failed to get Vault API client: %v", err)
 			}

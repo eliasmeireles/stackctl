@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/eliasmeireles/envvault"
 	mockvault "github.com/eliasmeireles/envvault/mock/vault"
 )
 
@@ -16,13 +17,13 @@ const (
 
 // newFullApplier creates a MockVault with full permissions and an Applier wired to it.
 func newFullApplier() (*mockvault.MockVault, *Applier) {
-	m := mockvault.MustNew(mockvault.FullPermission())
+	m := mockvault.MustNew(envvault.FullPermission())
 	return m, NewApplierFromInterfaces(m, m, m, m, m)
 }
 
 // newReadOnlyApplier creates a MockVault with read-only permissions and an Applier wired to it.
 func newReadOnlyApplier() *Applier {
-	m := mockvault.MustNew(mockvault.ReadOnlyPermission())
+	m := mockvault.MustNew(envvault.ReadOnlyPermission())
 	return NewApplierFromInterfaces(m, m, m, m, m)
 }
 
@@ -40,7 +41,7 @@ func requirePermissionDenied(t *testing.T, err error) {
 	if err == nil {
 		t.Fatal("expected permission denied error")
 	}
-	if !errors.Is(err, mockvault.ErrPermissionDenied) {
+	if !errors.Is(err, envvault.ErrPermissionDenied) {
 		t.Errorf("expected ErrPermissionDenied, got: %v", err)
 	}
 }

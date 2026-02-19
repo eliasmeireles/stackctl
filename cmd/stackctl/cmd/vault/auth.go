@@ -5,8 +5,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/hashicorp/vault/api"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -36,12 +34,9 @@ var NewAuthListCmdFunc = func() *cobra.Command {
 		Short:        "List enabled auth methods",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
-
-			auths, err := apiClient.Sys().ListAuth()
+			auths, err := AuthMethodClient.List()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to list auth methods: %v", err)
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			for path, auth := range auths {
@@ -73,24 +68,16 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
-
 			authType := args[0]
+
+			if err := AuthMethodClient.Enable(authType, authPath, authDescription); err != nil {
+				return fmt.Errorf("❌ %v", err)
+			}
+
 			mountPath := authPath
 			if mountPath == "" {
 				mountPath = authType
 			}
-
-			opts := &api.EnableAuthOptions{
-				Type:        authType,
-				Description: authDescription,
-			}
-
-			if err := apiClient.Sys().EnableAuthWithOptions(mountPath, opts); err != nil {
-				return fmt.Errorf("❌ Failed to enable auth method %q at %q: %v", authType, mountPath, err)
-			}
-
 			log.Infof("✅ Auth method %q enabled at %q", authType, mountPath)
 			return nil
 		},
@@ -118,11 +105,8 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			apiClient := mustVaultAPIClient()
-
-			if err := apiClient.Sys().DisableAuth(args[0]); err != nil {
-				return fmt.Errorf("❌ Failed to disable auth method at %q: %v", args[0], err)
+			if err := AuthMethodClient.Disable(args[0]); err != nil {
+				return fmt.Errorf("❌ %v", err)
 			}
 
 			log.Infof("✅ Auth method at %q disabled", args[0])

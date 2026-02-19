@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 const (
@@ -423,7 +423,7 @@ var newAddFromVaultCmdFunc = func() *cobra.Command {
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }
 
@@ -446,31 +446,33 @@ var newSaveToVaultCmdFunc = func() *cobra.Command {
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }
 
-// NewListRemoteCmd creates the list-remote subcommand.
+// NewListRemoteCmd creates the contexts subcommand.
 func NewListRemoteCmd() *cobra.Command {
 	return newListRemoteCmdFunc()
 }
 
 var newListRemoteCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "list-remote",
-		Short:        "List kubeconfigs stored in Vault",
+		Use:          "contexts",
+		Short:        "List kubeconfig contexts stored in Vault",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			items := VaultContexts()
-			// Add the k8s icone
+			items, err := VaultContexts()
+			if err != nil {
+				return err
+			}
 
-			fmt.Println("List of kubeconfigs stored in Vault:")
+			fmt.Println("List kubeconfig contexts stored in Vault:")
 			for _, item := range items {
 				fmt.Printf(" - %s\n", item.FilterValue())
 			}
 			return nil
 		},
 	}
-	vault.SharedFlags(cmd)
+	flags.SharedFlags(cmd)
 	return cmd
 }

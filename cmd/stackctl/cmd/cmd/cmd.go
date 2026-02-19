@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -109,7 +108,7 @@ type Default struct {
 func NewDefault(cmd *cobra.Command, categories ...string) Command {
 	if len(categories) == 0 {
 		_ = fmt.Errorf("❌ error: at least one category is required")
-		os.Exit(1)
+		return nil
 	}
 
 	// Join all categories with a / to form the category
@@ -137,7 +136,7 @@ func (d *Default) Execute(choice []string, args []string) bool {
 		log.Warning("Command not implemented yet.")
 		return false
 	}
-	d.cmd.SetArgs(choice)
+	d.cmd.SetArgs(append(choice, args...))
 	_ = d.cmd.Execute()
 	return true
 }

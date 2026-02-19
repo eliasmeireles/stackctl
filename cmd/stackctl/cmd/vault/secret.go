@@ -7,6 +7,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
 const defaultListPath = "secret/metadata/resources/kubeconfig"
@@ -44,8 +47,11 @@ Examples:
   stackctl vault secret list secret/metadata/ci/kubeconfig`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.Resolve()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
+			if err != nil {
+				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+			}
 
 			listPath := defaultListPath
 			if len(args) > 0 {
@@ -92,8 +98,11 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.Resolve()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
+			if err != nil {
+				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+			}
 
 			path := args[0]
 			log.Infof("🔍 Reading secret: %s", path)
@@ -156,8 +165,11 @@ Examples:
 		Args:         cobra.MinimumNArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.Resolve()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
+			if err != nil {
+				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+			}
 
 			path := args[0]
 			data := make(map[string]interface{})
@@ -199,8 +211,11 @@ Examples:
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolveVaultFlags()
-			client := buildVaultClient()
+			flags.Resolve()
+			client, err := vaultpkg.ApiClient.EnvVaultClient()
+			if err != nil {
+				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+			}
 
 			path := args[0]
 			log.Info("🗑️  Deleting secret")

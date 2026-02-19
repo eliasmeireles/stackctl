@@ -3,10 +3,11 @@ module github.com/eliasmeireles/stackctl
 go 1.25
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/eliasmeireles/envvault v0.2.1-0.20260215194814-9ce405e6c431
+	github.com/eliasmeireles/envvault v0.2.1-0.20260217204834-32ed6217a1d3
 	github.com/hashicorp/vault/api v1.22.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.2
@@ -16,7 +17,6 @@ require (
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
