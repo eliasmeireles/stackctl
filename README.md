@@ -1,6 +1,10 @@
 # stackctl
 
-A CLI tool for managing Kubernetes configs, HashiCorp Vault secrets, and NetBird VPN from a single interface.
+Small teams and indie projects deserve solid infrastructure tooling — without the enterprise overhead.
+
+`stackctl` brings together **Kubernetes config management**, **HashiCorp Vault secrets**, and **NetBird VPN** into a single CLI with a consistent interface. The goal is to let a small team operate securely and confidently: secrets are never exposed in plain text, kubeconfigs are stored centrally in Vault, VPN access is automated, and everything can run inside a CI/CD pipeline with no extra tooling.
+
+Whether you are a solo developer, a startup, or a small ops team, `stackctl` gives you the same security practices used at scale — without the complexity.
 
 ```bash
 go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest
