@@ -39,6 +39,15 @@ func RunUI() {
 			break
 		}
 
+		if pendingAction := m.GetPendingAction(); pendingAction != nil {
+			fmt.Print("\033[H\033[2J")
+			pendingAction(m.GetPendingArgs())
+			if !waitForReturn() {
+				break
+			}
+			continue
+		}
+
 		choice := m.GetChoice()
 		category := m.GetCategory()
 		args := m.GetArgs()

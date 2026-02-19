@@ -10,7 +10,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
 )
 
-var LoginEntry = []string{"Username", "Password (will be hidden"}
+var LoginEntry = []string{"Username", "Password (will be hidden)"}
 
 type Client interface {
 	Authenticate(username, password, path, action string) (string, error)

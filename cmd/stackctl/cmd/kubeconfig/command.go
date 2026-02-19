@@ -461,8 +461,10 @@ var newListRemoteCmdFunc = func() *cobra.Command {
 		Short:        "List kubeconfig contexts stored in Vault",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			items := VaultContexts()
-			// Add the k8s icone
+			items, err := VaultContexts()
+			if err != nil {
+				return err
+			}
 
 			fmt.Println("List kubeconfig contexts stored in Vault:")
 			for _, item := range items {

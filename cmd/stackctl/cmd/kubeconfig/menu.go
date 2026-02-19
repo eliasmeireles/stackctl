@@ -14,9 +14,7 @@ var (
 		ui.CreatePromptItem("From Local File", "Import from a local yaml file", "File Path", nil),
 		ui.CreateMultiPromptItem("From Remote (SSH)", "Fetch config from a remote VPS", []string{"Host (IP/DNS)", "SSH User (default: root)", "Remote Path"}, nil),
 		ui.CreateMultiPromptItem("From Remote k3s", "Fetch default k3s config from VPS", []string{"Host (IP/DNS)", "SSH User (default: root)"}, nil),
-		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", func() ([]list.Item, error) {
-			return VaultList(), nil
-		}),
+		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList),
 	}
 
 	ctxItems = getContextItems()
@@ -27,12 +25,8 @@ var (
 		ui.CreateSubMenu("Set Current Context", "Switch to another context", ctxItems),
 		ui.CreateItem("Cleanup Duplicates", "Remove duplicate entries", ui.HoopAction),
 		ui.CreateSubMenu("Remove Context", "Delete a context from config", ctxItems),
-		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", func() ([]list.Item, error) {
-			return LocalContext(), nil
-		}),
-		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", func() ([]list.Item, error) {
-			return VaultContexts(), nil
-		}),
+		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext),
+		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", VaultContexts),
 	}
 
 	Menu = ui.CreateSubMenu("K8s Config", "Manage Kubernetes configurations", configItems)

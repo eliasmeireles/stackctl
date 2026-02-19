@@ -13,5 +13,5 @@ var (
 func init() {
 	ApiClient = client.NewApi()
 
-	auth.NewClient(ApiClient)
+	AuthClient = auth.NewClient(ApiClient)
 }

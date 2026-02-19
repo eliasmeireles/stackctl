@@ -91,6 +91,7 @@ const (
 	StateInput
 	StateDetail
 	StateLoading
+	StateError
 )
 
 // dynamicProviderResultMsg is sent when an async dynamic provider finishes loading.
@@ -112,6 +113,7 @@ type Model struct {
 	detailContent string
 	detailPath    string
 	loadingLabel  string
+	errorMsg      string
 	quitting      bool
 	action        func(args []string) tea.Cmd
 	// pendingAction stores an action to be executed AFTER the TUI exits.
@@ -133,6 +135,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = StateList
 		return m, nil
 
+	case error:
+		m.state = StateError
+		m.errorMsg = msg.Error()
+		return m, nil
+
 	case spinner.TickMsg:
 		if m.state == StateLoading {
 			var cmd tea.Cmd
@@ -148,6 +155,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
+			return m, nil
+		}
+
+		if m.state == StateError {
+			if msg.String() == "ctrl+c" || msg.String() == "q" {
+				m.quitting = true
+				return m, tea.Quit
+			}
+			m.state = StateList
+			m.errorMsg = ""
 			return m, nil
 		}
 
@@ -345,9 +362,16 @@ func (m Model) View() string {
 		) + "\n"
 	}
 
+	if m.state == StateError {
+		errorStyle := lipgloss.NewStyle().Margin(1, 2).Foreground(lipgloss.Color("9"))
+		return "\n" + errorStyle.Render("❌ Error: "+m.errorMsg) +
+			"\n\n" + helpStyle.Render("(press any key to go back)")
+	}
+
 	if m.quitting {
 		return quitTextStyle.Render("Bye!")
 	}
+
 	return "\n" + m.currentList().View()
 }
 

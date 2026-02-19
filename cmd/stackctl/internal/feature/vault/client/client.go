@@ -66,7 +66,10 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 	}
 
 	client := envvault.NewClient(cfg)
-	a.envVaultApi = client
+
+	if err := client.Authenticate(); err != nil {
+		return nil, fmt.Errorf("vault authentication failed: %w", err)
+	}
 
 	apiClient, err := client.VaultClient()
 	if err != nil {
@@ -74,10 +77,6 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 	}
 
 	a.clientApi = apiClient
-
-	if err := client.Authenticate(); err != nil {
-		return nil, fmt.Errorf("vault authentication failed: %w", err)
-	}
 
 	if err := a.validateToken(); err != nil {
 		return nil, err

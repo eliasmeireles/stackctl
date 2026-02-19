@@ -15,25 +15,25 @@ import (
 
 // LocalContext returns a dynamic submenu listing local kubeconfig
 // contexts. Selecting a context saves it to Vault under the configured base path.
-func LocalContext() []list.Item {
+func LocalContext() ([]list.Item, error) {
 	return listContexts()
 }
 
-var listContexts = func() []list.Item {
+var listContexts = func() ([]list.Item, error) {
 	return localContext()
 }
 
-var localContext = func() []list.Item {
+var localContext = func() ([]list.Item, error) {
 	names, err := kubeconfig.GetContextNames(kubeconfig.GetPath())
 	if err != nil {
 		log.Errorf("❌ Failed to load local contexts: %v", err)
-		return errorItem("Failed to load contexts: %v", err)
+		return nil, fmt.Errorf("failed to load contexts: %w", err)
 	}
 
 	if len(names) == 0 {
 		return []list.Item{
 			ui.CreateItem("No contexts found", "No local contexts available", nil),
-		}
+		}, nil
 	}
 
 	items := make([]list.Item, 0, len(names))
@@ -47,37 +47,37 @@ var localContext = func() []list.Item {
 			func() tea.Cmd { return nil },
 		))
 	}
-	return items
+	return items, nil
 }
 
 // VaultContexts fetches all kubeconfig secrets from Vault,
 // decodes each one, and displays the context names found inside.
-func VaultContexts() []list.Item {
+func VaultContexts() ([]list.Item, error) {
 	return vaultSaveToRemoteProviderFunc()
 }
 
-var vaultSaveToRemoteProviderFunc = func() []list.Item {
+var vaultSaveToRemoteProviderFunc = func() ([]list.Item, error) {
 	return vaultContexts()
 }
 
-var vaultContexts = func() []list.Item {
+var vaultContexts = func() ([]list.Item, error) {
 	resolveVaultFlags()
 	client, err := vault.ApiClient.EnvVaultClient()
 
 	if err != nil {
-		return errorItem("Failed to create Vault client: %v", err)
+		return nil, fmt.Errorf("failed to create Vault client: %w", err)
 	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
 	if err != nil {
-		return errorItem("Failed to Clusters configuration kubeconfigs: %v", err)
+		return nil, fmt.Errorf("failed to list kubeconfigs: %w", err)
 	}
 
 	if len(remotes) == 0 {
 		return []list.Item{
 			ui.CreateItem("No remote kubeconfigs", "No kubeconfigs found in Vault", nil),
-		}
+		}, nil
 	}
 
 	items := make([]list.Item, 0, len(remotes))
@@ -93,7 +93,7 @@ var vaultContexts = func() []list.Item {
 			vaultFetch(r),
 		))
 	}
-	return items
+	return items, nil
 }
 
 // vaultFetch returns a fetcher that displays the details
@@ -119,33 +119,33 @@ func vaultFetch(r kubeconfig.RemoteKubeconfig) func() (string, string) {
 
 // VaultList lists remote kubeconfig secrets from Vault.
 // Selecting one fetches it and merges it into the local kubeconfig.
-func VaultList() []list.Item {
+func VaultList() ([]list.Item, error) {
 	return vaultFromVaultProviderFunc()
 }
 
-var vaultFromVaultProviderFunc = func() []list.Item {
+var vaultFromVaultProviderFunc = func() ([]list.Item, error) {
 	return vaultList()
 }
 
-var vaultList = func() []list.Item {
+var vaultList = func() ([]list.Item, error) {
 	resolveVaultFlags()
 	client, err := vault.ApiClient.EnvVaultClient()
 
 	if err != nil {
-		return errorItem("Failed to create Vault client: %v", err)
+		return nil, fmt.Errorf("failed to create Vault client: %w", err)
 	}
 
 	svc := kubeconfig.NewVaultKubeconfigService(client)
 	remotes, err := svc.ListRemoteKubeconfigs()
 	if err != nil {
 		log.Errorf("❌ Failed to Clusters configuration kubeconfigs: %v", err)
-		return errorItem("Failed to Clusters configuration kubeconfigs: %v", err)
+		return nil, fmt.Errorf("failed to list kubeconfigs: %w", err)
 	}
 
 	if len(remotes) == 0 {
 		return []list.Item{
 			ui.CreateItem("No remote kubeconfigs", "No kubeconfigs found in Vault", nil),
-		}
+		}, nil
 	}
 
 	items := make([]list.Item, 0, len(remotes))
@@ -164,7 +164,7 @@ var vaultList = func() []list.Item {
 			func() tea.Cmd { return nil },
 		))
 	}
-	return items
+	return items, nil
 }
 
 // SaveToVault saves a local kubeconfig context to Vault.
@@ -237,10 +237,4 @@ func deriveResourceName(path string) string {
 		return parts[len(parts)-1]
 	}
 	return ""
-}
-
-// errorItem is a helper that returns a single error list item.
-func errorItem(format string, args ...interface{}) []list.Item {
-	msg := fmt.Sprintf(format, args...)
-	return []list.Item{ui.CreateItem("Error", msg, nil)}
 }

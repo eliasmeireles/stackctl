@@ -136,7 +136,7 @@ func (d *Default) Execute(choice []string, args []string) bool {
 		log.Warning("Command not implemented yet.")
 		return false
 	}
-	d.cmd.SetArgs(choice)
+	d.cmd.SetArgs(append(choice, args...))
 	_ = d.cmd.Execute()
 	return true
 }
