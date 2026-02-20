@@ -23,7 +23,8 @@ spec:
               ROOT_TOKEN_FILE="${KEYS_DIR}/root-token"
 
               echo "⏳ Waiting for Vault to be reachable..."
-              until wget -qO- "${VAULT_ADDR}/v1/sys/health" >/dev/null 2>&1; do
+              until wget -q --server-response -O /dev/null "${VAULT_ADDR}/v1/sys/health" 2>&1 | grep -q "HTTP/"; do
+                echo "  ... not yet reachable, retrying in 3s..."
                 sleep 3
               done
 

@@ -1,4 +1,4 @@
-.PHONY: build push buildx test lint all
+.PHONY: build push buildx test lint all multapps multapps-delete multapps-recreate multapps-shell
 
 
 GH_USER = ?
@@ -54,6 +54,17 @@ install-cli:
 
 multapps:
 	@bash .dev/multipass/setup.sh
+
+multapps-shell:
+	@multipass shell stackctl
+
+multapps-delete:
+	@echo "🗑️  Deleting Multipass instance 'stackctl'..."
+	@multipass delete stackctl
+	@multipass purge
+	@echo "✅ Instance deleted."
+
+multapps-recreate: multapps-delete multapps
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64

@@ -5,11 +5,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 INSTANCE_NAME="stackctl"
-VOLUMES_DIR="${PROJECT_ROOT}/.volumes"
+VOLUMES_DIR="${SCRIPT_DIR}/../.volumes"
 CLUSTER_MANIFESTS_DIR="${SCRIPT_DIR}/cluster"
 CLOUD_INIT_FILE="${SCRIPT_DIR}/cloud-init/multipass-init.yaml"
+LOG_DIR="${VOLUMES_DIR}/logs"
+LOG_FILE="${LOG_DIR}/setup-$(date '+%Y%m%d-%H%M%S').log"
 
-mkdir -p "${VOLUMES_DIR}"
+mkdir -p "${VOLUMES_DIR}" "${LOG_DIR}"
+
+exec > >(tee -a "${LOG_FILE}") 2>&1
+echo "📋 Logging to: ${LOG_FILE}"
 
 echo "🔍 Checking if Multipass is installed..."
 which multipass > /dev/null 2>&1 || { echo "❌ Multipass is not installed. Please install it first."; exit 1; }
@@ -64,6 +69,10 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   sudo sed -i \"s|https://0.0.0.0:6443|https://${INSTANCE_IP}:6443|g\" \"\${KUBECONFIG_FILE}\"
   mkdir -p /home/ubuntu/.kube
   sudo cp \"\${KUBECONFIG_FILE}\" /home/ubuntu/.kube/config
+  mkdir -p /home/ubuntu/workdir/cluster/.kube
+  sudo cp \"\${KUBECONFIG_FILE}\" /home/ubuntu/workdir/cluster/.kube/config
+  sudo chown ubuntu:ubuntu /home/ubuntu/workdir/cluster/.kube/config
+  sudo chmod 600 /home/ubuntu/workdir/cluster/.kube/config
   sudo cp \"\${KUBECONFIG_FILE}\" /root/.kube/config
   sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config
   sudo chmod 600 /home/ubuntu/.kube/config
@@ -89,6 +98,18 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
     --selector=app.kubernetes.io/component=controller \
     --timeout=180s
   echo '✅ NGINX Ingress Controller ready.'
+"
+
+echo "🧹 Checking for fresh Vault install..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  VAULT_PODS=\$(sudo kubectl get pods -n vault --no-headers 2>/dev/null | grep -c 'vault-' || true)
+  if [ \"\${VAULT_PODS}\" = \"0\" ]; then
+    echo '  No existing Vault pods found. Cleaning workdir/vault for fresh install...'
+    rm -rf /home/ubuntu/workdir/vault
+    echo '  ✅ workdir/vault cleared.'
+  else
+    echo \"  ℹ️  Existing Vault pods found (\${VAULT_PODS}). Skipping vault data cleanup.\"
+  fi
 "
 
 echo "🏗️  Applying cluster manifests..."
@@ -123,17 +144,46 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest || echo '⚠️  stackctl install failed, continuing...'
 "
 
+echo "🖥️  Installing k9s..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  if command -v k9s >/dev/null 2>&1; then
+    echo 'ℹ️  k9s already installed, skipping.'
+  else
+    K9S_VERSION=\$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | grep '\"tag_name\"' | cut -d'\"' -f4)
+    curl -fsSL \"https://github.com/derailed/k9s/releases/download/\${K9S_VERSION}/k9s_Linux_amd64.tar.gz\" | sudo tar -xz -C /usr/local/bin k9s
+    echo '✅ k9s installed.'
+  fi
+"
+
+VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ Setup complete!"
 echo ""
-echo "   Instance IP : ${INSTANCE_IP}"
-echo "   Vault UI    : http://stackctl.vault.network.local"
+echo "   Instance IP  : ${INSTANCE_IP}"
+echo "   Vault UI     : http://stackctl.vault.network.local"
+echo "   Root token   : ${VOLUMES_ABS}/vault/keys/root-token"
+echo "   Setup log    : ${LOG_FILE}"
 echo ""
-echo "   Add to your /etc/hosts:"
-echo "   ${INSTANCE_IP}  stackctl.vault.network.local"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  👉 To access Vault from your HOST machine:"
 echo ""
-echo "   Vault root token: ${VOLUMES_DIR}/vault/keys/root-token"
+echo "  1. Add to /etc/hosts (run once):"
+echo "     echo '${INSTANCE_IP}  stackctl.vault.network.local' | sudo tee -a /etc/hosts"
+echo ""
+echo "  2. Open Vault UI:"
+echo "     http://stackctl.vault.network.local"
+echo ""
+echo "  3. Login via CLI (inside the instance):"
+echo "     export VAULT_ADDR=http://stackctl.vault.network.local"
+echo "     export VAULT_TOKEN=\$(cat ${VOLUMES_ABS}/vault/keys/root-token)"
+echo "     vault status"
+echo "     vault login \${VAULT_TOKEN}"
+echo ""
+echo "  4. Login via UI:"
+echo "     Method : Token"
+echo "     Token  : \$(cat "${VOLUMES_ABS}/vault/keys/root-token" 2>/dev/null || echo '<see root-token file>')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
