@@ -53,7 +53,7 @@ install-cli:
 	@go install ./cmd/stackctl
 
 multapps:
-	@bash bin/multipass-setup.sh
+	@bash .dev/multipass/setup.sh
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
