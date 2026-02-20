@@ -116,13 +116,61 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   echo '[OK] Vault pod is ready.'
 "
 
-echo "[VAULT] Running Vault init/unseal job..."
+echo "[VAULT] Initializing and unsealing Vault..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
-  sudo kubectl delete job vault-init-unseal -n vault --ignore-not-found
-  sudo kubectl apply -f /home/ubuntu/cluster/vault/init-unseal-job.yaml
-  sudo kubectl wait --namespace vault --for=condition=complete job/vault-init-unseal --timeout=120s
-  echo '[OK] Vault initialized and unsealed.'
-  echo '[OK] Keys stored at /home/ubuntu/workdir/vault/keys/'
+  VAULT_IP=\$(sudo kubectl get svc vault -n vault -o jsonpath='{.spec.clusterIP}')
+  VAULT_ADDR=\"http://\${VAULT_IP}:8200\"
+  KEYS_DIR='/home/ubuntu/workdir/vault/keys'
+  INIT_FILE=\"\${KEYS_DIR}/init.json\"
+  ROOT_TOKEN_FILE=\"\${KEYS_DIR}/root-token\"
+
+  echo '[WAIT] Waiting for Vault API to be reachable...'
+  for i in \$(seq 1 30); do
+    STATUS_CODE=\$(curl -s -o /dev/null -w '%{http_code}' \"\${VAULT_ADDR}/v1/sys/health\" || true)
+    if [ \"\${STATUS_CODE}\" != \"000\" ]; then
+      echo \"  Vault reachable (HTTP \${STATUS_CODE}).\"
+      break
+    fi
+    echo \"  ... not yet reachable (\${i}/30), retrying in 3s...\"
+    sleep 3
+  done
+
+  mkdir -p \"\${KEYS_DIR}\"
+  chmod 700 \"\${KEYS_DIR}\"
+
+  INITIALIZED=\$(curl -s \"\${VAULT_ADDR}/v1/sys/health\" | grep -o '\"initialized\":[a-z]*' | cut -d: -f2 || echo 'false')
+
+  if [ \"\${INITIALIZED}\" != 'true' ]; then
+    echo '[INIT] Initializing Vault...'
+    vault operator init -address=\"\${VAULT_ADDR}\" -key-shares=5 -key-threshold=3 -format=json > \"\${INIT_FILE}\"
+    chmod 600 \"\${INIT_FILE}\"
+    grep '\"root_token\"' \"\${INIT_FILE}\" | sed 's/.*\"root_token\": *\"\([^\"]*\)\".*/\1/' > \"\${ROOT_TOKEN_FILE}\"
+    chmod 600 \"\${ROOT_TOKEN_FILE}\"
+    echo '[OK] Vault initialized. Keys saved.'
+  else
+    echo '[SKIP] Vault already initialized.'
+  fi
+
+  SEALED=\$(curl -s \"\${VAULT_ADDR}/v1/sys/health\" | grep -o '\"sealed\":[a-z]*' | cut -d: -f2 || echo 'true')
+
+  if [ \"\${SEALED}\" = 'true' ]; then
+    echo '[UNSEAL] Unsealing Vault...'
+    python3 -c \"
+import json, subprocess, sys
+with open('\${INIT_FILE}') as f:
+    keys = json.load(f)['unseal_keys_b64'][:3]
+for key in keys:
+    r = subprocess.run(['vault', 'operator', 'unseal', '-address=\${VAULT_ADDR}', key], capture_output=True, text=True)
+    print(r.stdout.strip() or r.stderr.strip())
+    if r.returncode != 0:
+        sys.exit(r.returncode)
+\"
+    echo '[OK] Vault unsealed.'
+  else
+    echo '[SKIP] Vault already unsealed.'
+  fi
+
+  echo '[OK] Keys stored at '\"\${KEYS_DIR}\"
 "
 
 echo "[CLI] Installing stackctl CLI..."
