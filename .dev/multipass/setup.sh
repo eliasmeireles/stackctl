@@ -189,6 +189,7 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest || echo '[WARN] stackctl install failed, continuing...'
 "
 
+echo ""
 echo "[K9S] Installing k9s..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   if command -v k9s >/dev/null 2>&1; then
