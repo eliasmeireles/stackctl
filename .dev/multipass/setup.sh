@@ -173,6 +173,16 @@ for key in keys:
   echo '[OK] Keys stored at '\"\${KEYS_DIR}\"
 "
 
+echo "[ENV] Configuring Vault environment in instance shell profiles..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  ROOT_TOKEN_FILE='/home/ubuntu/workdir/vault/keys/root-token'
+  for RC in /home/ubuntu/.bashrc /root/.bashrc; do
+    sudo grep -q 'VAULT_ADDR' \"\${RC}\" || echo 'export VAULT_ADDR=http://stackctl.vault.network.local' | sudo tee -a \"\${RC}\" > /dev/null
+    sudo grep -q 'VAULT_TOKEN' \"\${RC}\" || echo 'export VAULT_TOKEN=\$(cat '\"\${ROOT_TOKEN_FILE}\"' 2>/dev/null || echo \"\")' | sudo tee -a \"\${RC}\" > /dev/null
+  done
+  echo '[OK] Vault env vars added to shell profiles.'
+"
+
 echo "[CLI] Installing stackctl CLI..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   export PATH=\$PATH:/snap/bin:/home/ubuntu/go/bin
