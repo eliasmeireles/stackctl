@@ -41,7 +41,7 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
 echo "[K3S] Installing k3s..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   if ! command -v k3s >/dev/null 2>&1; then
-    curl -sfL https://get.k3s.io | sh -
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable=traefik" sh -
   else
     echo '[SKIP] k3s already installed, skipping.'
   fi
