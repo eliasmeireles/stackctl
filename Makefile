@@ -1,4 +1,4 @@
-.PHONY: build push buildx test lint all
+.PHONY: build push buildx test lint all multipass multipass-delete multipass-recreate multipass-shell
 
 
 GH_USER = ?
@@ -52,19 +52,19 @@ test-cli:
 install-cli:
 	@go install ./cmd/stackctl
 
-multapps:
-	@echo "🔍 Checking if Multipass is installed..."
-	@which multipass > /dev/null 2>&1 || { echo "❌ Multipass is not installed. Please install it first."; exit 1; }
+multipass:
+	@bash .dev/multipass/setup.sh
 
-	@echo "🚀 Launching Multipass instance 'dev' with 4 CPUs and 4GB RAM..."
-	@if multipass info dev >/dev/null 2>&1; then \
-		echo "⚙️  Instance 'dev' already exists. Skipping creation..."; \
-	else \
-		multipass launch -n dev --cpus 4 --memory 4G --disk 20G --mount $$(pwd):/home/ubuntu/workdir --cloud-init example/multipass-init.yaml; \
-	fi
+multipass-shell:
+	@multipass shell stackctl
 
-	@echo "🔗 Connecting to the 'dev' instance..."
-	multipass shell dev
+multipass-delete:
+	@echo "🗑️  Deleting Multipass instance 'stackctl'..."
+	@multipass delete stackctl
+	@multipass purge
+	@echo "✅ Instance deleted."
+
+multipass-recreate: multipass-delete multipass
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64

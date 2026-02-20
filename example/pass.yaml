@@ -1,0 +1,9 @@
+secrets:
+  path: secret/data/users/test/passwords
+
+  # Add new keys (merge with existing)
+  add:
+    # Auto-generated value - generates 25 bytes = 50 hex chars
+    - name: DATABASE_PASSWORD
+      auto_generate: true
+      size: 25

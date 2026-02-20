@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-unseal
+  namespace: vault
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: vault-init-unseal
+          image: hashicorp/vault:1.17
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+
+              VAULT_ADDR="http://vault.vault.svc.cluster.local:8200"
+              KEYS_DIR="/home/ubuntu/workdir/vault/keys"
+              INIT_FILE="${KEYS_DIR}/init.json"
+              ROOT_TOKEN_FILE="${KEYS_DIR}/root-token"
+
+              echo "⏳ Waiting for Vault to be reachable..."
+              until wget -q --server-response -O /dev/null "${VAULT_ADDR}/v1/sys/health" 2>&1 | grep -q "HTTP/"; do
+                echo "  ... not yet reachable, retrying in 3s..."
+                sleep 3
+              done
+
+              mkdir -p "${KEYS_DIR}"
+              chmod 700 "${KEYS_DIR}"
+
+              STATUS=$(wget -qO- "${VAULT_ADDR}/v1/sys/health" 2>/dev/null || true)
+
+              INITIALIZED=$(echo "${STATUS}" | grep -o '"initialized":[a-z]*' | cut -d: -f2 || echo "false")
+
+              if [ "${INITIALIZED}" != "true" ]; then
+                echo "🔑 Initializing Vault..."
+                vault operator init \
+                  -address="${VAULT_ADDR}" \
+                  -key-shares=5 \
+                  -key-threshold=3 \
+                  -format=json > "${INIT_FILE}"
+
+                chmod 600 "${INIT_FILE}"
+
+                ROOT_TOKEN=$(cat "${INIT_FILE}" | grep '"root_token"' | sed 's/.*"root_token": *"\([^"]*\)".*/\1/')
+                echo "${ROOT_TOKEN}" > "${ROOT_TOKEN_FILE}"
+                chmod 600 "${ROOT_TOKEN_FILE}"
+
+                echo "✅ Vault initialized. Keys saved to ${INIT_FILE}"
+              else
+                echo "ℹ️  Vault already initialized. Loading existing keys..."
+              fi
+
+              SEALED=$(echo "${STATUS}" | grep -o '"sealed":[a-z]*' | cut -d: -f2 || echo "true")
+
+              if [ "${SEALED}" = "true" ]; then
+                echo "🔓 Unsealing Vault..."
+                for i in 1 2 3; do
+                  KEY=$(cat "${INIT_FILE}" | grep '"unseal_keys_b64"' -A 10 | grep '"' | sed -n "${i}p" | tr -d ' ",' )
+                  vault operator unseal -address="${VAULT_ADDR}" "${KEY}"
+                done
+                echo "✅ Vault unsealed."
+              else
+                echo "ℹ️  Vault is already unsealed."
+              fi
+
+              echo "🏁 Vault init/unseal complete."
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.vault.svc.cluster.local:8200"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+              ephemeral-storage: "64Mi"
+            limits:
+              memory: "128Mi"
+              ephemeral-storage: "256Mi"
+          volumeMounts:
+            - name: workdir
+              mountPath: /home/ubuntu/workdir
+      volumes:
+        - name: workdir
+          hostPath:
+            path: /home/ubuntu/workdir
+            type: DirectoryOrCreate

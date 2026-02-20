@@ -307,6 +307,53 @@ func TestApplyFullPermission(t *testing.T) {
 		}
 	})
 
+	t.Run("given secrets without engines block then auto mounts kv engine", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/users/stackctl/passwords",
+				Add: []SecretKVEntry{
+					{Name: "DB_PASS", Value: "s3cr3t"},
+				},
+			},
+		}))
+
+		if _, ok := mock.GetEngines()["secret"]; !ok {
+			t.Error("expected kv engine 'secret' to be auto-mounted")
+		}
+
+		secrets := mock.GetSecrets("secret/data/users/stackctl/passwords")
+		if secrets == nil {
+			t.Fatal("expected secrets to be written")
+		}
+		if secrets["DB_PASS"] != "s3cr3t" {
+			t.Errorf("expected DB_PASS='s3cr3t', got %v", secrets["DB_PASS"])
+		}
+	})
+
+	t.Run("given secrets with engine already mounted then does not fail", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Engines: &EnginesConfig{
+				Enable: []EngineEntry{{Type: "kv-v2", Path: "secret"}},
+			},
+		}))
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/config",
+				Add:  []SecretKVEntry{{Name: "KEY", Value: "val"}},
+			},
+		}))
+
+		secrets := mock.GetSecrets("secret/data/app/config")
+		if secrets == nil || secrets["KEY"] != "val" {
+			t.Errorf("expected KEY='val', got %v", secrets)
+		}
+	})
+
 	t.Run("given empty config then no error", func(t *testing.T) {
 		_, applier := newFullApplier()
 		requireNoError(t, applier.Apply(&ApplyConfig{}))
