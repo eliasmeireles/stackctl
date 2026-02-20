@@ -2,6 +2,50 @@
 
 This directory contains all Kubernetes manifests needed to bootstrap a local development cluster inside a Multipass VM, including a fully automated Vault installation, initialization, and unseal.
 
+## Requirements
+
+### Operating System
+- **Unix-based OS required**: macOS or Linux
+- Windows is **not supported** (WSL2 may work but is untested)
+
+### Multipass
+
+[Multipass](https://multipass.run/) is a lightweight VM manager from Canonical that makes it easy to launch Ubuntu VMs.
+
+#### Installation
+
+**macOS (Direct Download):**
+Download from [multipass.run/install](https://documentation.ubuntu.com/multipass/latest/how-to-guides/install-multipass/)
+
+**Linux (Snap):**
+```bash
+sudo snap install multipass
+```
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt update
+sudo apt install multipass
+```
+
+**Verify Installation:**
+```bash
+multipass version
+```
+
+For more installation options and troubleshooting, see the [official Multipass documentation](https://multipass.run/docs).
+
+## Quick Start
+
+From the project root directory:
+
+```bash
+# Bootstrap the entire environment
+make multipass
+```
+
+This single command will create and configure everything. The process takes 3-5 minutes on first run.
+
 ## Directory Structure
 
 ```
