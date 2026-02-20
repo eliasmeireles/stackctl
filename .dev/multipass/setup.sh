@@ -68,10 +68,13 @@ INSTANCE_IP="$(multipass info "${INSTANCE_NAME}" | grep IPv4 | awk '{print $2}')
 echo "   Instance IP: ${INSTANCE_IP}"
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   KUBECONFIG_FILE=/etc/rancher/k3s/k3s.yaml
+  sudo sed -i \"s|default|${INSTANCE_NAME}|g\" \"\${KUBECONFIG_FILE}\"
   sudo sed -i \"s|https://127.0.0.1:6443|https://${INSTANCE_IP}:6443|g\" \"\${KUBECONFIG_FILE}\"
   sudo sed -i \"s|https://0.0.0.0:6443|https://${INSTANCE_IP}:6443|g\" \"\${KUBECONFIG_FILE}\"
   mkdir -p /home/ubuntu/.kube
+  sudo mkdir -p /home/ubuntu/workdir/kube
   sudo cp \"\${KUBECONFIG_FILE}\" /home/ubuntu/.kube/config
+  sudo cp \"\${KUBECONFIG_FILE}\" /home/ubuntu/workdir/kube/config
   sudo cp \"\${KUBECONFIG_FILE}\" /root/.kube/config
   sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config
   sudo chmod 600 /home/ubuntu/.kube/config
@@ -223,9 +226,13 @@ echo "  1. Access the instance:"
 echo "     make stackctl-shell"
 echo ""
 echo "  2. Add to /etc/hosts (run once):"
-echo "     echo '${INSTANCE_IP}  stackctl.vault.network.local' | sudo tee -a /etc/hosts"
+echo "     sudo -i"
+echo "     stackctl # See CLI commands"
+echo "     k9s # See Kubernetes cluster"
 echo ""
-echo "  3. Open Vault UI:"
+echo "  Local access:"
+echo "
+echo "     echo '${INSTANCE_IP}  stackctl.vault.network.local' | sudo tee -a /etc/hosts"
 echo "     http://stackctl.vault.network.local"
 echo ""
 echo "============================================================"
