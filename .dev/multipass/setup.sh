@@ -2,10 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/" && pwd)"
+
+echo "SCRIPT_DIR: ${SCRIPT_DIR}"
+echo "PROJECT_ROOT: ${PROJECT_ROOT}"
 
 INSTANCE_NAME="stackctl"
-VOLUMES_DIR="${SCRIPT_DIR}/../.volumes"
+VOLUMES_DIR="${SCRIPT_DIR}/.volumes"
 CLUSTER_MANIFESTS_DIR="${SCRIPT_DIR}/cluster"
 CLOUD_INIT_FILE="${SCRIPT_DIR}/cloud-init/multipass-init.yaml"
 LOG_DIR="${VOLUMES_DIR}/logs"
@@ -186,12 +189,7 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
 echo "[CLI] Installing stackctl CLI..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   export PATH=\$PATH:/snap/bin:/home/ubuntu/go/bin
-  if /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest; then
-    sudo cp /home/ubuntu/go/bin/stackctl /usr/local/bin/stackctl
-    echo '[OK] stackctl installed and copied to /usr/local/bin.'
-  else
-    echo '[WARN] stackctl install failed, continuing...'
-  fi
+  /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest || echo '[WARN] stackctl install failed, continuing...'
 "
 
 echo ""

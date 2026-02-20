@@ -1,1 +1,60 @@
-.dev/.volumes/
+########################
+# Go build artifacts
+########################
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build and distribution directories
+bin/
+dist/
+build/
+
+*.volumes/
+
+# Test binaries and coverage
+*.test
+*.out
+*.coverprofile
+coverage/
+profile.out
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency vendor directory (uncomment if you vendor deps)
+vendor/
+
+########################
+# Editor/IDE
+########################
+.idea/
+.vscode/
+*.iml
+.fleet/
+
+########################
+# OS / misc
+########################
+.DS_Store
+Thumbs.db
+
+########################
+# Mock / output data
+########################
+.out/
+
+########################
+# Logs / temp / env
+########################
+logs/
+tmp/
+*.log
+*.swp
+*.swo
+.env
+.env.*

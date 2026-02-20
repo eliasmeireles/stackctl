@@ -13,3 +13,5 @@ runcmd:
   - [ sh, -c, "sudo apt update && sudo apt install vault" ]
   - [ sh, -c, "echo 'export PATH=$PATH:$HOME/go/bin' >> /home/ubuntu/.bashrc" ]
   - [ sh, -c, "echo 'export PATH=$PATH:$HOME/go/bin' >> /root/.bashrc" ]
+  - [ sh, -c, "echo 'export PATH=$PATH:/snap/bin:/home/ubuntu/go/bin' >> /home/ubuntu/.bashrc" ]
+  - [ sh, -c, "echo 'export PATH=$PATH:/snap/bin:/home/ubuntu/go/bin' >> /root/.bashrc" ]
