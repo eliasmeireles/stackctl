@@ -11,7 +11,7 @@ func NewCommand() *cobra.Command {
 var NewCommandFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Quick retrieval commands (e.g. passwords from Vault)",
+		Short: "Get a secret (e.g. passwords from Vault) and copy to clipboard",
 	}
 
 	cmd.AddCommand(NewPassCmd())

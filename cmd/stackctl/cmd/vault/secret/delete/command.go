@@ -11,7 +11,7 @@ func NewCommand() *cobra.Command {
 var NewCommandFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete resources (e.g. passwords from Vault)",
+		Short: "Delete a secret (e.g. passwords from Vault)",
 	}
 
 	cmd.AddCommand(NewPassCmd())
