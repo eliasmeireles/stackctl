@@ -93,17 +93,50 @@ func (a *Applier) Apply(cfg *ApplyConfig) error {
 
 // ---------- secrets ----------
 
-// mountPointFromPath extracts the first path segment (the engine mount point)
+// MountPointFromPath extracts the first path segment (the engine mount point)
 // from a KV v2 secret path such as "secret/data/foo/bar" -> "secret".
-func mountPointFromPath(path string) string {
+func MountPointFromPath(path string) string {
 	if idx := strings.Index(path, "/"); idx > 0 {
 		return path[:idx]
 	}
 	return path
 }
 
-// ensureKVEngine mounts a KV v2 engine at mountPath if it is not already mounted.
+// EnsureKVEngine mounts a KV v2 engine at mountPath if it is not already mounted.
 // A "path is already in use" error from Vault is silently ignored so the call is idempotent.
+func EnsureKVEngine(mountPath string) error {
+	apiClient, err := ApiClient.Client()
+	if err != nil {
+		return fmt.Errorf("failed to get vault client: %w", err)
+	}
+
+	mounts, err := apiClient.Sys().ListMounts()
+	if err == nil {
+		normalised := strings.TrimRight(mountPath, "/") + "/"
+		if _, exists := mounts[normalised]; exists {
+			return nil
+		}
+	}
+
+	mountErr := apiClient.Sys().Mount(mountPath, &api.MountInput{
+		Type:        "kv",
+		Description: "KV v2 secrets engine",
+		Options:     map[string]string{"version": "2"},
+	})
+
+	if mountErr != nil {
+		msg := strings.ToLower(mountErr.Error())
+		if strings.Contains(msg, "path is already in use") ||
+			strings.Contains(msg, "existing mount") ||
+			strings.Contains(msg, "already mounted") {
+			return nil
+		}
+		return fmt.Errorf("ensure kv engine at %q: %w", mountPath, mountErr)
+	}
+	return nil
+}
+
+// ensureKVEngine is the internal method that uses the Applier's engine manager.
 func (a *Applier) ensureKVEngine(mountPath string) error {
 	mounts, err := a.engines.ListEngines()
 	if err == nil {
@@ -130,7 +163,7 @@ func (a *Applier) applySecrets(s *SecretsConfig) error {
 		return fmt.Errorf("secrets.path is required")
 	}
 
-	if err := a.ensureKVEngine(mountPointFromPath(s.Path)); err != nil {
+	if err := a.ensureKVEngine(MountPointFromPath(s.Path)); err != nil {
 		return fmt.Errorf("ensure engine: %w", err)
 	}
 

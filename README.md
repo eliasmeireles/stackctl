@@ -18,16 +18,16 @@ Run `stackctl` with no arguments to open the interactive TUI.
 
 All Vault commands resolve credentials in this order:
 
-| Priority | Source |
-|:---|:---|
-| 1 | CLI flags: `--addr`, `--token`, `--role-id`/`--secret-id`, `--k8s-role` |
-| 2 | Env vars: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_K8S_ROLE` |
-| 3 | `~/.vault-token` file (written by `vault login`) |
+| Priority | Source                                                                                      |
+| :------- | :------------------------------------------------------------------------------------------ |
+| 1        | CLI flags: `--addr`, `--token`, `--role-id`/`--secret-id`, `--k8s-role`                     |
+| 2        | Env vars: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_K8S_ROLE` |
+| 3        | `~/.vault-token` file (written by `vault login`)                                            |
 
-| Auth method | Required |
-|:---|:---|
-| Token | `VAULT_ADDR` + `VAULT_TOKEN` |
-| AppRole | `VAULT_ADDR` + `VAULT_ROLE_ID` + `VAULT_SECRET_ID` |
+| Auth method   | Required                                                                                   |
+| :------------ | :----------------------------------------------------------------------------------------- |
+| Token         | `VAULT_ADDR` + `VAULT_TOKEN`                                                               |
+| AppRole       | `VAULT_ADDR` + `VAULT_ROLE_ID` + `VAULT_SECRET_ID`                                         |
 | Kubernetes SA | `VAULT_ADDR` + `VAULT_K8S_ROLE` (+ optional `VAULT_K8S_MOUNT_PATH`, `VAULT_SA_TOKEN_PATH`) |
 
 ---
@@ -44,38 +44,38 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 
 **TUI color customization** (ANSI 256-color codes):
 
-| Env var | Default | Controls |
-|:---|:---|:---|
-| `STACK_CTL_TITLE_COLOR` | `86` | Menu title |
-| `STACK_CTL_ITEM_COLOR` | `86` | List items |
-| `STACK_CTL_SELECTED_ITEM_COLOR` | `82` | Selected item |
+| Env var                         | Default | Controls      |
+| :------------------------------ | :------ | :------------ |
+| `STACK_CTL_TITLE_COLOR`         | `86`    | Menu title    |
+| `STACK_CTL_ITEM_COLOR`          | `86`    | List items    |
+| `STACK_CTL_SELECTED_ITEM_COLOR` | `82`    | Selected item |
 
 ---
 
 ### Kubeconfig — `stackctl kubeconfig`
 
-| Subcommand | Description |
-|:---|:---|
-| `list-contexts` | List all local contexts |
-| `get-context <name> [--encode]` | Print a context (optionally Base64) |
-| `set-context <name>` | Switch current context |
-| `set-namespace <ns> [--context <name>]` | Set default namespace |
-| `clean` | Remove duplicate entries |
-| `add` | Import config (see flags below) |
-| `remove <name>` | Remove a context |
-| `save-to-vault <name>` | Upload context to Vault |
-| `add-from-vault <path>` | Download and merge from Vault |
-| `contexts` | List kubeconfigs stored in Vault |
+| Subcommand                              | Description                         |
+| :-------------------------------------- | :---------------------------------- |
+| `list-contexts`                         | List all local contexts             |
+| `get-context <name> [--encode]`         | Print a context (optionally Base64) |
+| `set-context <name>`                    | Switch current context              |
+| `set-namespace <ns> [--context <name>]` | Set default namespace               |
+| `clean`                                 | Remove duplicate entries            |
+| `add`                                   | Import config (see flags below)     |
+| `remove <name>`                         | Remove a context                    |
+| `save-to-vault <name>`                  | Upload context to Vault             |
+| `add-from-vault <path>`                 | Download and merge from Vault       |
+| `contexts`                              | List kubeconfigs stored in Vault    |
 
 **`add` flags:**
 
-| Flag | Description |
-|:---|:---|
-| `<base64>` | Positional: import from Base64 string |
-| `--file <path>` | Import from local file |
-| `--host <ip> --ssh-user <user>` | Import via SSH |
-| `--k3s` | Use default k3s path (`/etc/rancher/k3s/k3s.yaml`) |
-| `-r <name>` | Rename the imported context |
+| Flag                            | Description                                        |
+| :------------------------------ | :------------------------------------------------- |
+| `<base64>`                      | Positional: import from Base64 string              |
+| `--file <path>`                 | Import from local file                             |
+| `--host <ip> --ssh-user <user>` | Import via SSH                                     |
+| `--k3s`                         | Use default k3s path (`/etc/rancher/k3s/k3s.yaml`) |
+| `-r <name>`                     | Rename the imported context                        |
 
 ```bash
 stackctl kubeconfig add --k3s --host 192.168.1.10 --ssh-user root -r home-lab
@@ -155,14 +155,14 @@ stackctl vault fetch \
   -r prod-cluster
 ```
 
-| Flag | Description |
-|:---|:---|
-| `--secret-path` | KV v2 path to the secret |
-| `--secret-field` | Field to read (default: `kubeconfig`) |
+| Flag              | Description                                                |
+| :---------------- | :--------------------------------------------------------- |
+| `--secret-path`   | KV v2 path to the secret                                   |
+| `--secret-field`  | Field to read (default: `kubeconfig`)                      |
 | `--as-kubeconfig` | Merge field value (Base64) into local kubeconfig (default) |
-| `--export-env` | Export all fields as environment variables |
-| `--github-env` | Also write to `$GITHUB_ENV` |
-| `-r` | Rename the context when importing |
+| `--export-env`    | Export all fields as environment variables                 |
+| `--github-env`    | Also write to `$GITHUB_ENV`                                |
+| `-r`              | Rename the context when importing                          |
 
 ---
 
@@ -170,11 +170,11 @@ stackctl vault fetch \
 
 All `pass` commands share these flags:
 
-| Flag | Description |
-|:---|:---|
-| `--path <vault-path>` | Override secret path |
-| `STACK_CTL_DEFAULT_PASS_PATH` | Env var to set a default path |
-| *(default)* | `secret/data/users/all/passwords` |
+| Flag                          | Description                       |
+| :---------------------------- | :-------------------------------- |
+| `--path <vault-path>`         | Override secret path              |
+| `STACK_CTL_DEFAULT_PASS_PATH` | Env var to set a default path     |
+| *(default)*                   | `secret/data/users/all/passwords` |
 
 ```bash
 # Copy a password to clipboard
@@ -200,10 +200,10 @@ stackctl netbird up --netbird-key <key> [--api-host <host>] [--wait-dns]
 stackctl netbird status
 ```
 
-| Env var | Description |
-|:---|:---|
-| `STACK_CLT_NETBIRD_KEY` | Setup key |
-| `API_HOST` | Management API host (default: `api.netbird.io`) |
+| Env var                 | Description                                     |
+| :---------------------- | :---------------------------------------------- |
+| `STACK_CLT_NETBIRD_KEY` | Setup key                                       |
+| `API_HOST`              | Management API host (default: `api.netbird.io`) |
 
 ---
 
@@ -231,6 +231,40 @@ stackctl netbird status
 - name: Deploy
   run: kubectl apply -f k8s/
 ```
+
+---
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run specific package tests
+go test ./cmd/stackctl/cmd/vault/...
+```
+
+### Local Development Environment
+
+For integration testing and local development, you can spin up a complete Vault + Kubernetes environment using Multipass:
+
+```bash
+# Bootstrap a local k3s cluster with Vault
+make multipass
+
+# This creates a VM with:
+# - k3s Kubernetes cluster
+# - HashiCorp Vault (auto-initialized and unsealed)
+# - NGINX Ingress Controller
+# - stackctl CLI pre-installed
+```
+
+See [`.dev/multipass/README.md`](.dev/multipass/README.md) for detailed setup instructions and requirements.
 
 ---
 
