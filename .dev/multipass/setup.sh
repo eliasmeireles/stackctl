@@ -186,7 +186,12 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
 echo "[CLI] Installing stackctl CLI..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   export PATH=\$PATH:/snap/bin:/home/ubuntu/go/bin
-  /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest || echo '[WARN] stackctl install failed, continuing...'
+  if /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest; then
+    sudo cp /home/ubuntu/go/bin/stackctl /usr/local/bin/stackctl
+    echo '[OK] stackctl installed and copied to /usr/local/bin.'
+  else
+    echo '[WARN] stackctl install failed, continuing...'
+  fi
 "
 
 echo ""
