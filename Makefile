@@ -53,18 +53,7 @@ install-cli:
 	@go install ./cmd/stackctl
 
 multapps:
-	@echo "🔍 Checking if Multipass is installed..."
-	@which multipass > /dev/null 2>&1 || { echo "❌ Multipass is not installed. Please install it first."; exit 1; }
-
-	@echo "🚀 Launching Multipass instance 'dev' with 4 CPUs and 4GB RAM..."
-	@if multipass info dev >/dev/null 2>&1; then \
-		echo "⚙️  Instance 'dev' already exists. Skipping creation..."; \
-	else \
-		multipass launch -n dev --cpus 4 --memory 4G --disk 20G --mount $$(pwd):/home/ubuntu/workdir --cloud-init example/multipass-init.yaml; \
-	fi
-
-	@echo "🔗 Connecting to the 'dev' instance..."
-	multipass shell dev
+	@bash bin/multipass-setup.sh
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
