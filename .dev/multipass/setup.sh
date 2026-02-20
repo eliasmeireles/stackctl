@@ -207,7 +207,7 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   fi
 "
 
-echo '
+cat > "${VOLUMES_DIR}/pass.yaml" <<EOF
 secrets:
   path: secret/data/users/${INSTANCE_NAME}/passwords
 
@@ -217,7 +217,7 @@ secrets:
     - name: DATABASE_PASSWORD
       auto_generate: true
       size: 25
-' > "${VOLUMES_DIR}/pass.yaml"
+EOF
 
 
 VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
