@@ -1,5 +1,5 @@
 secrets:
-  path: secret/data/users/all/passwords
+  path: secret/data/users/test/passwords
 
   # Add new keys (merge with existing)
   add:
