@@ -62,7 +62,6 @@ var NewInstallCmdFunc = func() *cobra.Command {
 			if err := netbird.Install(); err != nil {
 				return fmt.Errorf("❌ Failed to install NetBird: %v", err)
 			}
-			log.Info("✅ NetBird installed successfully.")
 			return nil
 		},
 	}
