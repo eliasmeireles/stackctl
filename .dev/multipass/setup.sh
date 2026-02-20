@@ -207,6 +207,19 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   fi
 "
 
+echo '
+secrets:
+  path: secret/data/users/${INSTANCE_NAME}/passwords
+
+  # Add new keys (merge with existing)
+  add:
+    # Auto-generated value - generates 25 bytes = 50 hex chars
+    - name: DATABASE_PASSWORD
+      auto_generate: true
+      size: 25
+' > "${VOLUMES_DIR}/pass.yaml"
+
+
 VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
 ROOT_TOKEN="$(cat "${VOLUMES_ABS}/vault/keys/root-token" 2>/dev/null || echo '<see root-token file>')"
 
@@ -228,6 +241,7 @@ echo "     make stackctl-shell"
 echo ""
 echo "  2. Add to /etc/hosts (run once):"
 echo "     sudo -i"
+echo "     stackctl vault apply -f /home/ubuntu/workdir/pass.yaml"
 echo "     stackctl # See CLI commands"
 echo "     k9s # See Kubernetes cluster"
 echo ""
