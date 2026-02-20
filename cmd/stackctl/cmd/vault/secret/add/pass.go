@@ -79,6 +79,11 @@ var runAddPassCmd = func(path, pass *string, size *int) func(cmd *cobra.Command,
 			return fmt.Errorf("❌ Failed to generate password: %w", err)
 		}
 
+		// Ensure the KV v2 engine exists before writing
+		if err := vaultpkg.EnsureKVEngine(vaultpkg.MountPointFromPath(secretPath)); err != nil {
+			return fmt.Errorf("❌ Failed to ensure KV engine: %w", err)
+		}
+
 		existing, _ := client.ReadSecret(secretPath)
 		if existing == nil {
 			existing = make(map[string]interface{})
