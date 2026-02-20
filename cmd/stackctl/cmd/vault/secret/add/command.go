@@ -1,4 +1,4 @@
-package get
+package add
 
 import (
 	"github.com/spf13/cobra"
@@ -10,8 +10,8 @@ func NewCommand() *cobra.Command {
 
 var NewCommandFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Quick retrieval commands (e.g. passwords from Vault)",
+		Use:   "add",
+		Short: "Add a secret (e.g. passwords to Vault) and copy to clipboard",
 	}
 
 	cmd.AddCommand(NewPassCmd())

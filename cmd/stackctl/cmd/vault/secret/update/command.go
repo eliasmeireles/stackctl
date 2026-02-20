@@ -1,4 +1,4 @@
-package delete
+package update
 
 import (
 	"github.com/spf13/cobra"
@@ -10,8 +10,8 @@ func NewCommand() *cobra.Command {
 
 var NewCommandFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete resources (e.g. passwords from Vault)",
+		Use:   "update",
+		Short: "Update a secret value (e.g. passwords in Vault) and copy to clipboard",
 	}
 
 	cmd.AddCommand(NewPassCmd())

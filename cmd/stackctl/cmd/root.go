@@ -4,13 +4,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/add"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/delete"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/get"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/update"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/add"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/delete"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/get"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/update"
 )
 
 var rootCmd = &cobra.Command{
