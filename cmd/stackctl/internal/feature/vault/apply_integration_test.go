@@ -397,6 +397,91 @@ func TestApplyFullPermission(t *testing.T) {
 			t.Fatal("expected error for unknown role action")
 		}
 	})
+
+	t.Run("given secrets with description then writes custom_metadata", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/users/test/passwords",
+				Description: "Test user passwords",
+				Add: []SecretKVEntry{
+					{Name: "DATABASE_PASSWORD", Value: "s3cr3t", Description: "Database password"},
+				},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/users/test/passwords")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T: %v", metaData["custom_metadata"], metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "Test user passwords" {
+			t.Errorf("expected description='Test user passwords', got %v", customMeta["description"])
+		}
+		if customMeta["DATABASE_PASSWORD"] != "Database password" {
+			t.Errorf("expected DATABASE_PASSWORD='Database password', got %v", customMeta["DATABASE_PASSWORD"])
+		}
+	})
+
+	t.Run("given secrets without description then skips metadata write", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/config",
+				Add:  []SecretKVEntry{{Name: "KEY", Value: "val"}},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/app/config")
+		if metaData != nil {
+			t.Errorf("expected no metadata to be written, got %v", metaData)
+		}
+	})
+
+	t.Run("given secrets update with description then writes custom_metadata", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/env",
+				Add:  []SecretKVEntry{{Name: "API_KEY", Value: "abc"}},
+			},
+		}))
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/app/env",
+				Description: "App environment secrets",
+				Update: []SecretKVEntry{
+					{Name: "API_KEY", Value: "xyz", Description: "External API key"},
+				},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/app/env")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T", metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "App environment secrets" {
+			t.Errorf("expected description='App environment secrets', got %v", customMeta["description"])
+		}
+		if customMeta["API_KEY"] != "External API key" {
+			t.Errorf("expected API_KEY='External API key', got %v", customMeta["API_KEY"])
+		}
+	})
 }
 
 // ---------- Limited permission user (read-only) ----------

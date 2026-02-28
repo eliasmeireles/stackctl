@@ -22,6 +22,7 @@ type Applier struct {
 	auth     envvault.AuthManager
 	engines  envvault.EngineManager
 	logical  envvault.LogicalWriter
+	metadata MetadataWriter
 }
 
 // SecretReadWriter abstracts envvault.Client methods used by the applier.
@@ -30,15 +31,22 @@ type SecretReadWriter interface {
 	WriteSecret(path string, data map[string]interface{}) error
 }
 
+// MetadataWriter writes KV v2 secret metadata (e.g. custom_metadata) to Vault.
+type MetadataWriter interface {
+	Write(path string, data map[string]interface{}) error
+}
+
 // NewApplier creates an Applier from a Vault API client and an envvault client.
 // It wraps the api.Client into adapters that implement the vault interfaces.
 func NewApplier(apiClient *api.Client, evClient SecretReadWriter) *Applier {
+	logicalAdapter := &apiLogicalAdapter{apiClient}
 	return &Applier{
 		secrets:  evClient,
 		policies: &apiPolicyAdapter{apiClient},
 		auth:     &apiAuthAdapter{apiClient},
 		engines:  &apiEngineAdapter{apiClient},
-		logical:  &apiLogicalAdapter{apiClient},
+		logical:  logicalAdapter,
+		metadata: logicalAdapter,
 	}
 }
 
@@ -57,6 +65,7 @@ func NewApplierFromInterfaces(
 		auth:     auth,
 		engines:  engines,
 		logical:  logical,
+		metadata: logical,
 	}
 }
 
@@ -92,6 +101,16 @@ func (a *Applier) Apply(cfg *ApplyConfig) error {
 }
 
 // ---------- secrets ----------
+
+// MetadataPathFromDataPath converts a KV v2 data path to its metadata path.
+// Example: "secret/data/foo/bar" -> "secret/metadata/foo/bar".
+func MetadataPathFromDataPath(path string) string {
+	const dataSegment = "/data/"
+	if idx := strings.Index(path, dataSegment); idx >= 0 {
+		return path[:idx] + "/metadata/" + path[idx+len(dataSegment):]
+	}
+	return path
+}
 
 // MountPointFromPath extracts the first path segment (the engine mount point)
 // from a KV v2 secret path such as "secret/data/foo/bar" -> "secret".
@@ -214,7 +233,37 @@ func (a *Applier) applySecrets(s *SecretsConfig) error {
 		}
 	}
 
+	if err := a.writeSecretMetadata(s); err != nil {
+		return fmt.Errorf("write metadata: %w", err)
+	}
+
 	return nil
+}
+
+// writeSecretMetadata writes custom_metadata to the KV v2 metadata endpoint.
+// It stores the secret-level description and any per-key descriptions.
+func (a *Applier) writeSecretMetadata(s *SecretsConfig) error {
+	customMeta := make(map[string]interface{})
+
+	if s.Description != "" {
+		customMeta["description"] = s.Description
+	}
+
+	allEntries := append(s.Add, s.Update...)
+	for _, e := range allEntries {
+		if e.Description != "" {
+			customMeta[e.Name] = e.Description
+		}
+	}
+
+	if len(customMeta) == 0 {
+		return nil
+	}
+
+	metaPath := MetadataPathFromDataPath(s.Path)
+	return a.metadata.Write(metaPath, map[string]interface{}{
+		"custom_metadata": customMeta,
+	})
 }
 
 // ---------- policies ----------
