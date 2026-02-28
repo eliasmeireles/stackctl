@@ -12,10 +12,11 @@ type ApplyConfig struct {
 
 // SecretsConfig defines KV v2 secret operations.
 type SecretsConfig struct {
-	Path   string          `yaml:"path"`
-	Add    []SecretKVEntry `yaml:"add"`
-	Update []SecretKVEntry `yaml:"update"`
-	Delete []SecretDelEntry `yaml:"delete"`
+	Path        string           `yaml:"path"`
+	Description string           `yaml:"description"`
+	Add         []SecretKVEntry  `yaml:"add"`
+	Update      []SecretKVEntry  `yaml:"update"`
+	Delete      []SecretDelEntry `yaml:"delete"`
 }
 
 // SecretKVEntry represents a single secret key to add or update.
@@ -25,6 +26,7 @@ type SecretKVEntry struct {
 	Value        string `yaml:"value"`
 	AutoGenerate bool   `yaml:"auto_generate"`
 	Size         int    `yaml:"size"`
+	Description  string `yaml:"description"`
 }
 
 // SecretDelEntry represents a single secret key to remove from a secret.

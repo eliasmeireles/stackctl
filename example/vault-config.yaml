@@ -199,39 +199,50 @@ roles:
 #   auto_generate:  true to generate random value (hex)
 #   size:           size in bytes of generated value (default: 20 = 40 hex chars)
 #                   equivalent to: openssl rand -hex <size>
+#   description:    optional description for the key
 #
-# The path must use the 'secret/data/' prefix for KV v2.
+# Resource fields:
+#   path:           secret path (must use 'secret/data/' prefix for KV v2)
+#   description:    optional description for the entire secret resource
+#
 secrets:
   path: secret/data/resources/kubeconfig/oracle-elias
+  description: "Kubeconfig and database credentials for Oracle VPS cluster"
 
   # Add new keys (merge with existing)
   add:
     # Fixed value - e.g., base64 encoded kubeconfig
     - name: KUBECONFIG
       value: "kubeconfig-base64-encoded-content-here"
+      description: "Base64 encoded kubeconfig for Oracle cluster"
 
     # Auto-generated value - generates 25 bytes = 50 hex chars
     - name: DATABASE_PASSWORD
       auto_generate: true
       size: 25
+      description: "Auto-generated database password"
 
     # Auto-generated value with smaller size
     - name: DATABASE_USER
       auto_generate: true
       size: 15
+      description: "Auto-generated database username"
 
     # Auto-generated value with default size (20 bytes = 40 hex chars)
     # - name: API_KEY
     #   auto_generate: true
+    #   description: "API key for external service"
 
   # Update existing keys (reads current secret and merges)
   update:
     - name: KUBECONFIG
       value: "kubeconfig-v2-base64-encoded"
+      description: "Updated kubeconfig for Oracle cluster"
 
     - name: DATABASE_PASSWORD
       auto_generate: true
       size: 25
+      description: "Regenerated database password"
 
     - name: DATABASE_USER
       auto_generate: true

@@ -372,6 +372,50 @@ func TestApplyFullPermission(t *testing.T) {
 		}
 	})
 
+	t.Run("given secrets with descriptions then parses correctly", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		cfg := &ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        testSecretPath,
+				Description: "Resource description for test secrets",
+				Add: []SecretKVEntry{
+					{
+						Name:        "KEY_WITH_DESC",
+						Value:       "test-value",
+						Description: "Key description",
+					},
+					{
+						Name:         "AUTO_KEY_WITH_DESC",
+						AutoGenerate: true,
+						Size:         20,
+						Description:  "Auto-generated key description",
+					},
+					{
+						Name:  "KEY_WITHOUT_DESC",
+						Value: "no-description",
+					},
+				},
+			},
+		}
+
+		requireNoError(t, applier.Apply(cfg))
+
+		secrets := mock.GetSecrets(testSecretPath)
+		if len(secrets) != 3 {
+			t.Fatalf("expected 3 secrets, got %d", len(secrets))
+		}
+		if secrets["KEY_WITH_DESC"] != "test-value" {
+			t.Errorf("expected KEY_WITH_DESC='test-value', got %v", secrets["KEY_WITH_DESC"])
+		}
+		if secrets["KEY_WITHOUT_DESC"] != "no-description" {
+			t.Errorf("expected KEY_WITHOUT_DESC='no-description', got %v", secrets["KEY_WITHOUT_DESC"])
+		}
+		if _, ok := secrets["AUTO_KEY_WITH_DESC"]; !ok {
+			t.Error("expected AUTO_KEY_WITH_DESC to exist")
+		}
+	})
+
 	t.Run("given role with no parameters then returns error", func(t *testing.T) {
 		_, applier := newFullApplier()
 
