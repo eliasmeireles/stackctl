@@ -106,10 +106,10 @@ policies:
     - name: project-oracle-admin
       rules: |
         # Full CRUD on project path
-        path "secret/data/resources/kubeconfig/oracle-elias" {
+        path "secret/data/resources/kubeconfig/stackctl-dev" {
           capabilities = ["create", "read", "update", "delete"]
         }
-        path "secret/metadata/resources/kubeconfig/oracle-elias" {
+        path "secret/metadata/resources/kubeconfig/stackctl-dev" {
           capabilities = ["read", "list", "delete"]
         }
 
@@ -202,7 +202,7 @@ roles:
 #
 # The path must use the 'secret/data/' prefix for KV v2.
 secrets:
-  path: secret/data/resources/kubeconfig/oracle-elias
+  path: secret/data/resources/kubeconfig/stackctl-dev
 
   # Add new keys (merge with existing)
   add:
@@ -242,4 +242,4 @@ secrets:
     - name: OLD_API_KEY
     - name: DEPRECATED_TOKEN
     # To delete the entire secret, use the CLI:
-    #   stackctl vault secret delete secret/metadata/resources/kubeconfig/oracle-elias
+    #   stackctl vault secret delete secret/metadata/resources/kubeconfig/stackctl-dev
