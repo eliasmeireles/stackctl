@@ -21,7 +21,7 @@ func (a *Applier) applyUsers(u *UsersConfig) error {
 	if len(u.Add) > 0 {
 		log.Infof("Adding %d users", len(u.Add))
 		for _, entry := range u.Add {
-			userPath := fmt.Sprintf("%s/users/%s", authMount, entry.Username)
+			userPath := fmt.Sprintf("auth/%s/users/%s", authMount, entry.Username)
 
 			existing, _ := a.logical.Read(userPath)
 			if existing != nil {
@@ -48,7 +48,7 @@ func (a *Applier) applyUsers(u *UsersConfig) error {
 	if len(u.Update) > 0 {
 		log.Infof("Updating %d users", len(u.Update))
 		for _, entry := range u.Update {
-			userPath := fmt.Sprintf("%s/users/%s", authMount, entry.Username)
+			userPath := fmt.Sprintf("auth/%s/users/%s", authMount, entry.Username)
 
 			password, err := resolveUserPassword(entry)
 			if err != nil {
@@ -65,7 +65,7 @@ func (a *Applier) applyUsers(u *UsersConfig) error {
 	if len(u.Delete) > 0 {
 		log.Infof("Deleting %d users", len(u.Delete))
 		for _, entry := range u.Delete {
-			userPath := fmt.Sprintf("%s/users/%s", authMount, entry.Username)
+			userPath := fmt.Sprintf("auth/%s/users/%s", authMount, entry.Username)
 
 			if err := a.logical.Delete(userPath); err != nil {
 				return fmt.Errorf("delete user %q: %w", entry.Username, err)
