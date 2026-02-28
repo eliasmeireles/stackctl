@@ -15,7 +15,10 @@ secrets:
   update:
     # Auto-generated value - generates 25 bytes = 50 hex chars
     - name: DATABASE_PASSWORD
-      description: "Database password updated"
+      description: "Database password updated v2"
     - name: DATABASE_USERNAME
-      description: "Database username updated"
+      description: "Database username updated v2"
       value: "stackctl_test_user"
+
+
+## c550b64f814b7cea300379238ca942307bb24e5a9f3d88b974
