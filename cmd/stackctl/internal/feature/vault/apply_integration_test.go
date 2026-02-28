@@ -482,6 +482,64 @@ func TestApplyFullPermission(t *testing.T) {
 			t.Errorf("expected API_KEY='External API key', got %v", customMeta["API_KEY"])
 		}
 	})
+
+	t.Run("given description only update then updates metadata without changing secret data", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/creds",
+				Add: []SecretKVEntry{
+					{Name: "TOKEN", Value: "original-token"},
+					{Name: "KEY", Value: "original-key"},
+				},
+			},
+		}))
+
+		secrets := mock.GetSecrets("secret/data/app/creds")
+		if secrets["TOKEN"] != "original-token" {
+			t.Errorf("expected TOKEN='original-token', got %v", secrets["TOKEN"])
+		}
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/app/creds",
+				Description: "App credentials",
+				Update: []SecretKVEntry{
+					{Name: "TOKEN", Description: "Auth token"},
+					{Name: "KEY", Description: "API key"},
+				},
+			},
+		}))
+
+		secrets = mock.GetSecrets("secret/data/app/creds")
+		if secrets["TOKEN"] != "original-token" {
+			t.Errorf("expected TOKEN unchanged='original-token', got %v", secrets["TOKEN"])
+		}
+		if secrets["KEY"] != "original-key" {
+			t.Errorf("expected KEY unchanged='original-key', got %v", secrets["KEY"])
+		}
+
+		metaData := mock.GetLogical("secret/metadata/app/creds")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T", metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "App credentials" {
+			t.Errorf("expected description='App credentials', got %v", customMeta["description"])
+		}
+		if customMeta["TOKEN"] != "Auth token" {
+			t.Errorf("expected TOKEN description='Auth token', got %v", customMeta["TOKEN"])
+		}
+		if customMeta["KEY"] != "API key" {
+			t.Errorf("expected KEY description='API key', got %v", customMeta["KEY"])
+		}
+	})
 }
 
 // ---------- Limited permission user (read-only) ----------

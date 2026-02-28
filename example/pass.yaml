@@ -8,3 +8,14 @@ secrets:
       description: "Database password"
       auto_generate: true
       size: 25
+    - name: DATABASE_USERNAME
+      description: "Database username"
+      value: "stackctl_test_user"
+  # Add new keys (merge with existing)
+  update:
+    # Auto-generated value - generates 25 bytes = 50 hex chars
+    - name: DATABASE_PASSWORD
+      description: "Database password updated"
+    - name: DATABASE_USERNAME
+      description: "Database username updated"
+      value: "stackctl_test_user"

@@ -208,15 +208,22 @@ func (a *Applier) applySecrets(s *SecretsConfig) error {
 		if err != nil {
 			return fmt.Errorf("read for update: %w", err)
 		}
+		dataChanged := false
 		for _, e := range s.Update {
+			if isDescriptionOnlyUpdate(e) {
+				continue
+			}
 			val, err := ResolveSecretValue(e)
 			if err != nil {
 				return fmt.Errorf("update %q: %w", e.Name, err)
 			}
 			existing[e.Name] = val
+			dataChanged = true
 		}
-		if err := a.secrets.WriteSecret(s.Path, existing); err != nil {
-			return fmt.Errorf("write update: %w", err)
+		if dataChanged {
+			if err := a.secrets.WriteSecret(s.Path, existing); err != nil {
+				return fmt.Errorf("write update: %w", err)
+			}
 		}
 	}
 
@@ -378,6 +385,12 @@ func (a *Applier) applyRoles(roles []RoleConfig) error {
 }
 
 // ---------- pure helpers (exported for testing) ----------
+
+// isDescriptionOnlyUpdate returns true if the entry only has a description
+// and no value or auto_generate flag, indicating a metadata-only update.
+func isDescriptionOnlyUpdate(entry SecretKVEntry) bool {
+	return entry.Description != "" && entry.Value == "" && !entry.AutoGenerate
+}
 
 // ResolveSecretValue returns the value for a secret entry.
 // If AutoGenerate is true, generates a cryptographically random hex string.
