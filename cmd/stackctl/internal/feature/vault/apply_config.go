@@ -1,13 +1,15 @@
 package vault
 
 // ApplyConfig represents the full YAML configuration for declarative Vault operations.
-// Execution order: Engines -> Auth -> Policies -> Roles -> Secrets.
+// Execution order: Engines -> Auth -> Policies -> Roles -> ServiceAccounts -> Users -> Secrets.
 type ApplyConfig struct {
-	Secrets  *SecretsConfig  `yaml:"secrets"`
-	Policies *PoliciesConfig `yaml:"policies"`
-	Auth     *AuthConfig     `yaml:"auth"`
-	Engines  *EnginesConfig  `yaml:"engines"`
-	Roles    []RoleConfig    `yaml:"roles"`
+	Secrets         *SecretsConfig         `yaml:"secrets"`
+	Policies        *PoliciesConfig        `yaml:"policies"`
+	Auth            *AuthConfig            `yaml:"auth"`
+	Engines         *EnginesConfig         `yaml:"engines"`
+	Roles           []RoleConfig           `yaml:"roles"`
+	ServiceAccounts *ServiceAccountsConfig `yaml:"service_accounts"`
+	Users           *UsersConfig           `yaml:"users"`
 }
 
 // SecretsConfig defines KV v2 secret operations.
@@ -90,4 +92,49 @@ type RoleConfig struct {
 	TokenType                     string `yaml:"token_type"`
 	SecretIDTTL                   string `yaml:"secret_id_ttl"`
 	SecretIDNumUses               *int   `yaml:"secret_id_num_uses"`
+}
+
+// ServiceAccountsConfig defines Kubernetes service account operations.
+type ServiceAccountsConfig struct {
+	AuthMount string                 `yaml:"auth_mount"`
+	Namespace string                 `yaml:"namespace"`
+	Add       []ServiceAccountEntry  `yaml:"add"`
+	Update    []ServiceAccountEntry  `yaml:"update"`
+	Delete    []ServiceAccountDelete `yaml:"delete"`
+}
+
+// ServiceAccountEntry represents a Kubernetes service account to bind to Vault.
+type ServiceAccountEntry struct {
+	Name        string   `yaml:"name"`
+	Policies    []string `yaml:"policies"`
+	TTL         string   `yaml:"ttl"`
+	Description string   `yaml:"description"`
+}
+
+// ServiceAccountDelete represents a service account binding to remove.
+type ServiceAccountDelete struct {
+	Name string `yaml:"name"`
+}
+
+// UsersConfig defines Vault user operations (userpass auth method).
+type UsersConfig struct {
+	AuthMount string            `yaml:"auth_mount"`
+	Add       []UserEntry       `yaml:"add"`
+	Update    []UserEntry       `yaml:"update"`
+	Delete    []UserDeleteEntry `yaml:"delete"`
+}
+
+// UserEntry represents a Vault user to create or update.
+type UserEntry struct {
+	Username         string   `yaml:"username"`
+	Password         string   `yaml:"password"`
+	Policies         []string `yaml:"policies"`
+	AutoGeneratePass bool     `yaml:"auto_generate_password"`
+	PasswordSize     int      `yaml:"password_size"`
+	Description      string   `yaml:"description"`
+}
+
+// UserDeleteEntry represents a user to delete.
+type UserDeleteEntry struct {
+	Username string `yaml:"username"`
 }

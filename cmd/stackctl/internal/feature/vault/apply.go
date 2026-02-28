@@ -61,7 +61,7 @@ func NewApplierFromInterfaces(
 }
 
 // Apply executes all operations in the config in the correct order:
-// engines -> auth -> policies -> roles -> secrets.
+// engines -> auth -> policies -> roles -> service_accounts -> users -> secrets.
 func (a *Applier) Apply(cfg *ApplyConfig) error {
 	if cfg.Engines != nil {
 		if err := a.applyEngines(cfg.Engines); err != nil {
@@ -81,6 +81,16 @@ func (a *Applier) Apply(cfg *ApplyConfig) error {
 	if len(cfg.Roles) > 0 {
 		if err := a.applyRoles(cfg.Roles); err != nil {
 			return fmt.Errorf("roles: %w", err)
+		}
+	}
+	if cfg.ServiceAccounts != nil {
+		if err := a.applyServiceAccounts(cfg.ServiceAccounts); err != nil {
+			return fmt.Errorf("service_accounts: %w", err)
+		}
+	}
+	if cfg.Users != nil {
+		if err := a.applyUsers(cfg.Users); err != nil {
+			return fmt.Errorf("users: %w", err)
 		}
 	}
 	if cfg.Secrets != nil {
