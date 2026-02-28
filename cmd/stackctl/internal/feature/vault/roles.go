@@ -3,20 +3,45 @@ package vault
 import (
 	"fmt"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func (a *Applier) applyRoles(roles []RoleConfig) error {
-	for _, r := range roles {
-		authMount := strings.TrimRight(r.AuthMount, "/")
-		rolePath := fmt.Sprintf("%s/role/%s", authMount, r.Name)
+	addRoles := []RoleConfig{}
+	updateRoles := []RoleConfig{}
+	deleteRoles := []RoleConfig{}
 
+	for _, r := range roles {
 		action := strings.ToLower(r.Action)
 		if action == "" {
 			action = "add"
 		}
 
 		switch action {
-		case "add", "update":
+		case "add":
+			addRoles = append(addRoles, r)
+		case "update":
+			updateRoles = append(updateRoles, r)
+		case "delete":
+			deleteRoles = append(deleteRoles, r)
+		default:
+			return fmt.Errorf("unknown action %q for role %q", r.Action, r.Name)
+		}
+	}
+
+	if len(addRoles) > 0 {
+		log.Infof("Adding %d roles", len(addRoles))
+		for _, r := range addRoles {
+			authMount := strings.TrimRight(r.AuthMount, "/")
+			rolePath := fmt.Sprintf("%s/role/%s", authMount, r.Name)
+
+			existing, _ := a.logical.Read(rolePath)
+			if existing != nil {
+				log.Infof("⚠️  Role [%q] already exists at %q. Skipping...", r.Name, authMount)
+				continue
+			}
+
 			data := BuildRoleData(r)
 			if len(data) == 0 {
 				return fmt.Errorf("no parameters for role %q", r.Name)
@@ -24,12 +49,34 @@ func (a *Applier) applyRoles(roles []RoleConfig) error {
 			if err := a.logical.Write(rolePath, data); err != nil {
 				return fmt.Errorf("write role %q: %w", r.Name, err)
 			}
-		case "delete":
+		}
+	}
+
+	if len(updateRoles) > 0 {
+		log.Infof("Updating %d roles", len(updateRoles))
+		for _, r := range updateRoles {
+			authMount := strings.TrimRight(r.AuthMount, "/")
+			rolePath := fmt.Sprintf("%s/role/%s", authMount, r.Name)
+
+			data := BuildRoleData(r)
+			if len(data) == 0 {
+				return fmt.Errorf("no parameters for role %q", r.Name)
+			}
+			if err := a.logical.Write(rolePath, data); err != nil {
+				return fmt.Errorf("write role %q: %w", r.Name, err)
+			}
+		}
+	}
+
+	if len(deleteRoles) > 0 {
+		log.Infof("Deleting %d roles", len(deleteRoles))
+		for _, r := range deleteRoles {
+			authMount := strings.TrimRight(r.AuthMount, "/")
+			rolePath := fmt.Sprintf("%s/role/%s", authMount, r.Name)
+
 			if err := a.logical.Delete(rolePath); err != nil {
 				return fmt.Errorf("delete role %q: %w", r.Name, err)
 			}
-		default:
-			return fmt.Errorf("unknown action %q for role %q", r.Action, r.Name)
 		}
 	}
 	return nil

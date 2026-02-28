@@ -69,8 +69,7 @@ func (a *Applier) add(s *SecretsConfig) error {
 
 		for _, e := range s.Add {
 			if _, ok := existing[e.Name]; ok {
-				// Log with a alert icon
-				log.Infof("⚠️ [%q] already exists. Skipping...", e.Name)
+				log.Infof("⚠️ Secret [%q] already exists. Skipping...", e.Name)
 				continue
 			}
 			val, err := ResolveSecretValue(e)
