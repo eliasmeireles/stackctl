@@ -11,16 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewPassCmd(t *testing.T) {
-	t.Run("must create pass command with correct attributes", func(t *testing.T) {
-		cmd := NewPassCmd()
+func TestNewSecretCmd(t *testing.T) {
+	t.Run("must create secret command with correct attributes", func(t *testing.T) {
+		cmd := NewSecretCmd()
 		require.NotNil(t, cmd)
-		assert.Equal(t, "pass <KEY>", cmd.Use)
+		assert.Equal(t, "secret <KEY>", cmd.Use)
 		assert.NotEmpty(t, cmd.Short)
 	})
 
 	t.Run("must have path flag", func(t *testing.T) {
-		cmd := NewPassCmd()
+		cmd := NewSecretCmd()
 		flag := cmd.Flags().Lookup("path")
 		require.NotNil(t, flag)
 		assert.Equal(t, "", flag.DefValue)
@@ -28,7 +28,7 @@ func TestNewPassCmd(t *testing.T) {
 }
 
 func TestNewCommand(t *testing.T) {
-	t.Run("must create get command with pass subcommand", func(t *testing.T) {
+	t.Run("must create get command with secret subcommand", func(t *testing.T) {
 		cmd := NewCommand()
 		require.NotNil(t, cmd)
 		assert.Equal(t, "get", cmd.Use)
@@ -37,37 +37,44 @@ func TestNewCommand(t *testing.T) {
 		for _, sub := range cmd.Commands() {
 			subCmds[sub.Name()] = true
 		}
-		assert.True(t, subCmds["pass"], "missing 'pass' subcommand")
+		assert.True(t, subCmds["secret"], "missing 'secret' subcommand")
 	})
 }
 
-func TestResolvePassPath(t *testing.T) {
-	t.Run("must use flag path when provided", func(t *testing.T) {
+func TestResolveSecretPath(t *testing.T) {
+	t.Run("must prepend secret/data/ to flag path", func(t *testing.T) {
 		p := "custom/path"
-		assert.Equal(t, "custom/path", resolvePassPath(&p))
+		assert.Equal(t, "secret/data/custom/path", resolveSecretPath(&p))
 	})
 
-	t.Run("must use env var when flag is empty", func(t *testing.T) {
-		t.Setenv(envPassPath, "env/path")
+	t.Run("must prepend secret/data/ to env var path", func(t *testing.T) {
+		t.Setenv(envSecretPath, "env/path")
 		p := ""
-		assert.Equal(t, "env/path", resolvePassPath(&p))
+		assert.Equal(t, "secret/data/env/path", resolveSecretPath(&p))
 	})
 
-	t.Run("must use default path when flag and env are empty", func(t *testing.T) {
-		_ = os.Unsetenv(envPassPath)
+	t.Run("must prepend secret/data/ to default path", func(t *testing.T) {
+		_ = os.Unsetenv(envSecretPath)
 		p := ""
-		assert.Equal(t, defaultPassPath, resolvePassPath(&p))
+		expected := secretDataPrefix + defaultSecretPath
+		assert.Equal(t, expected, resolveSecretPath(&p))
 	})
 
-	t.Run("must use default path when flagPath is nil", func(t *testing.T) {
-		_ = os.Unsetenv(envPassPath)
-		assert.Equal(t, defaultPassPath, resolvePassPath(nil))
+	t.Run("must prepend secret/data/ when flagPath is nil", func(t *testing.T) {
+		_ = os.Unsetenv(envSecretPath)
+		expected := secretDataPrefix + defaultSecretPath
+		assert.Equal(t, expected, resolveSecretPath(nil))
 	})
 
 	t.Run("flag takes precedence over env var", func(t *testing.T) {
-		t.Setenv(envPassPath, "env/path")
+		t.Setenv(envSecretPath, "env/path")
 		p := "flag/path"
-		assert.Equal(t, "flag/path", resolvePassPath(&p))
+		assert.Equal(t, "secret/data/flag/path", resolveSecretPath(&p))
+	})
+
+	t.Run("must not double-prepend if path already has secret/data/", func(t *testing.T) {
+		p := "secret/data/already/prefixed"
+		assert.Equal(t, "secret/data/already/prefixed", resolveSecretPath(&p))
 	})
 }
 
@@ -87,39 +94,39 @@ func TestNewCommandFunc_Injectable(t *testing.T) {
 	})
 }
 
-func TestNewPassCmdFunc_Injectable(t *testing.T) {
-	t.Run("NewPassCmdFunc can be replaced for testing", func(t *testing.T) {
-		orig := NewPassCmdFunc
-		defer func() { NewPassCmdFunc = orig }()
+func TestNewSecretCmdFunc_Injectable(t *testing.T) {
+	t.Run("NewSecretCmdFunc can be replaced for testing", func(t *testing.T) {
+		orig := NewSecretCmdFunc
+		defer func() { NewSecretCmdFunc = orig }()
 
 		called := false
-		NewPassCmdFunc = func() *cobra.Command {
+		NewSecretCmdFunc = func() *cobra.Command {
 			called = true
 			return orig()
 		}
 
-		NewPassCmd()
+		NewSecretCmd()
 		assert.True(t, called)
 	})
 }
 
-func TestNewPassCmd_Flags(t *testing.T) {
+func TestNewSecretCmd_Flags(t *testing.T) {
 	t.Run("must have to-file flag", func(t *testing.T) {
-		cmd := NewPassCmd()
+		cmd := NewSecretCmd()
 		flag := cmd.Flags().Lookup("to-file")
 		require.NotNil(t, flag)
 		assert.Equal(t, "", flag.DefValue)
 	})
 
 	t.Run("must have decode-from-b64 flag", func(t *testing.T) {
-		cmd := NewPassCmd()
+		cmd := NewSecretCmd()
 		flag := cmd.Flags().Lookup("decode-from-b64")
 		require.NotNil(t, flag)
 		assert.Equal(t, "false", flag.DefValue)
 	})
 
 	t.Run("must have replace flag", func(t *testing.T) {
-		cmd := NewPassCmd()
+		cmd := NewSecretCmd()
 		flag := cmd.Flags().Lookup("replace")
 		require.NotNil(t, flag)
 		assert.Equal(t, "false", flag.DefValue)
@@ -196,5 +203,47 @@ func TestWriteToFile(t *testing.T) {
 		data, err := os.ReadFile(filePath)
 		require.NoError(t, err)
 		assert.Equal(t, original, string(data))
+	})
+
+	t.Run("must create parent directories if they don't exist", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "nested", "deep", "path", "file.txt")
+		content := "test content"
+
+		err := writeToFile(filePath, content, false)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, content, string(data))
+
+		info, err := os.Stat(filepath.Dir(filePath))
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run("must create multiple nested directories", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "a", "b", "c", "d", "e", "secret.txt")
+		content := "deeply nested secret"
+
+		err := writeToFile(filePath, content, false)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, content, string(data))
+	})
+
+	t.Run("must set directory permissions to 0755", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "new-dir", "file.txt")
+
+		err := writeToFile(filePath, "content", false)
+		require.NoError(t, err)
+
+		dirInfo, err := os.Stat(filepath.Dir(filePath))
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0755), dirInfo.Mode().Perm())
 	})
 }
