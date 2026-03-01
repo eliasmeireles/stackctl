@@ -1,7 +1,9 @@
 package get
 
 import (
+	"encoding/base64"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -98,5 +100,101 @@ func TestNewPassCmdFunc_Injectable(t *testing.T) {
 
 		NewPassCmd()
 		assert.True(t, called)
+	})
+}
+
+func TestNewPassCmd_Flags(t *testing.T) {
+	t.Run("must have to-file flag", func(t *testing.T) {
+		cmd := NewPassCmd()
+		flag := cmd.Flags().Lookup("to-file")
+		require.NotNil(t, flag)
+		assert.Equal(t, "", flag.DefValue)
+	})
+
+	t.Run("must have decode-from-b64 flag", func(t *testing.T) {
+		cmd := NewPassCmd()
+		flag := cmd.Flags().Lookup("decode-from-b64")
+		require.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+
+	t.Run("must have replace flag", func(t *testing.T) {
+		cmd := NewPassCmd()
+		flag := cmd.Flags().Lookup("replace")
+		require.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+}
+
+func TestWriteToFile(t *testing.T) {
+	t.Run("must write content to new file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "test.txt")
+		content := "test content"
+
+		err := writeToFile(filePath, content, false)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, content, string(data))
+	})
+
+	t.Run("must fail when file exists and replace is false", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "existing.txt")
+
+		err := os.WriteFile(filePath, []byte("existing"), 0600)
+		require.NoError(t, err)
+
+		err = writeToFile(filePath, "new content", false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "File already exists")
+		assert.Contains(t, err.Error(), "--replace")
+	})
+
+	t.Run("must overwrite file when replace is true", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "existing.txt")
+
+		err := os.WriteFile(filePath, []byte("old content"), 0600)
+		require.NoError(t, err)
+
+		newContent := "new content"
+		err = writeToFile(filePath, newContent, true)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, newContent, string(data))
+	})
+
+	t.Run("must set file permissions to 0600", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "secure.txt")
+
+		err := writeToFile(filePath, "secret", false)
+		require.NoError(t, err)
+
+		info, err := os.Stat(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	})
+
+	t.Run("must handle base64 decoded content", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "decoded.txt")
+		original := "Hello, World!"
+		encoded := base64.StdEncoding.EncodeToString([]byte(original))
+
+		decodedBytes, err := base64.StdEncoding.DecodeString(encoded)
+		require.NoError(t, err)
+
+		err = writeToFile(filePath, string(decodedBytes), false)
+		require.NoError(t, err)
+
+		data, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, original, string(data))
 	})
 }
