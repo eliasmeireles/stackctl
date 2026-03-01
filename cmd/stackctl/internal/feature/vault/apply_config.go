@@ -26,7 +26,6 @@ type SecretsConfig struct {
 type SecretKVEntry struct {
 	Name         string `yaml:"name"`
 	Value        string `yaml:"value"`
-	Description  string `yaml:"description"`
 	AutoGenerate bool   `yaml:"auto_generate"`
 	Size         int    `yaml:"size"`
 	Description  string `yaml:"description"`
