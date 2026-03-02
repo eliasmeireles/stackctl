@@ -10,11 +10,11 @@ import (
 
 var (
 	addConfigItems = []list.Item{
+		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList),
 		ui.CreatePromptItem("From Base64", "Import from a base64 string", "Base64 String", nil),
 		ui.CreatePromptItem("From Local File", "Import from a local yaml file", "File Path", nil),
 		ui.CreateMultiPromptItem("From Remote (SSH)", "Fetch config from a remote VPS", []string{"Host (IP/DNS)", "SSH User (default: root)", "Remote Path"}, nil),
 		ui.CreateMultiPromptItem("From Remote k3s", "Fetch default k3s config from VPS", []string{"Host (IP/DNS)", "SSH User (default: root)"}, nil),
-		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList),
 	}
 
 	configItems = []list.Item{
