@@ -1,8 +1,13 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/errors"
@@ -17,9 +22,12 @@ const (
 )
 
 type RabbitMQClient struct {
-	config *entity.DatabaseConfig
-	conn   *amqp.Connection
-	ch     *amqp.Channel
+	config         *entity.DatabaseConfig
+	conn           *amqp.Connection
+	ch             *amqp.Channel
+	httpClient     *http.Client
+	adminCreds     *entity.Credentials
+	managementPort int
 }
 
 func NewRabbitMQClient(config *entity.DatabaseConfig) (*RabbitMQClient, error) {
@@ -49,6 +57,10 @@ func (c *RabbitMQClient) Connect(ctx context.Context, adminCreds *entity.Credent
 
 	c.conn = conn
 	c.ch = ch
+	c.adminCreds = adminCreds
+	c.httpClient = &http.Client{}
+	c.managementPort = 15672
+
 	return nil
 }
 
@@ -63,31 +75,115 @@ func (c *RabbitMQClient) Close() error {
 }
 
 func (c *RabbitMQClient) UserExists(ctx context.Context, username string) (bool, error) {
-	if c.conn == nil {
+	if c.httpClient == nil || c.adminCreds == nil {
 		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
-	return false, nil
+	url := fmt.Sprintf("http://%s:%d/api/users/%s", c.config.Host, c.managementPort, username)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return false, errors.NewDatabaseError(rabbitErrUserExists, err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, errors.NewDatabaseError(rabbitErrUserExists, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return true, nil
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	return false, errors.NewDatabaseError(rabbitErrUserExists,
+		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }
 
 func (c *RabbitMQClient) CreateUser(ctx context.Context, creds *entity.Credentials) error {
-	if c.conn == nil {
+	if c.httpClient == nil || c.adminCreds == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
 			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
+	url := fmt.Sprintf("http://%s:%d/api/users/%s", c.config.Host, c.managementPort, creds.Username)
+
+	payload := map[string]interface{}{
+		"password": creds.Password,
+		"tags":     "",
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrCreateUser, err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrCreateUser, err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrCreateUser, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
 	return errors.NewDatabaseError(rabbitErrCreateUser,
-		fmt.Errorf("RabbitMQ user management requires HTTP Management API"))
+		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }
 
 func (c *RabbitMQClient) GrantPrivileges(ctx context.Context, username string, privileges []string) error {
-	if c.conn == nil {
+	if c.httpClient == nil || c.adminCreds == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
 			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
+	url := fmt.Sprintf("http://%s:%d/api/users/%s", c.config.Host, c.managementPort, username)
+
+	tags := strings.Join(privileges, ",")
+	payload := map[string]interface{}{
+		"tags": tags,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrGrantPrivs, err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrGrantPrivs, err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.NewDatabaseError(rabbitErrGrantPrivs, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
 	return errors.NewDatabaseError(rabbitErrGrantPrivs,
-		fmt.Errorf("RabbitMQ privilege management requires HTTP Management API"))
+		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }
 
 func (c *RabbitMQClient) RemoveUser(ctx context.Context, username string) error {

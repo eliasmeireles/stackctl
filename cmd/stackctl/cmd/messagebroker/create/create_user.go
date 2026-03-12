@@ -1,8 +1,12 @@
 package create
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/spf13/cobra"
 )
 
@@ -61,18 +65,69 @@ func runCreateUser(flags *CreateUserFlags) error {
 	fmt.Printf("🐰 Creating RabbitMQ user...\n")
 	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
 	fmt.Printf("  Username: %s\n", flags.Username)
-	fmt.Printf("  Tags: %s\n", flags.Tags)
-
-	fmt.Println("\n⚠️  Note: Actual RabbitMQ execution not yet implemented. Commands shown above for manual execution.")
-	fmt.Println("\n✅ To create the user manually, use:")
-	fmt.Printf("  rabbitmqctl add_user %s %s\n", flags.Username, flags.Password)
-	
 	if flags.Tags != "" {
-		fmt.Printf("  rabbitmqctl set_user_tags %s %s\n", flags.Username, flags.Tags)
+		fmt.Printf("  Tags: %s\n", flags.Tags)
 	}
 
+	ctx := context.Background()
+
+	config := &entity.DatabaseConfig{
+		Host: flags.Host,
+		Port: flags.Port,
+	}
+
+	adminCreds := &entity.Credentials{
+		Username: flags.AdminUser,
+		Password: flags.AdminPass,
+	}
+
+	rabbitClient, err := client.NewRabbitMQClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
+	}
+
+	fmt.Println("\n📡 Connecting to RabbitMQ...")
+	if err := rabbitClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+	}
+	defer rabbitClient.Close()
+
+	exists, err := rabbitClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
+	if exists {
+		fmt.Printf("\n⚠️  User '%s' already exists\n", flags.Username)
+		return fmt.Errorf("user '%s' already exists", flags.Username)
+	}
+
+	userCreds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("👤 Creating user...")
+	if err := rabbitClient.CreateUser(ctx, userCreds); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	if flags.Tags != "" {
+		fmt.Println("🏷️  Setting user tags...")
+		tags := strings.Split(flags.Tags, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+		if err := rabbitClient.GrantPrivileges(ctx, flags.Username, tags); err != nil {
+			return fmt.Errorf("failed to set user tags: %w", err)
+		}
+	}
+
+	fmt.Printf("\n✅ User '%s' created successfully!\n", flags.Username)
+
 	if flags.VaultPath != "" {
-		fmt.Printf("\n💾 Credentials would be stored in Vault at: %s\n", flags.VaultPath)
+		fmt.Printf("\n💾 TODO: Store credentials in Vault at: %s\n", flags.VaultPath)
+		fmt.Println("   (Vault integration will be implemented in a future version)")
 	}
 
 	return nil
