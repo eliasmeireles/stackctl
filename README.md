@@ -23,13 +23,13 @@ Run `stackctl` with no arguments to open the interactive TUI.
 All Vault commands resolve credentials in this order:
 
 | Priority | Source                                                                                      |
-|:---------|:--------------------------------------------------------------------------------------------|
+| :------- | :------------------------------------------------------------------------------------------ |
 | 1        | CLI flags: `--addr`, `--token`, `--role-id`/`--secret-id`, `--k8s-role`                     |
 | 2        | Env vars: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_K8S_ROLE` |
 | 3        | `~/.vault-token` file (written by `vault login`)                                            |
 
 | Auth method   | Required                                                                                   |
-|:--------------|:-------------------------------------------------------------------------------------------|
+| :------------ | :----------------------------------------------------------------------------------------- |
 | Token         | `VAULT_ADDR` + `VAULT_TOKEN`                                                               |
 | AppRole       | `VAULT_ADDR` + `VAULT_ROLE_ID` + `VAULT_SECRET_ID`                                         |
 | Kubernetes SA | `VAULT_ADDR` + `VAULT_K8S_ROLE` (+ optional `VAULT_K8S_MOUNT_PATH`, `VAULT_SA_TOKEN_PATH`) |
@@ -49,7 +49,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 **TUI color customization** (ANSI 256-color codes):
 
 | Env var                         | Default | Controls      |
-|:--------------------------------|:--------|:--------------|
+| :------------------------------ | :------ | :------------ |
 | `STACK_CTL_TITLE_COLOR`         | `86`    | Menu title    |
 | `STACK_CTL_ITEM_COLOR`          | `86`    | List items    |
 | `STACK_CTL_SELECTED_ITEM_COLOR` | `82`    | Selected item |
@@ -59,7 +59,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 ### Kubeconfig — `stackctl kubeconfig`
 
 | Subcommand                              | Description                         |
-|:----------------------------------------|:------------------------------------|
+| :-------------------------------------- | :---------------------------------- |
 | `list-contexts`                         | List all local contexts             |
 | `get-context <name> [--encode]`         | Print a context (optionally Base64) |
 | `set-context <name>`                    | Switch current context              |
@@ -74,7 +74,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 **`add` flags:**
 
 | Flag                            | Description                                        |
-|:--------------------------------|:---------------------------------------------------|
+| :------------------------------ | :------------------------------------------------- |
 | `<base64>`                      | Positional: import from Base64 string              |
 | `--file <path>`                 | Import from local file                             |
 | `--host <ip> --ssh-user <user>` | Import via SSH                                     |
@@ -161,7 +161,7 @@ stackctl vault fetch \
 ```
 
 | Flag              | Description                                                |
-|:------------------|:-----------------------------------------------------------|
+| :---------------- | :--------------------------------------------------------- |
 | `--secret-path`   | KV v2 path to the secret                                   |
 | `--secret-field`  | Field to read (default: `kubeconfig`)                      |
 | `--as-kubeconfig` | Merge field value (Base64) into local kubeconfig (default) |
@@ -197,7 +197,7 @@ stackctl get secret PUB_KEY --to-file ~/.ssh/id_rsa.pub --replace
 **Flags:**
 
 | Flag                            | Description                                                       |
-|:--------------------------------|:------------------------------------------------------------------|
+| :------------------------------ | :---------------------------------------------------------------- |
 | `--path <path>`                 | Vault path (without `secret/data/` prefix)                        |
 | `--to-file <filepath>`          | Save secret to file instead of clipboard                          |
 | `--decode-from-b64`             | Decode secret from base64 before saving/copying                   |
@@ -229,9 +229,43 @@ stackctl netbird status
 ```
 
 | Env var                 | Description                                     |
-|:------------------------|:------------------------------------------------|
+| :---------------------- | :---------------------------------------------- |
 | `STACK_CLT_NETBIRD_KEY` | Setup key                                       |
 | `API_HOST`              | Management API host (default: `api.netbird.io`) |
+
+---
+
+### Message Broker Management — `stackctl messagebroker`
+
+Manage message broker users and credentials (RabbitMQ).
+
+```bash
+# Create RabbitMQ user
+stackctl messagebroker create-user rabbitmq \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret \
+  --username myapp_user \
+  --password myapp_pass \
+  --tags "administrator,management" \
+  --vault-path secret/data/myapp/rabbitmq
+
+# Test RabbitMQ user
+stackctl messagebroker test-user rabbitmq \
+  --host localhost \
+  --username myapp_user \
+  --password myapp_pass
+```
+
+**Supported message brokers:**
+- RabbitMQ
+
+**Common RabbitMQ tags:**
+- `administrator` - Full access to management UI and API
+- `management` - Access to management UI
+- `monitoring` - Read-only access
+
+See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for detailed documentation.
 
 ---
 

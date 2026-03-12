@@ -8,6 +8,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/add"
@@ -65,6 +66,7 @@ func init() {
 	rootCmd.AddCommand(vault.NewCommand())
 	rootCmd.AddCommand(kubeconfig.NewCommand())
 	rootCmd.AddCommand(database.NewDatabaseCommand())
+	rootCmd.AddCommand(messagebroker.NewMessageBrokerCommand())
 }
 
 type PlainFormatter struct{}
