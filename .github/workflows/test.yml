@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ["1.24"]
+        go-version: ["1.23"]
 
     steps:
       - name: Checkout code
@@ -45,7 +45,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.23"
           cache: true
 
       - name: Run golangci-lint
@@ -65,7 +65,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.23"
           cache: true
 
       - name: Build
