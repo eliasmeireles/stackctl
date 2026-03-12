@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/eliasmeireles/envvault v0.2.1-0.20260217204834-32ed6217a1d3
 	github.com/hashicorp/vault/api v1.22.0
+	github.com/lib/pq v1.11.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
