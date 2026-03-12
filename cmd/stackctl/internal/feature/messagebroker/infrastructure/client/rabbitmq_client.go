@@ -95,7 +95,9 @@ func (c *RabbitMQClient) UserExists(ctx context.Context, username string) (bool,
 	if err != nil {
 		return false, errors.NewDatabaseError(rabbitErrUserExists, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusOK {
 		return true, nil
@@ -139,7 +141,9 @@ func (c *RabbitMQClient) CreateUser(ctx context.Context, creds *entity.Credentia
 	if err != nil {
 		return errors.NewDatabaseError(rabbitErrCreateUser, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusNoContent {
 		return nil
@@ -180,7 +184,9 @@ func (c *RabbitMQClient) GrantPrivileges(ctx context.Context, username string, p
 	if err != nil {
 		return errors.NewDatabaseError(rabbitErrGrantPrivs, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusNoContent {
 		return nil

@@ -90,7 +90,9 @@ func runCreateUser(flags *CreateUserFlags) error {
 	if err := rabbitClient.Connect(ctx, adminCreds); err != nil {
 		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
-	defer rabbitClient.Close()
+	defer func() {
+		_ = rabbitClient.Close()
+	}()
 
 	exists, err := rabbitClient.UserExists(ctx, flags.Username)
 	if err != nil {
