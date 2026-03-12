@@ -1,0 +1,26 @@
+binds:
+  # RabbitMQ AMQP
+  - name: rabbitmq-amqp
+    enabled: true
+    override: true
+    description: "RabbitMQ AMQP for stackctl testing"
+    type: tcp
+    ip: "*"
+    port: 5672
+    backend:
+      servers:
+        - name: rabbitmq
+          address: "127.0.0.1:30672"
+
+  # RabbitMQ Management UI
+  - name: rabbitmq-management
+    enabled: true
+    override: true
+    description: "RabbitMQ Management UI"
+    type: http
+    ip: "*"
+    port: 15672
+    backend:
+      servers:
+        - name: rabbitmq-mgmt
+          address: "127.0.0.1:31672"
