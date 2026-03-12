@@ -15,3 +15,7 @@ runcmd:
   - [ sh, -c, "echo 'export PATH=$PATH:$HOME/go/bin' >> /root/.bashrc" ]
   - [ sh, -c, "echo 'export PATH=$PATH:/snap/bin:/home/ubuntu/go/bin' >> /home/ubuntu/.bashrc" ]
   - [ sh, -c, "echo 'export PATH=$PATH:/snap/bin:/home/ubuntu/go/bin' >> /root/.bashrc" ]
+  - [ sh, -c, "echo 'export VAULT_ADDR=http://stackctl.vault.network.local:8200' >> /home/ubuntu/.bashrc" ]
+  - [ sh, -c, "echo 'export VAULT_ADDR=http://stackctl.vault.network.local:8200' >> /root/.bashrc" ]
+  - [ sh, -c, "echo 'export VAULT_SKIP_VERIFY=true' >> /home/ubuntu/.bashrc" ]
+  - [ sh, -c, "echo 'export VAULT_SKIP_VERIFY=true' >> /root/.bashrc" ]
