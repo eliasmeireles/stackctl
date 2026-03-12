@@ -1,8 +1,11 @@
 package create
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/spf13/cobra"
 )
 
@@ -113,38 +116,179 @@ func runCreateUser(flags *CreateUserFlags) error {
 }
 
 func createPostgresUser(flags *CreateUserFlags) error {
-	fmt.Println("Creating PostgreSQL user...")
-	fmt.Printf("\nExecute the following commands to create the user:\n\n")
-	fmt.Printf("PGPASSWORD='%s' psql -h %s -p %d -U %s -d postgres -c \"CREATE USER %s WITH PASSWORD '%s';\"\n",
-		flags.AdminPassword, flags.Host, flags.Port, flags.AdminUser, flags.Username, flags.Password)
-	fmt.Printf("PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c \"GRANT %s ON ALL TABLES IN SCHEMA public TO %s;\"\n",
-		flags.AdminPassword, flags.Host, flags.Port, flags.AdminUser, flags.Database, flags.Privileges, flags.Username)
+	ctx := context.Background()
 
-	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
+	config := &entity.DatabaseConfig{
+		Type:     entity.PostgreSQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: "postgres",
+	}
+
+	adminCreds := &entity.Credentials{
+		Username: flags.AdminUser,
+		Password: flags.AdminPassword,
+	}
+
+	fmt.Println("📡 Connecting to PostgreSQL...")
+	pgClient, err := client.NewPostgresClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	}
+
+	if err := pgClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect to PostgreSQL: %w", err)
+	}
+	defer func() {
+		_ = pgClient.Close()
+	}()
+
+	exists, err := pgClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
+	if exists {
+		return fmt.Errorf("user '%s' already exists", flags.Username)
+	}
+
+	userCreds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("👤 Creating user...")
+	if err := pgClient.CreateUser(ctx, userCreds); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	if flags.Privileges != "" {
+		fmt.Println("🔐 Granting privileges...")
+		privileges := []string{flags.Privileges}
+		if err := pgClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
+			return fmt.Errorf("failed to grant privileges: %w", err)
+		}
+	}
+
+	fmt.Printf("✅ PostgreSQL user '%s' created successfully!\n", flags.Username)
 	return nil
 }
 
 func createMySQLUser(flags *CreateUserFlags) error {
-	fmt.Println("Creating MySQL user...")
-	fmt.Printf("\nExecute the following commands to create the user:\n\n")
-	fmt.Printf("mysql -h %s -P %d -u %s -p'%s' -e \"CREATE USER '%s'@'%%' IDENTIFIED BY '%s';\"\n",
-		flags.Host, flags.Port, flags.AdminUser, flags.AdminPassword, flags.Username, flags.Password)
-	fmt.Printf("mysql -h %s -P %d -u %s -p'%s' -e \"GRANT %s ON %s.* TO '%s'@'%%';\"\n",
-		flags.Host, flags.Port, flags.AdminUser, flags.AdminPassword, flags.Privileges, flags.Database, flags.Username)
-	fmt.Printf("mysql -h %s -P %d -u %s -p'%s' -e \"FLUSH PRIVILEGES;\"\n",
-		flags.Host, flags.Port, flags.AdminUser, flags.AdminPassword)
+	ctx := context.Background()
 
-	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
+	config := &entity.DatabaseConfig{
+		Type:     entity.MySQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
+
+	adminCreds := &entity.Credentials{
+		Username: flags.AdminUser,
+		Password: flags.AdminPassword,
+	}
+
+	fmt.Println("📡 Connecting to MySQL...")
+	mysqlClient, err := client.NewMySQLClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MySQL client: %w", err)
+	}
+
+	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect to MySQL: %w", err)
+	}
+	defer func() {
+		_ = mysqlClient.Close()
+	}()
+
+	exists, err := mysqlClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
+	if exists {
+		return fmt.Errorf("user '%s' already exists", flags.Username)
+	}
+
+	userCreds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("👤 Creating user...")
+	if err := mysqlClient.CreateUser(ctx, userCreds); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	if flags.Privileges != "" {
+		fmt.Println("🔐 Granting privileges...")
+		privileges := []string{flags.Privileges}
+		if err := mysqlClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
+			return fmt.Errorf("failed to grant privileges: %w", err)
+		}
+	}
+
+	fmt.Printf("✅ MySQL user '%s' created successfully!\n", flags.Username)
 	return nil
 }
 
 func createMongoDBUser(flags *CreateUserFlags) error {
-	fmt.Println("Creating MongoDB user...")
-	fmt.Printf("\nExecute the following command to create the user:\n\n")
-	fmt.Printf("mongosh 'mongodb://%s:%s@%s:%d/admin' --eval \"db.getSiblingDB('%s').createUser({user: '%s', pwd: '%s', roles: [{role: '%s', db: '%s'}]})\"\n",
-		flags.AdminUser, flags.AdminPassword, flags.Host, flags.Port, flags.Database, flags.Username, flags.Password, flags.Privileges, flags.Database)
+	ctx := context.Background()
 
-	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
+	config := &entity.DatabaseConfig{
+		Type:     entity.MongoDB,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
+
+	adminCreds := &entity.Credentials{
+		Username: flags.AdminUser,
+		Password: flags.AdminPassword,
+	}
+
+	fmt.Println("📡 Connecting to MongoDB...")
+	mongoClient, err := client.NewMongoDBClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MongoDB client: %w", err)
+	}
+
+	if err := mongoClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
+	defer func() {
+		_ = mongoClient.Close()
+	}()
+
+	exists, err := mongoClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
+	if exists {
+		return fmt.Errorf("user '%s' already exists", flags.Username)
+	}
+
+	userCreds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("👤 Creating user...")
+	if err := mongoClient.CreateUser(ctx, userCreds); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	if flags.Privileges != "" {
+		fmt.Println("🔐 Granting privileges...")
+		privileges := []string{flags.Privileges}
+		if err := mongoClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
+			return fmt.Errorf("failed to grant privileges: %w", err)
+		}
+	}
+
+	fmt.Printf("✅ MongoDB user '%s' created successfully!\n", flags.Username)
 	return nil
 }
 
