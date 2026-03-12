@@ -31,8 +31,14 @@ type RabbitMQClient struct {
 }
 
 func NewRabbitMQClient(config *entity.DatabaseConfig) (*RabbitMQClient, error) {
+	managementPort := 15672
+	if config.Port > 0 {
+		managementPort = config.Port + 10000
+	}
+
 	return &RabbitMQClient{
-		config: config,
+		config:         config,
+		managementPort: managementPort,
 	}, nil
 }
 
@@ -59,7 +65,6 @@ func (c *RabbitMQClient) Connect(ctx context.Context, adminCreds *entity.Credent
 	c.ch = ch
 	c.adminCreds = adminCreds
 	c.httpClient = &http.Client{}
-	c.managementPort = 15672
 
 	return nil
 }
