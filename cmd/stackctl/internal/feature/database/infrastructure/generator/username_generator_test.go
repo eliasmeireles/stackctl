@@ -44,15 +44,6 @@ func TestUsernameGenerator_GenerateUsername(t *testing.T) {
 			},
 		},
 		{
-			name:    "given RabbitMQ type then generates valid username",
-			dbType:  entity.RabbitMQ,
-			prefix:  "rabbit",
-			wantErr: false,
-			validator: func(username string) bool {
-				return len(username) > 0
-			},
-		},
-		{
 			name:    "given empty prefix then uses default prefix",
 			dbType:  entity.PostgreSQL,
 			prefix:  "",

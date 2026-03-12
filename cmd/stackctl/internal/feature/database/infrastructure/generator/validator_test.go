@@ -58,12 +58,6 @@ func TestValidator_ValidateUsername(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "given valid RabbitMQ username then validation succeeds",
-			dbType:   entity.RabbitMQ,
-			username: "valid-user",
-			wantErr:  false,
-		},
-		{
 			name:     "given empty username then validation fails",
 			dbType:   entity.PostgreSQL,
 			username: "",

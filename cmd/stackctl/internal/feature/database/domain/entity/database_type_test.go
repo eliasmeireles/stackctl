@@ -28,11 +28,6 @@ func TestDatabaseType_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "given RabbitMQ type then validation succeeds",
-			dbType:  RabbitMQ,
-			wantErr: false,
-		},
-		{
 			name:    "given invalid type then validation fails",
 			dbType:  DatabaseType("invalid"),
 			wantErr: true,
@@ -78,11 +73,6 @@ func TestDatabaseType_DefaultPort(t *testing.T) {
 			wantPort: 27017,
 		},
 		{
-			name:     "given RabbitMQ then returns 5672",
-			dbType:   RabbitMQ,
-			wantPort: 5672,
-		},
-		{
 			name:     "given invalid type then returns 0",
 			dbType:   DatabaseType("invalid"),
 			wantPort: 0,
@@ -118,11 +108,6 @@ func TestDatabaseType_SupportsDatabase(t *testing.T) {
 			dbType:      MongoDB,
 			wantSupport: true,
 		},
-		{
-			name:        "given RabbitMQ then does not support database",
-			dbType:      RabbitMQ,
-			wantSupport: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -135,10 +120,10 @@ func TestDatabaseType_SupportsDatabase(t *testing.T) {
 
 func TestParseDatabaseType(t *testing.T) {
 	tests := []struct {
-		name       string
-		input      string
-		wantType   DatabaseType
-		wantErr    bool
+		name     string
+		input    string
+		wantType DatabaseType
+		wantErr  bool
 	}{
 		{
 			name:     "given postgresql string then parses successfully",
@@ -159,15 +144,10 @@ func TestParseDatabaseType(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "given rabbitmq string then parses successfully",
-			input:    "rabbitmq",
-			wantType: RabbitMQ,
-			wantErr:  false,
-		},
-		{
-			name:    "given invalid string then returns error",
-			input:   "invalid",
-			wantErr: true,
+			name:     "given invalid string then returns error",
+			input:    "invalid",
+			wantType: DatabaseType(""),
+			wantErr:  true,
 		},
 	}
 

@@ -73,18 +73,6 @@ func TestDatabaseConfig_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "given RabbitMQ without database then validation succeeds",
-			config: &DatabaseConfig{
-				Type:      RabbitMQ,
-				Host:      "localhost",
-				Port:      5672,
-				Database:  "",
-				AdminUser: "admin",
-				AdminPass: "secret",
-			},
-			wantErr: false,
-		},
-		{
 			name: "given empty admin user then validation fails",
 			config: &DatabaseConfig{
 				Type:      PostgreSQL,
@@ -210,17 +198,6 @@ func TestDatabaseConfig_ConnectionString(t *testing.T) {
 				AdminPass: "secret",
 			},
 			want: "mongodb://admin:secret@localhost:27017/testdb",
-		},
-		{
-			name: "given RabbitMQ config then returns amqp connection string",
-			config: &DatabaseConfig{
-				Type:      RabbitMQ,
-				Host:      "localhost",
-				Port:      5672,
-				AdminUser: "guest",
-				AdminPass: "guest",
-			},
-			want: "amqp://guest:guest@localhost:5672/",
 		},
 	}
 

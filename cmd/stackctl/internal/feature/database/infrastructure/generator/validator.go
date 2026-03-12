@@ -14,7 +14,6 @@ var (
 	postgresUsernameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	mysqlUsernameRegex    = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	mongoUsernameRegex    = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-	rabbitmqUsernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 )
 
 type Validator struct{}
@@ -45,8 +44,6 @@ func (v *Validator) ValidateUsername(
 		return v.validateMySQLUsername(username)
 	case entity.MongoDB:
 		return v.validateMongoDBUsername(username)
-	case entity.RabbitMQ:
-		return v.validateRabbitMQUsername(username)
 	default:
 		return fmt.Errorf("unsupported database type: %s", dbType)
 	}
@@ -99,21 +96,7 @@ func (v *Validator) validateMongoDBUsername(username string) error {
 	return nil
 }
 
-func (v *Validator) validateRabbitMQUsername(username string) error {
-	if !rabbitmqUsernameRegex.MatchString(username) {
-		return dberrors.NewValidationError(
-			"username",
-			"RabbitMQ username must contain only alphanumeric characters, underscores, and hyphens",
-		)
-	}
-
-	return nil
-}
-
-func (v *Validator) ValidatePassword(
-	dbType entity.DatabaseType,
-	password string,
-) error {
+func (v *Validator) ValidatePassword(dbType entity.DatabaseType, password string) error {
 	if password == "" {
 		return dberrors.NewValidationError("password", "cannot be empty")
 	}
@@ -174,8 +157,6 @@ func (v *Validator) getValidPrivileges(dbType entity.DatabaseType) []string {
 			"clusterAdmin", "readAnyDatabase", "readWriteAnyDatabase",
 			"userAdminAnyDatabase", "dbAdminAnyDatabase",
 		}
-	case entity.RabbitMQ:
-		return []string{}
 	default:
 		return []string{}
 	}

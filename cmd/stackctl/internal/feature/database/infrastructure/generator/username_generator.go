@@ -49,7 +49,7 @@ func (g *UsernameGenerator) getMaxUsernameLength(dbType entity.DatabaseType) int
 		return 63
 	case entity.MySQL:
 		return 32
-	case entity.MongoDB, entity.RabbitMQ:
+	case entity.MongoDB:
 		return 0
 	default:
 		return 0
