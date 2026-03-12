@@ -256,39 +256,43 @@ sync:
   enabled: true
 
 monitoring:
-  enabled: false
+  enabled: true
+  interval: 10s
 EOF
 
   echo '[OK] hapctl config created.'
 "
 
-echo "[HAPCTL] Installing and starting hapctl agent service..."
-multipass exec "${INSTANCE_NAME}" -- bash -c "
-  if ! sudo systemctl is-active --quiet hapctl-agent; then
-    sudo hapctl service install --config /etc/hapctl/config.yaml
-    sudo systemctl enable hapctl-agent
-    sudo systemctl start hapctl-agent
-    echo '[OK] hapctl agent service started.'
-  else
-    echo '[SKIP] hapctl agent already running.'
-  fi
-"
-
-echo "[HAPCTL] Applying database service binds..."
+echo "[HAPCTL] Copying database service binds..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   echo '[INFO] Copying hapctl binds configuration...'
   sudo cp /home/ubuntu/cluster/databases/hapctl-binds.yaml /etc/hapctl/resources/
+  sudo chown root:root /etc/hapctl/resources/hapctl-binds.yaml
+  sudo chmod 644 /etc/hapctl/resources/hapctl-binds.yaml
 
+  echo '[OK] hapctl-binds.yaml configured with permissions: -rw-r--r-- root:root'
+"
+
+echo "[HAPCTL] Installing and starting hapctl agent service..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  echo '[INSTALL] Installing hapctl service...'
+  sudo hapctl service install --config /etc/hapctl/config.yaml
+
+  echo '[START] Starting hapctl-agent...'
+  sudo systemctl start hapctl-agent
+
+  echo '[STATUS] Checking hapctl-agent status...'
+  sudo systemctl status hapctl-agent --no-pager || true
+
+  echo ''
   echo '[INFO] Database NodePort mappings:'
   echo '  PostgreSQL: localhost:30432 -> 5432'
   echo '  MySQL: localhost:30306 -> 3306'
   echo '  MongoDB: localhost:30017 -> 27017'
   echo '  RabbitMQ AMQP: localhost:30672 -> 5672'
   echo '  RabbitMQ Management: localhost:31672 -> 15672'
-
-  sleep 3
-  sudo systemctl status hapctl-agent --no-pager || true
-  echo '[OK] Database binds applied via NodePort.'
+  echo ''
+  echo '[OK] hapctl agent service configured and started.'
 "
 
 echo ""
