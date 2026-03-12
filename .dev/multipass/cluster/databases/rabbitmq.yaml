@@ -64,16 +64,20 @@ spec:
             - rabbitmq-diagnostics
             - -q
             - ping
-          initialDelaySeconds: 60
+          initialDelaySeconds: 90
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         readinessProbe:
           exec:
             command:
             - rabbitmq-diagnostics
             - -q
             - check_port_connectivity
-          initialDelaySeconds: 20
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
       - name: rabbitmq-storage
         persistentVolumeClaim:
