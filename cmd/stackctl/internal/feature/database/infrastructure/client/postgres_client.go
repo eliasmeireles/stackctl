@@ -20,28 +20,33 @@ type PostgresClient struct {
 	config *entity.DatabaseConfig
 }
 
-func NewPostgresClient() repository.DatabaseClient {
-	return &PostgresClient{}
+func NewPostgresClient(config *entity.DatabaseConfig) (repository.DatabaseClient, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+	return &PostgresClient{config: config}, nil
 }
 
-func (c *PostgresClient) Connect(ctx context.Context, config *entity.DatabaseConfig) error {
-	if err := config.Validate(); err != nil {
-		return err
-	}
+func (c *PostgresClient) Connect(ctx context.Context, adminCreds *entity.Credentials) error {
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		adminCreds.Username,
+		adminCreds.Password,
+		c.config.Host,
+		c.config.Port,
+		c.config.Database,
+	)
 
-	connStr := config.ConnectionString()
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return dberrors.NewConnectionError(config.Host, config.Port, err)
+		return dberrors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return dberrors.NewConnectionError(config.Host, config.Port, err)
+		return dberrors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
 	c.db = db
-	c.config = config
 	return nil
 }
 
@@ -113,7 +118,7 @@ func (c *PostgresClient) UpdateUser(ctx context.Context, creds *entity.Credentia
 	return nil
 }
 
-func (c *PostgresClient) DeleteUser(ctx context.Context, username string) error {
+func (c *PostgresClient) RemoveUser(ctx context.Context, username string) error {
 	if c.db == nil {
 		return fmt.Errorf(errNotConnected)
 	}

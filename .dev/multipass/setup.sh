@@ -128,16 +128,26 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   sudo kubectl apply -f /home/ubuntu/cluster/databases/postgresql.yaml
   sudo kubectl apply -f /home/ubuntu/cluster/databases/mysql.yaml
   sudo kubectl apply -f /home/ubuntu/cluster/databases/mongodb.yaml
-  sudo kubectl apply -f /home/ubuntu/cluster/databases/rabbitmq.yaml
 
   echo '[WAIT] Waiting for database pods to be ready...'
   sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=postgres --timeout=180s || echo '[WARN] PostgreSQL timeout'
   sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=mysql --timeout=180s || echo '[WARN] MySQL timeout'
   sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=mongodb --timeout=180s || echo '[WARN] MongoDB timeout'
-  sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=rabbitmq --timeout=180s || echo '[WARN] RabbitMQ timeout'
 
   echo '[OK] Database deployments applied.'
   sudo kubectl get pods -n databases
+"
+
+echo "[MESSAGE_BROKERS] Deploying message brokers..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  sudo kubectl apply -f /home/ubuntu/cluster/messagebrokers/namespace.yaml
+  sudo kubectl apply -f /home/ubuntu/cluster/messagebrokers/rabbitmq.yaml
+
+  echo '[WAIT] Waiting for message broker pods to be ready...'
+  sudo kubectl wait --namespace messagebrokers --for=condition=ready pod --selector=app=rabbitmq --timeout=180s || echo '[WARN] RabbitMQ timeout'
+
+  echo '[OK] Message broker deployments applied.'
+  sudo kubectl get pods -n messagebrokers
 "
 
 echo "[VAULT] Initializing and unsealing Vault..."

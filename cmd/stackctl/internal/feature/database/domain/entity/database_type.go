@@ -8,7 +8,6 @@ const (
 	PostgreSQL DatabaseType = "postgresql"
 	MySQL      DatabaseType = "mysql"
 	MongoDB    DatabaseType = "mongodb"
-	RabbitMQ   DatabaseType = "rabbitmq"
 )
 
 func (t DatabaseType) String() string {
@@ -17,10 +16,10 @@ func (t DatabaseType) String() string {
 
 func (t DatabaseType) Validate() error {
 	switch t {
-	case PostgreSQL, MySQL, MongoDB, RabbitMQ:
+	case PostgreSQL, MySQL, MongoDB:
 		return nil
 	default:
-		return fmt.Errorf("invalid database type: %s (must be one of: postgresql, mysql, mongodb, rabbitmq)", t)
+		return fmt.Errorf("invalid database type: %s (must be one of: postgresql, mysql, mongodb)", t)
 	}
 }
 
@@ -32,22 +31,13 @@ func (t DatabaseType) DefaultPort() int {
 		return 3306
 	case MongoDB:
 		return 27017
-	case RabbitMQ:
-		return 5672
 	default:
 		return 0
 	}
 }
 
 func (t DatabaseType) SupportsDatabase() bool {
-	switch t {
-	case PostgreSQL, MySQL, MongoDB:
-		return true
-	case RabbitMQ:
-		return false
-	default:
-		return false
-	}
+	return true
 }
 
 func ParseDatabaseType(s string) (DatabaseType, error) {

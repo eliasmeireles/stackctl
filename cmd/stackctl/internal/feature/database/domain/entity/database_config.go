@@ -79,8 +79,6 @@ func (c *DatabaseConfig) ConnectionString() string {
 		return c.mysqlConnectionString()
 	case MongoDB:
 		return c.mongoConnectionString()
-	case RabbitMQ:
-		return c.rabbitmqConnectionString()
 	default:
 		return ""
 	}
@@ -131,16 +129,6 @@ func (c *DatabaseConfig) mongoConnectionString() string {
 
 	return fmt.Sprintf("%s://%s:%s@%s:%d/%s%s",
 		scheme, c.AdminUser, c.AdminPass, c.Host, c.Port, c.Database, optionsStr)
-}
-
-func (c *DatabaseConfig) rabbitmqConnectionString() string {
-	scheme := "amqp"
-	if c.TLS != nil && c.TLS.Enabled {
-		scheme = "amqps"
-	}
-
-	return fmt.Sprintf("%s://%s:%s@%s:%d/",
-		scheme, c.AdminUser, c.AdminPass, c.Host, c.Port)
 }
 
 func (c *DatabaseConfig) Address() string {

@@ -1,4 +1,4 @@
-.PHONY: build push buildx test lint all multipass multipass-delete multipass-recreate multipass-shell
+.PHONY: build push buildx test lint all multipass multipass-delete multipass-recreate multipass-shell multipass-test
 
 
 GH_USER = ?
@@ -65,6 +65,10 @@ multipass-delete:
 	@echo "✅ Instance deleted."
 
 multipass-recreate: multipass-delete multipass
+
+multipass-test:
+	@echo "🧪 Running stackctl validation tests inside Multipass instance..."
+	@multipass exec stackctl -- bash /home/ubuntu/workdir/../test-stackctl.sh
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64

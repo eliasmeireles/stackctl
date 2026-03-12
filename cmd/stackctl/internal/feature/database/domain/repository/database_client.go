@@ -7,10 +7,9 @@ import (
 )
 
 type DatabaseClient interface {
-	Connect(ctx context.Context, config *entity.DatabaseConfig) error
+	Connect(ctx context.Context, adminCreds *entity.Credentials) error
 	CreateUser(ctx context.Context, creds *entity.Credentials) error
-	UpdateUser(ctx context.Context, creds *entity.Credentials) error
-	DeleteUser(ctx context.Context, username string) error
+	RemoveUser(ctx context.Context, username string) error
 	UserExists(ctx context.Context, username string) (bool, error)
 	GrantPrivileges(ctx context.Context, username string, privileges []string) error
 	Close() error
