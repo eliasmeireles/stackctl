@@ -82,7 +82,7 @@ func (uc *CreateUserUseCase) Execute(ctx context.Context, input *CreateUserInput
 	if err != nil {
 		return err
 	}
-	defer dbClient.Close()
+	defer func() { _ = dbClient.Close() }()
 
 	if err := dbClient.Connect(ctx, adminCreds); err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

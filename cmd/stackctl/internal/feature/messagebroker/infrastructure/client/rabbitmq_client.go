@@ -43,7 +43,7 @@ func (c *RabbitMQClient) Connect(ctx context.Context, adminCreds *entity.Credent
 
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return errors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
@@ -54,7 +54,7 @@ func (c *RabbitMQClient) Connect(ctx context.Context, adminCreds *entity.Credent
 
 func (c *RabbitMQClient) Close() error {
 	if c.ch != nil {
-		c.ch.Close()
+		_ = c.ch.Close()
 	}
 	if c.conn != nil {
 		return c.conn.Close()
@@ -64,7 +64,7 @@ func (c *RabbitMQClient) Close() error {
 
 func (c *RabbitMQClient) UserExists(ctx context.Context, username string) (bool, error) {
 	if c.conn == nil {
-		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(rabbitErrNoConnection))
+		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
 	return false, nil
@@ -73,7 +73,7 @@ func (c *RabbitMQClient) UserExists(ctx context.Context, username string) (bool,
 func (c *RabbitMQClient) CreateUser(ctx context.Context, creds *entity.Credentials) error {
 	if c.conn == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
-			fmt.Errorf(rabbitErrNoConnection))
+			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
 	return errors.NewDatabaseError(rabbitErrCreateUser,
@@ -83,7 +83,7 @@ func (c *RabbitMQClient) CreateUser(ctx context.Context, creds *entity.Credentia
 func (c *RabbitMQClient) GrantPrivileges(ctx context.Context, username string, privileges []string) error {
 	if c.conn == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
-			fmt.Errorf(rabbitErrNoConnection))
+			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
 	return errors.NewDatabaseError(rabbitErrGrantPrivs,
@@ -93,32 +93,9 @@ func (c *RabbitMQClient) GrantPrivileges(ctx context.Context, username string, p
 func (c *RabbitMQClient) RemoveUser(ctx context.Context, username string) error {
 	if c.conn == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
-			fmt.Errorf(rabbitErrNoConnection))
+			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
 	return errors.NewDatabaseError("failed to remove user",
 		fmt.Errorf("RabbitMQ user management requires HTTP Management API"))
-}
-
-func (c *RabbitMQClient) translatePrivileges(privileges []string) map[string]string {
-	perms := map[string]string{
-		"configure": "",
-		"write":     "",
-		"read":      "",
-	}
-
-	for _, priv := range privileges {
-		switch priv {
-		case "admin":
-			perms["configure"] = ".*"
-			perms["write"] = ".*"
-			perms["read"] = ".*"
-		case "write":
-			perms["write"] = ".*"
-		case "read":
-			perms["read"] = ".*"
-		}
-	}
-
-	return perms
 }

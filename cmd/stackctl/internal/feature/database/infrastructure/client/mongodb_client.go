@@ -48,7 +48,7 @@ func (c *MongoDBClient) Connect(ctx context.Context, adminCreds *entity.Credenti
 	}
 
 	if err := client.Ping(ctx, nil); err != nil {
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		return errors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
@@ -65,7 +65,7 @@ func (c *MongoDBClient) Close() error {
 
 func (c *MongoDBClient) UserExists(ctx context.Context, username string) (bool, error) {
 	if c.client == nil {
-		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mongoErrNoConnection))
+		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
 
 	db := c.client.Database(c.config.Database)
@@ -86,7 +86,7 @@ func (c *MongoDBClient) UserExists(ctx context.Context, username string) (bool, 
 
 func (c *MongoDBClient) CreateUser(ctx context.Context, creds *entity.Credentials) error {
 	if c.client == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mongoErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
 
 	exists, err := c.UserExists(ctx, creds.Username)
@@ -116,7 +116,7 @@ func (c *MongoDBClient) CreateUser(ctx context.Context, creds *entity.Credential
 
 func (c *MongoDBClient) GrantPrivileges(ctx context.Context, username string, privileges []string) error {
 	if c.client == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mongoErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
 
 	roles := c.translatePrivileges(privileges)
@@ -136,7 +136,7 @@ func (c *MongoDBClient) GrantPrivileges(ctx context.Context, username string, pr
 
 func (c *MongoDBClient) RemoveUser(ctx context.Context, username string) error {
 	if c.client == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mongoErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
 
 	exists, err := c.UserExists(ctx, username)

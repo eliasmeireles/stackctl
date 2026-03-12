@@ -47,7 +47,7 @@ func (c *MySQLClient) Connect(ctx context.Context, adminCreds *entity.Credential
 	}
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return errors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
@@ -64,7 +64,7 @@ func (c *MySQLClient) Close() error {
 
 func (c *MySQLClient) UserExists(ctx context.Context, username string) (bool, error) {
 	if c.db == nil {
-		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mysqlErrNoConnection))
+		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
 	query := "SELECT COUNT(*) FROM mysql.user WHERE user = ?"
@@ -79,7 +79,7 @@ func (c *MySQLClient) UserExists(ctx context.Context, username string) (bool, er
 
 func (c *MySQLClient) CreateUser(ctx context.Context, creds *entity.Credentials) error {
 	if c.db == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mysqlErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
 	exists, err := c.UserExists(ctx, creds.Username)
@@ -106,7 +106,7 @@ func (c *MySQLClient) CreateUser(ctx context.Context, creds *entity.Credentials)
 
 func (c *MySQLClient) GrantPrivileges(ctx context.Context, username string, privileges []string) error {
 	if c.db == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mysqlErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
 	privs := c.translatePrivileges(privileges)
@@ -135,7 +135,7 @@ func (c *MySQLClient) GrantPrivileges(ctx context.Context, username string, priv
 
 func (c *MySQLClient) RemoveUser(ctx context.Context, username string) error {
 	if c.db == nil {
-		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf(mysqlErrNoConnection))
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
 	exists, err := c.UserExists(ctx, username)

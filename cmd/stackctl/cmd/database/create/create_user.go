@@ -47,11 +47,11 @@ This command:
 	cmd.Flags().StringVar(&flags.Privileges, "privileges", "", "Privileges to grant (e.g., 'SELECT,INSERT,UPDATE,DELETE' or 'readWrite')")
 	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
 
-	cmd.MarkFlagRequired("admin-user")
-	cmd.MarkFlagRequired("admin-password")
-	cmd.MarkFlagRequired("username")
-	cmd.MarkFlagRequired("password")
-	cmd.MarkFlagRequired("database")
+	_ = cmd.MarkFlagRequired("admin-user")
+	_ = cmd.MarkFlagRequired("admin-password")
+	_ = cmd.MarkFlagRequired("username")
+	_ = cmd.MarkFlagRequired("password")
+	_ = cmd.MarkFlagRequired("database")
 
 	return cmd
 }
@@ -63,7 +63,7 @@ func runCreateUser(flags *CreateUserFlags) error {
 	fmt.Printf("  New User: %s\n", flags.Username)
 	fmt.Printf("  Database: %s\n", flags.Database)
 	fmt.Printf("  Privileges: %s\n", flags.Privileges)
-	
+
 	if flags.VaultPath != "" {
 		fmt.Printf("  Vault Path: %s\n", flags.VaultPath)
 	}
@@ -119,7 +119,7 @@ func createPostgresUser(flags *CreateUserFlags) error {
 		flags.AdminPassword, flags.Host, flags.Port, flags.AdminUser, flags.Username, flags.Password)
 	fmt.Printf("PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c \"GRANT %s ON ALL TABLES IN SCHEMA public TO %s;\"\n",
 		flags.AdminPassword, flags.Host, flags.Port, flags.AdminUser, flags.Database, flags.Privileges, flags.Username)
-	
+
 	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
 	return nil
 }
@@ -133,7 +133,7 @@ func createMySQLUser(flags *CreateUserFlags) error {
 		flags.Host, flags.Port, flags.AdminUser, flags.AdminPassword, flags.Privileges, flags.Database, flags.Username)
 	fmt.Printf("mysql -h %s -P %d -u %s -p'%s' -e \"FLUSH PRIVILEGES;\"\n",
 		flags.Host, flags.Port, flags.AdminUser, flags.AdminPassword)
-	
+
 	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
 	return nil
 }
@@ -143,7 +143,7 @@ func createMongoDBUser(flags *CreateUserFlags) error {
 	fmt.Printf("\nExecute the following command to create the user:\n\n")
 	fmt.Printf("mongosh 'mongodb://%s:%s@%s:%d/admin' --eval \"db.getSiblingDB('%s').createUser({user: '%s', pwd: '%s', roles: [{role: '%s', db: '%s'}]})\"\n",
 		flags.AdminUser, flags.AdminPassword, flags.Host, flags.Port, flags.Database, flags.Username, flags.Password, flags.Privileges, flags.Database)
-	
+
 	fmt.Println("\n⚠️  Note: Actual database execution not yet implemented. Commands shown above for manual execution.")
 	return nil
 }
@@ -153,7 +153,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 	fmt.Printf("\nExecute the following command to store credentials:\n\n")
 	fmt.Printf("vault kv put %s username='%s' password='%s' database='%s' host='%s' port='%d'\n",
 		flags.VaultPath, flags.Username, flags.Password, flags.Database, flags.Host, flags.Port)
-	
+
 	fmt.Println("\n⚠️  Note: Actual Vault storage not yet implemented. Command shown above for manual execution.")
 	return nil
 }

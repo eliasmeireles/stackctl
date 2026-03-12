@@ -42,7 +42,7 @@ func (c *PostgresClient) Connect(ctx context.Context, adminCreds *entity.Credent
 	}
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return dberrors.NewConnectionError(c.config.Host, c.config.Port, err)
 	}
 
@@ -52,7 +52,7 @@ func (c *PostgresClient) Connect(ctx context.Context, adminCreds *entity.Credent
 
 func (c *PostgresClient) CreateUser(ctx context.Context, creds *entity.Credentials) error {
 	if c.db == nil {
-		return fmt.Errorf(errNotConnected)
+		return fmt.Errorf("%s", errNotConnected)
 	}
 
 	if err := creds.Validate(); err != nil {
@@ -86,7 +86,7 @@ func (c *PostgresClient) CreateUser(ctx context.Context, creds *entity.Credentia
 
 func (c *PostgresClient) UpdateUser(ctx context.Context, creds *entity.Credentials) error {
 	if c.db == nil {
-		return fmt.Errorf(errNotConnected)
+		return fmt.Errorf("%s", errNotConnected)
 	}
 
 	if err := creds.Validate(); err != nil {
@@ -120,7 +120,7 @@ func (c *PostgresClient) UpdateUser(ctx context.Context, creds *entity.Credentia
 
 func (c *PostgresClient) RemoveUser(ctx context.Context, username string) error {
 	if c.db == nil {
-		return fmt.Errorf(errNotConnected)
+		return fmt.Errorf("%s", errNotConnected)
 	}
 
 	exists, err := c.UserExists(ctx, username)
@@ -142,7 +142,7 @@ func (c *PostgresClient) RemoveUser(ctx context.Context, username string) error 
 
 func (c *PostgresClient) UserExists(ctx context.Context, username string) (bool, error) {
 	if c.db == nil {
-		return false, fmt.Errorf(errNotConnected)
+		return false, fmt.Errorf("%s", errNotConnected)
 	}
 
 	query := "SELECT 1 FROM pg_roles WHERE rolname = $1"
@@ -165,7 +165,7 @@ func (c *PostgresClient) GrantPrivileges(
 	privileges []string,
 ) error {
 	if c.db == nil {
-		return fmt.Errorf(errNotConnected)
+		return fmt.Errorf("%s", errNotConnected)
 	}
 
 	if len(privileges) == 0 {

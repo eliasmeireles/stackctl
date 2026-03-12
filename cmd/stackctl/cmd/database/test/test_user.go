@@ -2,18 +2,17 @@ package test
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
 
 type TestUserFlags struct {
-	DBType   string
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Database string
+	DBType    string
+	Host      string
+	Port      int
+	Username  string
+	Password  string
+	Database  string
 	VaultPath string
 }
 
@@ -43,8 +42,8 @@ This command validates:
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name")
 	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to retrieve credentials (optional)")
 
-	cmd.MarkFlagRequired("username")
-	cmd.MarkFlagRequired("database")
+	_ = cmd.MarkFlagRequired("username")
+	_ = cmd.MarkFlagRequired("database")
 
 	return cmd
 }
@@ -101,19 +100,19 @@ func runTestUser(flags *TestUserFlags) error {
 func getPasswordFromVault(vaultPath string) (string, error) {
 	// TODO: Implement Vault integration
 	// For now, return error indicating it needs implementation
-	return "", fmt.Errorf("Vault integration not yet implemented - use --password flag")
+	return "", fmt.Errorf("vault integration not yet implemented - use --password flag")
 }
 
 func testPostgresUser(flags *TestUserFlags) error {
 	fmt.Println("Testing PostgreSQL connection...")
-	
+
 	// Build connection string
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
-	
-	fmt.Printf("Executing: psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n", 
+
+	fmt.Printf("Executing: psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
 		flags.Host, flags.Port, flags.Username, flags.Database)
-	
+
 	// Note: This is a placeholder - actual implementation would use database/sql
 	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
 	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
@@ -121,48 +120,41 @@ func testPostgresUser(flags *TestUserFlags) error {
 	fmt.Println("\nTo test permissions:")
 	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT version()'\n",
 		flags.Password, flags.Host, flags.Port, flags.Username, flags.Database)
-	
+
 	_ = connStr // Avoid unused variable warning
 	return nil
 }
 
 func testMySQLUser(flags *TestUserFlags) error {
 	fmt.Println("Testing MySQL connection...")
-	
+
 	fmt.Printf("Executing: mysql -h %s -P %d -u %s -p'***' %s -e 'SELECT 1'\n",
 		flags.Host, flags.Port, flags.Username, flags.Database)
-	
+
 	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
 	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT 1'\n",
 		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
 	fmt.Println("\nTo test permissions:")
 	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT VERSION()'\n",
 		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
-	
+
 	return nil
 }
 
 func testMongoDBUser(flags *TestUserFlags) error {
 	fmt.Println("Testing MongoDB connection...")
-	
+
 	connStr := fmt.Sprintf("mongodb://%s:%s@%s:%d/%s",
 		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
-	
+
 	fmt.Printf("Executing: mongosh '%s' --eval 'db.runCommand({ping: 1})'\n", connStr)
-	
+
 	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
 	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.runCommand({ping: 1})'\n",
 		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
 	fmt.Println("\nTo test permissions:")
 	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.getCollectionNames()'\n",
 		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
-	
-	return nil
-}
 
-func init() {
-	// Ensure we exit with proper code on errors
-	if len(os.Args) > 1 && os.Args[1] == "database" {
-		// Database command context
-	}
+	return nil
 }

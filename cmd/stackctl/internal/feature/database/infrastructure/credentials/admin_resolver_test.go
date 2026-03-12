@@ -41,16 +41,16 @@ func (m *MockVaultStorage) List(ctx context.Context, path string) ([]string, err
 
 func TestAdminCredentialsResolver_Resolve(t *testing.T) {
 	tests := []struct {
-		name          string
-		explicitUser  string
-		explicitPass  string
-		vaultPath     string
-		envVars       map[string]string
-		vaultData     map[string]interface{}
-		vaultErr      error
-		wantUsername  string
-		wantPassword  string
-		wantErr       bool
+		name         string
+		explicitUser string
+		explicitPass string
+		vaultPath    string
+		envVars      map[string]string
+		vaultData    map[string]interface{}
+		vaultErr     error
+		wantUsername string
+		wantPassword string
+		wantErr      bool
 	}{
 		{
 			name:         "given explicit credentials then uses them",
@@ -134,8 +134,8 @@ func TestAdminCredentialsResolver_Resolve(t *testing.T) {
 			mockVault := new(MockVaultStorage)
 
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
-				defer os.Unsetenv(k)
+				_ = os.Setenv(k, v)
+				defer func() { _ = os.Unsetenv(k) }()
 			}
 
 			if tt.vaultData != nil || tt.vaultErr != nil {
