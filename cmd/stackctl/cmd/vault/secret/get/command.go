@@ -11,10 +11,10 @@ func NewCommand() *cobra.Command {
 var NewCommandFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Get a secret (e.g. passwords from Vault) and copy to clipboard",
+		Short: "Get secrets from Vault and copy to clipboard or save to file",
 	}
 
-	cmd.AddCommand(NewPassCmd())
+	cmd.AddCommand(NewSecretCmd())
 
 	return cmd
 }

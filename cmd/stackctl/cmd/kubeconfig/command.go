@@ -27,6 +27,7 @@ const (
 )
 
 func init() {
+	cmd.Add(cmd.NewDefault(NewAddFromVaultCmd(), CategoryAddFromVault))
 	cmd.Add(cmd.NewDefault(NewListContextsCmd(), CategoryListContexts))
 	cmd.Add(cmd.NewDefault(NewCleanCmd(), CategoryCleanDuplicates))
 	cmd.Add(cmd.NewDefault(NewGetContextCmd(), CategoryGetContext))

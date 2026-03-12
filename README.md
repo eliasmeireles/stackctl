@@ -2,9 +2,13 @@
 
 Small teams and indie projects deserve solid infrastructure tooling — without the enterprise overhead.
 
-`stackctl` brings together **Kubernetes config management**, **HashiCorp Vault secrets**, and **NetBird VPN** into a single CLI with a consistent interface. The goal is to let a small team operate securely and confidently: secrets are never exposed in plain text, kubeconfigs are stored centrally in Vault, VPN access is automated, and everything can run inside a CI/CD pipeline with no extra tooling.
+`stackctl` brings together **Kubernetes config management**, **HashiCorp Vault secrets**, and **NetBird VPN** into a
+single CLI with a consistent interface. The goal is to let a small team operate securely and confidently: secrets are
+never exposed in plain text, kubeconfigs are stored centrally in Vault, VPN access is automated, and everything can run
+inside a CI/CD pipeline with no extra tooling.
 
-Whether you are a solo developer, a startup, or a small ops team, `stackctl` gives you the same security practices used at scale — without the complexity.
+Whether you are a solo developer, a startup, or a small ops team, `stackctl` gives you the same security practices used
+at scale — without the complexity.
 
 ```bash
 go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest
@@ -19,13 +23,13 @@ Run `stackctl` with no arguments to open the interactive TUI.
 All Vault commands resolve credentials in this order:
 
 | Priority | Source                                                                                      |
-| :------- | :------------------------------------------------------------------------------------------ |
+|:---------|:--------------------------------------------------------------------------------------------|
 | 1        | CLI flags: `--addr`, `--token`, `--role-id`/`--secret-id`, `--k8s-role`                     |
 | 2        | Env vars: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_K8S_ROLE` |
 | 3        | `~/.vault-token` file (written by `vault login`)                                            |
 
 | Auth method   | Required                                                                                   |
-| :------------ | :----------------------------------------------------------------------------------------- |
+|:--------------|:-------------------------------------------------------------------------------------------|
 | Token         | `VAULT_ADDR` + `VAULT_TOKEN`                                                               |
 | AppRole       | `VAULT_ADDR` + `VAULT_ROLE_ID` + `VAULT_SECRET_ID`                                         |
 | Kubernetes SA | `VAULT_ADDR` + `VAULT_K8S_ROLE` (+ optional `VAULT_K8S_MOUNT_PATH`, `VAULT_SA_TOKEN_PATH`) |
@@ -45,7 +49,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 **TUI color customization** (ANSI 256-color codes):
 
 | Env var                         | Default | Controls      |
-| :------------------------------ | :------ | :------------ |
+|:--------------------------------|:--------|:--------------|
 | `STACK_CTL_TITLE_COLOR`         | `86`    | Menu title    |
 | `STACK_CTL_ITEM_COLOR`          | `86`    | List items    |
 | `STACK_CTL_SELECTED_ITEM_COLOR` | `82`    | Selected item |
@@ -55,7 +59,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 ### Kubeconfig — `stackctl kubeconfig`
 
 | Subcommand                              | Description                         |
-| :-------------------------------------- | :---------------------------------- |
+|:----------------------------------------|:------------------------------------|
 | `list-contexts`                         | List all local contexts             |
 | `get-context <name> [--encode]`         | Print a context (optionally Base64) |
 | `set-context <name>`                    | Switch current context              |
@@ -70,7 +74,7 @@ Navigates all features via a menu. Automatically retries Vault authentication ev
 **`add` flags:**
 
 | Flag                            | Description                                        |
-| :------------------------------ | :------------------------------------------------- |
+|:--------------------------------|:---------------------------------------------------|
 | `<base64>`                      | Positional: import from Base64 string              |
 | `--file <path>`                 | Import from local file                             |
 | `--host <ip> --ssh-user <user>` | Import via SSH                                     |
@@ -132,7 +136,8 @@ stackctl vault role put <auth-mount> <name> [flags]
 stackctl vault role delete <auth-mount> <name>
 ```
 
-`role put` flags: `--bound-sa-names`, `--bound-sa-namespaces`, `--policies`, `--token-policies`, `--ttl`, `--token-max-ttl`, `--secret-id-ttl`, `--secret-id-num-uses`
+`role put` flags: `--bound-sa-names`, `--bound-sa-namespaces`, `--policies`, `--token-policies`, `--ttl`,
+`--token-max-ttl`, `--secret-id-ttl`, `--secret-id-num-uses`
 
 #### Declarative apply
 
@@ -156,7 +161,7 @@ stackctl vault fetch \
 ```
 
 | Flag              | Description                                                |
-| :---------------- | :--------------------------------------------------------- |
+|:------------------|:-----------------------------------------------------------|
 | `--secret-path`   | KV v2 path to the secret                                   |
 | `--secret-field`  | Field to read (default: `kubeconfig`)                      |
 | `--as-kubeconfig` | Merge field value (Base64) into local kubeconfig (default) |
@@ -166,20 +171,43 @@ stackctl vault fetch \
 
 ---
 
-### Password management — never printed, clipboard only
+### Secret management — `stackctl get secret`
 
-All `pass` commands share these flags:
+Get secrets from Vault and copy to clipboard or save to file. The secret value is never printed to the terminal.
 
-| Flag                          | Description                       |
-| :---------------------------- | :-------------------------------- |
-| `--path <vault-path>`         | Override secret path              |
-| `STACK_CTL_DEFAULT_PASS_PATH` | Env var to set a default path     |
-| *(default)*                   | `secret/data/users/all/passwords` |
+**Path handling:** All paths are automatically prepended with `secret/data/` for KV v2 compatibility.
 
 ```bash
-# Copy a password to clipboard
-stackctl get pass <KEY>
+# Copy a secret to clipboard
+stackctl get secret <KEY>
 
+# Get from custom path (secret/data/ is auto-prepended)
+stackctl get secret <KEY> --path resources/vps/elias-oracle
+
+# Save to file
+stackctl get secret PUB_KEY --path resources/vps/elias-oracle --to-file ~/.ssh/id_rsa.pub
+
+# Decode from base64 before saving
+stackctl get secret ENCODED_KEY --path apps/production --to-file ./decoded.txt --decode-from-b64
+
+# Replace existing file
+stackctl get secret PUB_KEY --to-file ~/.ssh/id_rsa.pub --replace
+```
+
+**Flags:**
+
+| Flag                            | Description                                                       |
+|:--------------------------------|:------------------------------------------------------------------|
+| `--path <path>`                 | Vault path (without `secret/data/` prefix)                        |
+| `--to-file <filepath>`          | Save secret to file instead of clipboard                          |
+| `--decode-from-b64`             | Decode secret from base64 before saving/copying                   |
+| `--replace`                     | Replace file if it already exists (only with `--to-file`)         |
+| `STACK_CTL_DEFAULT_SECRET_PATH` | Env var to set default path (without `secret/data/` prefix)       |
+| *(default path)*                | `users/all/passwords` (becomes `secret/data/users/all/passwords`) |
+
+**Password management commands:**
+
+```bash
 # Add a password (auto-generated if --pass omitted; auto-gen is also copied to clipboard)
 stackctl add pass <KEY> [--pass <value>] [--size <bytes>]
 
@@ -201,7 +229,7 @@ stackctl netbird status
 ```
 
 | Env var                 | Description                                     |
-| :---------------------- | :---------------------------------------------- |
+|:------------------------|:------------------------------------------------|
 | `STACK_CLT_NETBIRD_KEY` | Setup key                                       |
 | `API_HOST`              | Management API host (default: `api.netbird.io`) |
 
@@ -251,7 +279,8 @@ go test ./cmd/stackctl/cmd/vault/...
 
 ### Local Development Environment
 
-For integration testing and local development, you can spin up a complete Vault + Kubernetes environment using Multipass:
+For integration testing and local development, you can spin up a complete Vault + Kubernetes environment using
+Multipass:
 
 ```bash
 # Bootstrap a local k3s cluster with Vault
