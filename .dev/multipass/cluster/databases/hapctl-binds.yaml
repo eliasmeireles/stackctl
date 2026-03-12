@@ -10,7 +10,7 @@ binds:
     backend:
       servers:
         - name: postgres
-          address: "{{POSTGRES_IP}}:5432"
+          address: "127.0.0.1:30432"
 
   # MySQL
   - name: mysql-db
@@ -23,7 +23,7 @@ binds:
     backend:
       servers:
         - name: mysql
-          address: {{MYSQL_IP}}:3306
+          address: "127.0.0.1:30306"
 
   # MongoDB
   - name: mongodb-db
@@ -36,7 +36,7 @@ binds:
     backend:
       servers:
         - name: mongodb
-          address: "{{MONGODB_IP}}:27017"
+          address: "127.0.0.1:30017"
 
   # RabbitMQ AMQP
   - name: rabbitmq-amqp
@@ -49,7 +49,7 @@ binds:
     backend:
       servers:
         - name: rabbitmq
-          address: {{RABBITMQ_IP}}:5672
+          address: "127.0.0.1:30672"
 
   # RabbitMQ Management UI
   - name: rabbitmq-management
@@ -62,4 +62,4 @@ binds:
     backend:
       servers:
         - name: rabbitmq-mgmt
-          address: "{{RABBITMQ_IP}}:15672"
+          address: "127.0.0.1:31672"

@@ -89,10 +89,11 @@ metadata:
   labels:
     app: mysql
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
   - port: 3306
     targetPort: 3306
+    nodePort: 30306
     protocol: TCP
     name: mysql
   selector:
