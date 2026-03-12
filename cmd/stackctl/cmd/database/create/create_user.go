@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/envvault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/spf13/cobra"
@@ -293,11 +294,59 @@ func createMongoDBUser(flags *CreateUserFlags) error {
 }
 
 func storeCredentialsInVault(flags *CreateUserFlags) error {
-	fmt.Printf("Storing credentials in Vault at: %s\n", flags.VaultPath)
-	fmt.Printf("\nExecute the following command to store credentials:\n\n")
-	fmt.Printf("vault kv put %s username='%s' password='%s' database='%s' host='%s' port='%d'\n",
-		flags.VaultPath, flags.Username, flags.Password, flags.Database, flags.Host, flags.Port)
+	fmt.Printf("\n💾 Storing credentials in Vault at: %s\n", flags.VaultPath)
 
-	fmt.Println("\n⚠️  Note: Actual Vault storage not yet implemented. Command shown above for manual execution.")
+	ctx := context.Background()
+	_ = ctx
+
+	vaultClient, err := getVaultClient()
+	if err != nil {
+		return fmt.Errorf("failed to create Vault client: %w", err)
+	}
+
+	data := map[string]interface{}{
+		"username": flags.Username,
+		"password": flags.Password,
+		"database": flags.Database,
+		"host":     flags.Host,
+		"port":     flags.Port,
+	}
+
+	if err := vaultClient.WriteSecret(flags.VaultPath, data); err != nil {
+		return fmt.Errorf("failed to write secret to Vault: %w", err)
+	}
+
+	fmt.Println("✅ Credentials stored in Vault successfully!")
 	return nil
+}
+
+func getVaultClient() (vaultSecretWriter, error) {
+	cfg, err := getVaultConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	client := newEnvVaultClient(cfg)
+	if err := client.Authenticate(); err != nil {
+		return nil, fmt.Errorf("vault authentication failed: %w", err)
+	}
+
+	return client, nil
+}
+
+type vaultSecretWriter interface {
+	WriteSecret(path string, data map[string]interface{}) error
+	Authenticate() error
+}
+
+func getVaultConfig() (envvault.Config, error) {
+	cfg, err := envvault.ConfigFromEnvForReadOnly()
+	if err != nil {
+		return envvault.Config{}, fmt.Errorf("failed to load Vault config from environment: %w", err)
+	}
+	return cfg, nil
+}
+
+func newEnvVaultClient(cfg envvault.Config) *envvault.Client {
+	return envvault.NewClient(cfg)
 }

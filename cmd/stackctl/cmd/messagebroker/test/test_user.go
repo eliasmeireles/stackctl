@@ -1,8 +1,11 @@
 package test
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/spf13/cobra"
 )
 
@@ -53,13 +56,53 @@ func runTestUser(flags *TestUserFlags) error {
 	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
 	fmt.Printf("  Username: %s\n", flags.Username)
 
-	fmt.Println("\n⚠️  Note: Actual RabbitMQ testing not yet implemented.")
-	fmt.Println("\n✅ To test manually, try connecting with:")
-	fmt.Printf("  rabbitmqctl authenticate_user %s %s\n", flags.Username, flags.Password)
-	fmt.Printf("  rabbitmqctl list_user_permissions %s\n", flags.Username)
-
 	if flags.VaultPath != "" {
-		fmt.Printf("\n💾 Credentials would be retrieved from Vault at: %s\n", flags.VaultPath)
+		fmt.Printf("\n💾 TODO: Retrieve credentials from Vault at: %s\n", flags.VaultPath)
+		fmt.Println("   (Vault integration will be implemented in a future version)")
+		return nil
+	}
+
+	if flags.Password == "" {
+		return fmt.Errorf("password is required when not using --vault-path")
+	}
+
+	ctx := context.Background()
+
+	config := &entity.DatabaseConfig{
+		Host: flags.Host,
+		Port: flags.Port,
+	}
+
+	testCreds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("\n📡 Connecting to RabbitMQ...")
+	rabbitClient, err := client.NewRabbitMQClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
+	}
+
+	if err := rabbitClient.Connect(ctx, testCreds); err != nil {
+		fmt.Printf("\n❌ Connection failed: %v\n", err)
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() {
+		_ = rabbitClient.Close()
+	}()
+
+	fmt.Println("✅ Connection successful!")
+
+	exists, err := rabbitClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	if !exists {
+		fmt.Printf("\n⚠️  Warning: User '%s' exists but may have limited permissions\n", flags.Username)
+	} else {
+		fmt.Printf("\n✅ User '%s' verified successfully!\n", flags.Username)
 	}
 
 	return nil
