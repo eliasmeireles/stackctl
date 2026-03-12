@@ -58,3 +58,8 @@ tmp/
 *.swo
 .env
 .env.*
+
+########################
+# Planning / docs (local)
+########################
+.planning/
