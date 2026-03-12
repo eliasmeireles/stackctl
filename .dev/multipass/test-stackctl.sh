@@ -229,6 +229,186 @@ fi
 
 echo ""
 echo "=========================================="
+echo "Database User Creation & Permission Tests"
+echo "=========================================="
+
+# Test PostgreSQL user creation
+echo ""
+echo "[12/20] Testing PostgreSQL user creation..."
+TEST_PG_USER="test_user_$(date +%s)"
+TEST_PG_PASS="test_pass_$(openssl rand -hex 8)"
+TEST_PG_DB="testdb"
+
+if command -v stackctl >/dev/null 2>&1; then
+  export VAULT_ADDR='http://stackctl.vault.network.local'
+  export VAULT_TOKEN=$(cat /home/ubuntu/workdir/vault/keys/root-token 2>/dev/null)
+
+  # Create PostgreSQL user
+  if stackctl database create-user postgres \
+    --host localhost --port 30432 \
+    --admin-user postgres --admin-password postgres \
+    --username "${TEST_PG_USER}" --password "${TEST_PG_PASS}" \
+    --database "${TEST_PG_DB}" \
+    --privileges "SELECT,INSERT,UPDATE,DELETE" \
+    --vault-path "secret/test/postgres/${TEST_PG_USER}" >/dev/null 2>&1; then
+    test_result "PostgreSQL user creation" 0
+
+    # Verify user in Vault
+    if vault kv get "secret/test/postgres/${TEST_PG_USER}" >/dev/null 2>&1; then
+      test_result "PostgreSQL user credentials in Vault" 0
+    else
+      test_result "PostgreSQL user credentials in Vault" 1
+    fi
+
+    # Test connection with created user
+    if PGPASSWORD="${TEST_PG_PASS}" psql -h localhost -p 30432 -U "${TEST_PG_USER}" -d "${TEST_PG_DB}" -c "SELECT 1" >/dev/null 2>&1; then
+      test_result "PostgreSQL user can connect" 0
+
+      # Test SELECT permission
+      if PGPASSWORD="${TEST_PG_PASS}" psql -h localhost -p 30432 -U "${TEST_PG_USER}" -d "${TEST_PG_DB}" -c "SELECT version()" >/dev/null 2>&1; then
+        test_result "PostgreSQL user has SELECT permission" 0
+      else
+        test_result "PostgreSQL user has SELECT permission" 1
+      fi
+    else
+      test_result "PostgreSQL user can connect" 1
+    fi
+  else
+    test_result "PostgreSQL user creation" 1
+  fi
+else
+  test_result "stackctl not available for PostgreSQL test" 1
+fi
+
+# Test MySQL user creation
+echo ""
+echo "[13/20] Testing MySQL user creation..."
+TEST_MYSQL_USER="test_user_$(date +%s)"
+TEST_MYSQL_PASS="test_pass_$(openssl rand -hex 8)"
+TEST_MYSQL_DB="testdb"
+
+if command -v stackctl >/dev/null 2>&1; then
+  # Create MySQL user
+  if stackctl database create-user mysql \
+    --host localhost --port 30306 \
+    --admin-user root --admin-password mysql \
+    --username "${TEST_MYSQL_USER}" --password "${TEST_MYSQL_PASS}" \
+    --database "${TEST_MYSQL_DB}" \
+    --privileges "SELECT,INSERT,UPDATE,DELETE" \
+    --vault-path "secret/test/mysql/${TEST_MYSQL_USER}" >/dev/null 2>&1; then
+    test_result "MySQL user creation" 0
+
+    # Verify user in Vault
+    if vault kv get "secret/test/mysql/${TEST_MYSQL_USER}" >/dev/null 2>&1; then
+      test_result "MySQL user credentials in Vault" 0
+    else
+      test_result "MySQL user credentials in Vault" 1
+    fi
+
+    # Test connection with created user
+    if mysql -h 127.0.0.1 -P 30306 -u "${TEST_MYSQL_USER}" -p"${TEST_MYSQL_PASS}" "${TEST_MYSQL_DB}" -e "SELECT 1" >/dev/null 2>&1; then
+      test_result "MySQL user can connect" 0
+
+      # Test SELECT permission
+      if mysql -h 127.0.0.1 -P 30306 -u "${TEST_MYSQL_USER}" -p"${TEST_MYSQL_PASS}" "${TEST_MYSQL_DB}" -e "SELECT VERSION()" >/dev/null 2>&1; then
+        test_result "MySQL user has SELECT permission" 0
+      else
+        test_result "MySQL user has SELECT permission" 1
+      fi
+    else
+      test_result "MySQL user can connect" 1
+    fi
+  else
+    test_result "MySQL user creation" 1
+  fi
+else
+  test_result "stackctl not available for MySQL test" 1
+fi
+
+# Test MongoDB user creation
+echo ""
+echo "[14/20] Testing MongoDB user creation..."
+TEST_MONGO_USER="test_user_$(date +%s)"
+TEST_MONGO_PASS="test_pass_$(openssl rand -hex 8)"
+TEST_MONGO_DB="testdb"
+
+if command -v stackctl >/dev/null 2>&1; then
+  # Create MongoDB user
+  if stackctl database create-user mongodb \
+    --host localhost --port 30017 \
+    --admin-user admin --admin-password mongodb \
+    --username "${TEST_MONGO_USER}" --password "${TEST_MONGO_PASS}" \
+    --database "${TEST_MONGO_DB}" \
+    --privileges "readWrite" \
+    --vault-path "secret/test/mongodb/${TEST_MONGO_USER}" >/dev/null 2>&1; then
+    test_result "MongoDB user creation" 0
+
+    # Verify user in Vault
+    if vault kv get "secret/test/mongodb/${TEST_MONGO_USER}" >/dev/null 2>&1; then
+      test_result "MongoDB user credentials in Vault" 0
+    else
+      test_result "MongoDB user credentials in Vault" 1
+    fi
+
+    # Test connection with created user
+    if mongosh "mongodb://${TEST_MONGO_USER}:${TEST_MONGO_PASS}@localhost:30017/${TEST_MONGO_DB}" --eval "db.runCommand({ping: 1})" >/dev/null 2>&1; then
+      test_result "MongoDB user can connect" 0
+
+      # Test read permission
+      if mongosh "mongodb://${TEST_MONGO_USER}:${TEST_MONGO_PASS}@localhost:30017/${TEST_MONGO_DB}" --eval "db.getCollectionNames()" >/dev/null 2>&1; then
+        test_result "MongoDB user has read permission" 0
+      else
+        test_result "MongoDB user has read permission" 1
+      fi
+    else
+      test_result "MongoDB user can connect" 1
+    fi
+  else
+    test_result "MongoDB user creation" 1
+  fi
+else
+  test_result "stackctl not available for MongoDB test" 1
+fi
+
+# Test RabbitMQ user creation
+echo ""
+echo "[15/20] Testing RabbitMQ user creation..."
+TEST_RABBITMQ_USER="test_user_$(date +%s)"
+TEST_RABBITMQ_PASS="test_pass_$(openssl rand -hex 8)"
+
+if command -v stackctl >/dev/null 2>&1; then
+  # Create RabbitMQ user
+  if stackctl messagebroker create-user rabbitmq \
+    --host localhost --port 31672 \
+    --admin-user admin --admin-password rabbitmq \
+    --username "${TEST_RABBITMQ_USER}" --password "${TEST_RABBITMQ_PASS}" \
+    --tags "monitoring" \
+    --permissions ".*:.*:.*" \
+    --vault-path "secret/test/rabbitmq/${TEST_RABBITMQ_USER}" >/dev/null 2>&1; then
+    test_result "RabbitMQ user creation" 0
+
+    # Verify user in Vault
+    if vault kv get "secret/test/rabbitmq/${TEST_RABBITMQ_USER}" >/dev/null 2>&1; then
+      test_result "RabbitMQ user credentials in Vault" 0
+    else
+      test_result "RabbitMQ user credentials in Vault" 1
+    fi
+
+    # Test connection via Management API
+    if curl -s -u "${TEST_RABBITMQ_USER}:${TEST_RABBITMQ_PASS}" "http://localhost:31672/api/whoami" | grep -q "name" 2>/dev/null; then
+      test_result "RabbitMQ user can authenticate" 0
+    else
+      test_result "RabbitMQ user can authenticate" 1
+    fi
+  else
+    test_result "RabbitMQ user creation" 1
+  fi
+else
+  test_result "stackctl not available for RabbitMQ test" 1
+fi
+
+echo ""
+echo "=========================================="
 echo "Test Summary"
 echo "=========================================="
 echo "Tests Passed: ${TESTS_PASSED}"

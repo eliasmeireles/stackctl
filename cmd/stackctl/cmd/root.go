@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
@@ -49,6 +50,7 @@ func init() {
 	rootCmd.AddCommand(netbird.NewCommand())
 	rootCmd.AddCommand(vault.NewCommand())
 	rootCmd.AddCommand(kubeconfig.NewCommand())
+	rootCmd.AddCommand(database.NewDatabaseCommand())
 }
 
 type PlainFormatter struct{}
