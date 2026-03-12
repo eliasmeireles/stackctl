@@ -23,6 +23,7 @@ RECONFIGURE_K3S=false
 RECONFIGURE_VAULT=false
 RECONFIGURE_DATABASES=false
 RECONFIGURE_MESSAGEBROKERS=false
+RECONFIGURE_CREDENTIALS=false
 RECONFIGURE_HAPCTL=false
 RECONFIGURE_CLI=false
 
@@ -70,6 +71,22 @@ if ! exec_in_instance "${INSTANCE_NAME}" sudo systemctl is-active --quiet hapctl
   RECONFIGURE_HAPCTL=true
 fi
 
+# Check credentials in Vault
+VAULT_CREDS_CHECK=$(exec_in_instance "${INSTANCE_NAME}" bash -c "
+  export VAULT_ADDR='http://stackctl.vault.network.local'
+  export VAULT_TOKEN=\$(cat /home/ubuntu/workdir/vault/keys/root-token 2>/dev/null)
+  if [ -n \"\${VAULT_TOKEN}\" ]; then
+    vault kv get secret/databases/postgresql >/dev/null 2>&1 && echo 'ok' || echo 'missing'
+  else
+    echo 'missing'
+  fi
+" || echo 'missing')
+
+if [ "${VAULT_CREDS_CHECK}" != "ok" ]; then
+  log_warn "Credentials not found in Vault, will configure credentials"
+  RECONFIGURE_CREDENTIALS=true
+fi
+
 # Check CLI tools
 if ! exec_in_instance "${INSTANCE_NAME}" command -v stackctl >/dev/null 2>&1; then
   log_warn "stackctl CLI not found, will reconfigure CLI tools"
@@ -97,6 +114,11 @@ if [ "${RECONFIGURE_MESSAGEBROKERS}" = true ]; then
   bash "${SCRIPTS_DIR}/setup-messagebrokers.sh" "${INSTANCE_NAME}"
 fi
 
+if [ "${RECONFIGURE_CREDENTIALS}" = true ]; then
+  log_info "Reconfiguring credentials in Vault..."
+  bash "${SCRIPTS_DIR}/setup-credentials.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}"
+fi
+
 if [ "${RECONFIGURE_HAPCTL}" = true ]; then
   log_info "Reconfiguring hapctl..."
   bash "${SCRIPTS_DIR}/setup-hapctl.sh" "${INSTANCE_NAME}" "${INSTANCE_IP}"
@@ -120,6 +142,7 @@ echo "   - k3s:             ${RECONFIGURE_K3S}"
 echo "   - Vault:           ${RECONFIGURE_VAULT}"
 echo "   - Databases:       ${RECONFIGURE_DATABASES}"
 echo "   - Message Brokers: ${RECONFIGURE_MESSAGEBROKERS}"
+echo "   - Credentials:     ${RECONFIGURE_CREDENTIALS}"
 echo "   - hapctl:          ${RECONFIGURE_HAPCTL}"
 echo "   - CLI Tools:       ${RECONFIGURE_CLI}"
 echo ""

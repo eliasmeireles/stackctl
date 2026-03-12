@@ -11,6 +11,7 @@ scripts/
 ├── setup-vault.sh              # Vault deployment and initialization
 ├── setup-databases.sh          # Database deployments (PostgreSQL, MySQL, MongoDB)
 ├── setup-messagebrokers.sh     # Message broker deployments (RabbitMQ)
+├── setup-credentials.sh        # Store credentials in Vault with policies
 ├── setup-hapctl.sh             # hapctl installation and configuration
 └── setup-cli-tools.sh          # CLI tools (stackctl, k9s)
 ```

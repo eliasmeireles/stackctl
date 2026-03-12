@@ -51,6 +51,7 @@ bash "${SCRIPTS_DIR}/setup-k3s.sh" "${INSTANCE_NAME}"
 bash "${SCRIPTS_DIR}/setup-vault.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}"
 bash "${SCRIPTS_DIR}/setup-databases.sh" "${INSTANCE_NAME}"
 bash "${SCRIPTS_DIR}/setup-messagebrokers.sh" "${INSTANCE_NAME}"
+bash "${SCRIPTS_DIR}/setup-credentials.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}"
 
 INSTANCE_IP="$(multipass info "${INSTANCE_NAME}" | grep IPv4 | awk '{print $2}')"
 echo "   Instance IP: ${INSTANCE_IP}"
