@@ -235,6 +235,56 @@ stackctl netbird status
 
 ---
 
+### Database Management — `stackctl database`
+
+Manage database users and credentials (PostgreSQL, MySQL, MongoDB).
+
+```bash
+# Create PostgreSQL user
+stackctl database create-user postgres \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password secret \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db \
+  --vault-path secret/data/myapp/postgres
+
+# Create MySQL user
+stackctl database create-user mysql \
+  --host localhost \
+  --admin-user root \
+  --admin-password secret \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db
+
+# Create MongoDB user
+stackctl database create-user mongodb \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db
+
+# Test database connection
+stackctl database test-user postgres \
+  --host localhost \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db
+```
+
+**Supported databases:**
+- PostgreSQL
+- MySQL
+- MongoDB
+
+See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for detailed documentation.
+
+---
+
 ### Message Broker Management — `stackctl messagebroker`
 
 Manage message broker users and credentials (RabbitMQ).
