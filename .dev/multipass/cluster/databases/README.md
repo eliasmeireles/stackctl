@@ -45,6 +45,28 @@ This directory contains Kubernetes manifests for deploying test databases used i
 
 ## Testing Connections
 
+### From Your Host Machine (via hapctl)
+
+All database services are automatically exposed via `hapctl` - no port-forwarding needed!
+
+```bash
+# Get the instance IP
+INSTANCE_IP=$(multipass info stackctl | grep IPv4 | awk '{print $2}')
+
+# PostgreSQL
+psql -h $INSTANCE_IP -p 5432 -U postgres -d testdb
+
+# MySQL
+mysql -h $INSTANCE_IP -P 3306 -u root -pmysql testdb
+
+# MongoDB
+mongosh mongodb://admin:mongodb@$INSTANCE_IP:27017/testdb
+
+# RabbitMQ Management UI
+# Open in browser: http://$INSTANCE_IP:15672
+# Credentials: admin/rabbitmq
+```
+
 ### From Inside the Cluster
 
 ```bash
@@ -59,10 +81,25 @@ kubectl run -it --rm debug --image=mysql:8.0 --restart=Never -n databases -- \
 # MongoDB
 kubectl run -it --rm debug --image=mongo:7.0 --restart=Never -n databases -- \
   mongosh mongodb://admin:mongodb@mongodb:27017/testdb
+```
 
-# RabbitMQ Management UI (port-forward)
-kubectl port-forward -n databases svc/rabbitmq 15672:15672
-# Then access: http://localhost:15672 (admin/rabbitmq)
+### Managing hapctl Binds
+
+```bash
+# View current binds
+multipass exec stackctl -- sudo cat /etc/hapctl/resources/hapctl-binds.yaml
+
+# Validate configuration
+multipass exec stackctl -- sudo hapctl validate -f /etc/hapctl/resources/hapctl-binds.yaml
+
+# Check hapctl agent status
+multipass exec stackctl -- sudo systemctl status hapctl-agent
+
+# View hapctl logs
+multipass exec stackctl -- sudo journalctl -u hapctl-agent -f
+
+# Check HAProxy status
+multipass exec stackctl -- sudo systemctl status haproxy
 ```
 
 ### Using stackctl (once implemented)

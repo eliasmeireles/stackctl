@@ -213,6 +213,65 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   /snap/bin/go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest || echo '[WARN] stackctl install failed, continuing...'
 "
 
+echo "[HAPCTL] Installing hapctl for service exposure..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  if ! command -v hapctl >/dev/null 2>&1; then
+    echo '[INSTALL] Installing hapctl...'
+    curl -fsSL https://raw.githubusercontent.com/eliasmeireles/hapctl/main/install.sh | bash
+    echo '[OK] hapctl installed.'
+  else
+    echo '[SKIP] hapctl already installed.'
+  fi
+"
+
+echo "[HAPCTL] Installing HAProxy..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  if ! sudo hapctl install --check >/dev/null 2>&1; then
+    echo '[INSTALL] Installing HAProxy via hapctl...'
+    sudo hapctl install
+    echo '[OK] HAProxy installed.'
+  else
+    echo '[SKIP] HAProxy already installed.'
+  fi
+"
+
+echo "[HAPCTL] Configuring hapctl agent..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  sudo mkdir -p /etc/hapctl/resources
+
+  cat <<'EOF' | sudo tee /etc/hapctl/config.yaml > /dev/null
+sync:
+  resource-path: /etc/hapctl/resources
+  interval: 5s
+  enabled: true
+
+monitoring:
+  enabled: false
+EOF
+
+  echo '[OK] hapctl config created.'
+"
+
+echo "[HAPCTL] Installing and starting hapctl agent service..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  if ! sudo systemctl is-active --quiet hapctl-agent; then
+    sudo hapctl service install --config /etc/hapctl/config.yaml
+    sudo systemctl enable hapctl-agent
+    sudo systemctl start hapctl-agent
+    echo '[OK] hapctl agent service started.'
+  else
+    echo '[SKIP] hapctl agent already running.'
+  fi
+"
+
+echo "[HAPCTL] Applying database service binds..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  sudo cp /home/ubuntu/cluster/databases/hapctl-binds.yaml /etc/hapctl/resources/
+  sleep 3
+  sudo systemctl status hapctl-agent --no-pager || true
+  echo '[OK] Database binds applied.'
+"
+
 echo ""
 echo "[K9S] Installing k9s..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
@@ -291,31 +350,35 @@ echo "============================================================"
 echo "  DATABASE CREDENTIALS (for testing):"
 echo ""
 echo "   PostgreSQL:"
-echo "     Host: postgres.databases.svc.cluster.local"
-echo "     Port: 5432"
+echo "     Internal: postgres.databases.svc.cluster.local:5432"
+echo "     External: ${INSTANCE_IP}:5432"
 echo "     User: postgres"
 echo "     Pass: postgres"
 echo "     DB:   testdb"
 echo ""
 echo "   MySQL:"
-echo "     Host: mysql.databases.svc.cluster.local"
-echo "     Port: 3306"
+echo "     Internal: mysql.databases.svc.cluster.local:3306"
+echo "     External: ${INSTANCE_IP}:3306"
 echo "     User: root / mysql"
 echo "     Pass: mysql"
 echo "     DB:   testdb"
 echo ""
 echo "   MongoDB:"
-echo "     Host: mongodb.databases.svc.cluster.local"
-echo "     Port: 27017"
+echo "     Internal: mongodb.databases.svc.cluster.local:27017"
+echo "     External: ${INSTANCE_IP}:27017"
 echo "     User: admin"
 echo "     Pass: mongodb"
 echo "     DB:   testdb"
 echo ""
 echo "   RabbitMQ:"
-echo "     Host: rabbitmq.databases.svc.cluster.local"
-echo "     Port: 5672 (AMQP) / 15672 (Management)"
+echo "     Internal: rabbitmq.databases.svc.cluster.local"
+echo "     External: ${INSTANCE_IP}"
+echo "     AMQP Port: 5672"
+echo "     Management UI: http://${INSTANCE_IP}:15672"
 echo "     User: admin"
 echo "     Pass: rabbitmq"
+echo ""
+echo "  📡 All services exposed via hapctl (no port-forward needed!)"
 echo ""
 echo "============================================================"
 echo "  To access Vault from your HOST machine:"
@@ -335,10 +398,20 @@ echo "     source ${VOLUMES_DIR}/stacktl-dev-vault-env.sh"
 echo "     http://stackctl.vault.network.local"
 echo "     stackctl kubeconfig add --file .dev/multipass/.volumes/kube/config"
 echo ""
-echo "  Test database connections from inside the cluster:"
+echo "  Test database connections from your HOST machine:"
+echo "     psql -h ${INSTANCE_IP} -p 5432 -U postgres -d testdb"
+echo "     mysql -h ${INSTANCE_IP} -P 3306 -u root -pmysql testdb"
+echo "     mongosh mongodb://admin:mongodb@${INSTANCE_IP}:27017/testdb"
+echo "     # RabbitMQ Management UI: http://${INSTANCE_IP}:15672"
+echo ""
+echo "  Or from inside the cluster:"
 echo "     kubectl run -it --rm debug --image=postgres:15-alpine --restart=Never -n databases -- psql -h postgres -U postgres -d testdb"
 echo "     kubectl run -it --rm debug --image=mysql:8.0 --restart=Never -n databases -- mysql -h mysql -u root -pmysql testdb"
 echo "     kubectl run -it --rm debug --image=mongo:7.0 --restart=Never -n databases -- mongosh mongodb://admin:mongodb@mongodb:27017/testdb"
+echo ""
+echo "  Manage hapctl binds:"
+echo "     multipass exec ${INSTANCE_NAME} -- sudo hapctl validate -f /etc/hapctl/resources/hapctl-binds.yaml"
+echo "     multipass exec ${INSTANCE_NAME} -- sudo systemctl status hapctl-agent"
 echo ""
 echo "============================================================"
 echo ""
