@@ -1,8 +1,38 @@
-.PHONY: build push buildx test lint all multipass multipass-delete multipass-recreate multipass-shell multipass-test
+.PHONY: build push buildx test lint all multipass multipass-delete multipass-recreate multipass-shell multipass-test binary install clean help
 
+BINARY_NAME=stackctl
+BUILD_DIR=bin
+GO=go
+GOFLAGS=-v
+VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS=-ldflags "-s -w -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Version=$(VERSION)"
 
 GH_USER = ?
 GH_REPO = stackctl
+
+help:
+	@echo "Available targets:"
+	@echo "  binary         - Build the CLI binary and copy to .dev/multipass/.volumes"
+	@echo "  install        - Install the binary to GOPATH/bin"
+	@echo "  lint           - Run linters"
+	@echo "  test           - Run tests"
+	@echo "  multipass      - Setup Multipass instance"
+	@echo "  multipass-test - Run tests inside Multipass"
+	@echo "  build          - Build and push Docker image"
+	@echo "  clean          - Remove build artifacts"
+
+binary:
+	@echo "Building $(BINARY_NAME) $(VERSION)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/stackctl
+	@mkdir -p .dev/multipass/.volumes
+	@cp $(BUILD_DIR)/$(BINARY_NAME) .dev/multipass/.volumes/
+	@echo "✅ Binary built and copied to .dev/multipass/.volumes/"
+
+clean:
+	@echo "Cleaning..."
+	@rm -rf $(BUILD_DIR)
+	@$(GO) clean
 
 lint:
 	@golangci-lint run --timeout=5m
@@ -49,8 +79,11 @@ test-cli:
 	 docker run --rm --privileged --entrypoint /bin/bash ghcr.io/$${GH_USER}/$${GH_REPO}:latest \
 	 -c "nohup netbird service run > /dev/null 2>&1 & sleep 5 && stackctl vault fetch --resource-name home-lab --with-netbird && echo '✅ Fetch complete, listing pods...' && kubectl get pods -n kube-system"
 
-install-cli:
-	@go install ./cmd/stackctl
+install: binary
+	@echo "Installing $(BINARY_NAME) to $(GOPATH)/bin..."
+	@cp $(BUILD_DIR)/$(BINARY_NAME) $(GOPATH)/bin/
+	@chmod +x $(GOPATH)/bin/$(BINARY_NAME)
+	@echo "✅ Installed successfully to $(GOPATH)/bin/$(BINARY_NAME)"
 
 multipass:
 	@bash .dev/multipass/setup.sh
