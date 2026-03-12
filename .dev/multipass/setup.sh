@@ -122,6 +122,24 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   echo '[OK] Vault pod is ready.'
 "
 
+echo "[DATABASES] Deploying test databases..."
+multipass exec "${INSTANCE_NAME}" -- bash -c "
+  sudo kubectl apply -f /home/ubuntu/cluster/databases/namespace.yaml
+  sudo kubectl apply -f /home/ubuntu/cluster/databases/postgresql.yaml
+  sudo kubectl apply -f /home/ubuntu/cluster/databases/mysql.yaml
+  sudo kubectl apply -f /home/ubuntu/cluster/databases/mongodb.yaml
+  sudo kubectl apply -f /home/ubuntu/cluster/databases/rabbitmq.yaml
+
+  echo '[WAIT] Waiting for database pods to be ready...'
+  sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=postgres --timeout=180s || echo '[WARN] PostgreSQL timeout'
+  sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=mysql --timeout=180s || echo '[WARN] MySQL timeout'
+  sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=mongodb --timeout=180s || echo '[WARN] MongoDB timeout'
+  sudo kubectl wait --namespace databases --for=condition=ready pod --selector=app=rabbitmq --timeout=180s || echo '[WARN] RabbitMQ timeout'
+
+  echo '[OK] Database deployments applied.'
+  sudo kubectl get pods -n databases
+"
+
 echo "[VAULT] Initializing and unsealing Vault..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   VAULT_IP=\$(sudo kubectl get svc vault -n vault -o jsonpath='{.spec.clusterIP}')
@@ -270,12 +288,42 @@ echo "   Kubeconfig   : ${VOLUMES_ABS}/kube/config"
 echo "   Setup log    : ${LOG_FILE}"
 echo ""
 echo "============================================================"
+echo "  DATABASE CREDENTIALS (for testing):"
+echo ""
+echo "   PostgreSQL:"
+echo "     Host: postgres.databases.svc.cluster.local"
+echo "     Port: 5432"
+echo "     User: postgres"
+echo "     Pass: postgres"
+echo "     DB:   testdb"
+echo ""
+echo "   MySQL:"
+echo "     Host: mysql.databases.svc.cluster.local"
+echo "     Port: 3306"
+echo "     User: root / mysql"
+echo "     Pass: mysql"
+echo "     DB:   testdb"
+echo ""
+echo "   MongoDB:"
+echo "     Host: mongodb.databases.svc.cluster.local"
+echo "     Port: 27017"
+echo "     User: admin"
+echo "     Pass: mongodb"
+echo "     DB:   testdb"
+echo ""
+echo "   RabbitMQ:"
+echo "     Host: rabbitmq.databases.svc.cluster.local"
+echo "     Port: 5672 (AMQP) / 15672 (Management)"
+echo "     User: admin"
+echo "     Pass: rabbitmq"
+echo ""
+echo "============================================================"
 echo "  To access Vault from your HOST machine:"
 echo ""
 echo "  Access the instance:"
 echo "     make stackctl-shell"
 echo "     sudo -i"
-echo "     stackctl vault apply -f /home/ubuntu/workdir/pass.yaml # Soting secrets in vault via definition file"
+echo "     stackctl vault apply -f /home/ubuntu/workdir/pass.yaml # Storing secrets in vault via definition file"
 echo "     stackctl add pass MY_PASS --size 15 # Generate a 15 character password and store to the vault"
 echo "     stackctl # See CLI commands"
 echo "     k9s # See Kubernetes cluster"
@@ -286,6 +334,11 @@ echo "     echo '${INSTANCE_IP}  stackctl.vault.network.local' | sudo tee -a /et
 echo "     source ${VOLUMES_DIR}/stacktl-dev-vault-env.sh"
 echo "     http://stackctl.vault.network.local"
 echo "     stackctl kubeconfig add --file .dev/multipass/.volumes/kube/config"
+echo ""
+echo "  Test database connections from inside the cluster:"
+echo "     kubectl run -it --rm debug --image=postgres:15-alpine --restart=Never -n databases -- psql -h postgres -U postgres -d testdb"
+echo "     kubectl run -it --rm debug --image=mysql:8.0 --restart=Never -n databases -- mysql -h mysql -u root -pmysql testdb"
+echo "     kubectl run -it --rm debug --image=mongo:7.0 --restart=Never -n databases -- mongosh mongodb://admin:mongodb@mongodb:27017/testdb"
 echo ""
 echo "============================================================"
 echo ""
