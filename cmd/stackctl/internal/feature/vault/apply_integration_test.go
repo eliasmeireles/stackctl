@@ -372,6 +372,50 @@ func TestApplyFullPermission(t *testing.T) {
 		}
 	})
 
+	t.Run("given secrets with descriptions then parses correctly", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		cfg := &ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        testSecretPath,
+				Description: "Resource description for test secrets",
+				Add: []SecretKVEntry{
+					{
+						Name:        "KEY_WITH_DESC",
+						Value:       "test-value",
+						Description: "Key description",
+					},
+					{
+						Name:         "AUTO_KEY_WITH_DESC",
+						AutoGenerate: true,
+						Size:         20,
+						Description:  "Auto-generated key description",
+					},
+					{
+						Name:  "KEY_WITHOUT_DESC",
+						Value: "no-description",
+					},
+				},
+			},
+		}
+
+		requireNoError(t, applier.Apply(cfg))
+
+		secrets := mock.GetSecrets(testSecretPath)
+		if len(secrets) != 3 {
+			t.Fatalf("expected 3 secrets, got %d", len(secrets))
+		}
+		if secrets["KEY_WITH_DESC"] != "test-value" {
+			t.Errorf("expected KEY_WITH_DESC='test-value', got %v", secrets["KEY_WITH_DESC"])
+		}
+		if secrets["KEY_WITHOUT_DESC"] != "no-description" {
+			t.Errorf("expected KEY_WITHOUT_DESC='no-description', got %v", secrets["KEY_WITHOUT_DESC"])
+		}
+		if _, ok := secrets["AUTO_KEY_WITH_DESC"]; !ok {
+			t.Error("expected AUTO_KEY_WITH_DESC to exist")
+		}
+	})
+
 	t.Run("given role with no parameters then returns error", func(t *testing.T) {
 		_, applier := newFullApplier()
 
@@ -395,6 +439,149 @@ func TestApplyFullPermission(t *testing.T) {
 		})
 		if err == nil {
 			t.Fatal("expected error for unknown role action")
+		}
+	})
+
+	t.Run("given secrets with description then writes custom_metadata", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/users/test/passwords",
+				Description: "Test user passwords",
+				Add: []SecretKVEntry{
+					{Name: "DATABASE_PASSWORD", Value: "s3cr3t", Description: "Database password"},
+				},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/users/test/passwords")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T: %v", metaData["custom_metadata"], metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "Test user passwords" {
+			t.Errorf("expected description='Test user passwords', got %v", customMeta["description"])
+		}
+		if customMeta["DATABASE_PASSWORD"] != "Database password" {
+			t.Errorf("expected DATABASE_PASSWORD='Database password', got %v", customMeta["DATABASE_PASSWORD"])
+		}
+	})
+
+	t.Run("given secrets without description then skips metadata write", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/config",
+				Add:  []SecretKVEntry{{Name: "KEY", Value: "val"}},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/app/config")
+		if metaData != nil {
+			t.Errorf("expected no metadata to be written, got %v", metaData)
+		}
+	})
+
+	t.Run("given secrets update with description then writes custom_metadata", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/env",
+				Add:  []SecretKVEntry{{Name: "API_KEY", Value: "abc"}},
+			},
+		}))
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/app/env",
+				Description: "App environment secrets",
+				Update: []SecretKVEntry{
+					{Name: "API_KEY", Value: "xyz", Description: "External API key"},
+				},
+			},
+		}))
+
+		metaData := mock.GetLogical("secret/metadata/app/env")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T", metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "App environment secrets" {
+			t.Errorf("expected description='App environment secrets', got %v", customMeta["description"])
+		}
+		if customMeta["API_KEY"] != "External API key" {
+			t.Errorf("expected API_KEY='External API key', got %v", customMeta["API_KEY"])
+		}
+	})
+
+	t.Run("given description only update then updates metadata without changing secret data", func(t *testing.T) {
+		mock, applier := newFullApplier()
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path: "secret/data/app/creds",
+				Add: []SecretKVEntry{
+					{Name: "TOKEN", Value: "original-token"},
+					{Name: "KEY", Value: "original-key"},
+				},
+			},
+		}))
+
+		secrets := mock.GetSecrets("secret/data/app/creds")
+		if secrets["TOKEN"] != "original-token" {
+			t.Errorf("expected TOKEN='original-token', got %v", secrets["TOKEN"])
+		}
+
+		requireNoError(t, applier.Apply(&ApplyConfig{
+			Secrets: &SecretsConfig{
+				Path:        "secret/data/app/creds",
+				Description: "App credentials",
+				Update: []SecretKVEntry{
+					{Name: "TOKEN", Description: "Auth token"},
+					{Name: "KEY", Description: "API key"},
+				},
+			},
+		}))
+
+		secrets = mock.GetSecrets("secret/data/app/creds")
+		if secrets["TOKEN"] != "original-token" {
+			t.Errorf("expected TOKEN unchanged='original-token', got %v", secrets["TOKEN"])
+		}
+		if secrets["KEY"] != "original-key" {
+			t.Errorf("expected KEY unchanged='original-key', got %v", secrets["KEY"])
+		}
+
+		metaData := mock.GetLogical("secret/metadata/app/creds")
+		if metaData == nil {
+			t.Fatal("expected metadata to be written")
+		}
+
+		customMeta, ok := metaData["custom_metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected custom_metadata map, got %T", metaData["custom_metadata"])
+		}
+
+		if customMeta["description"] != "App credentials" {
+			t.Errorf("expected description='App credentials', got %v", customMeta["description"])
+		}
+		if customMeta["TOKEN"] != "Auth token" {
+			t.Errorf("expected TOKEN description='Auth token', got %v", customMeta["TOKEN"])
+		}
+		if customMeta["KEY"] != "API key" {
+			t.Errorf("expected KEY description='API key', got %v", customMeta["KEY"])
 		}
 	})
 }

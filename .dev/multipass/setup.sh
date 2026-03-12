@@ -220,6 +220,42 @@ secrets:
 EOF
 
 
+cat > "${VOLUMES_DIR}/stacktl-dev-vault-env.sh" <<EOF
+#!/usr/bin/env bash
+
+# Set up environment variables for local development
+export VAULT_ADDR="http://stackctl.vault.network.local"
+export VAULT_TOKEN="$(cat "${VOLUMES_DIR}/vault/keys/root-token")"
+EOF
+
+chmod +x "${VOLUMES_DIR}/stacktl-dev-vault-env.sh"
+
+cat > "${VOLUMES_DIR}/pass.yaml" <<EOF
+secrets:
+  path: secret/data/users/test/passwords
+  description: "Test user passwords"
+  # Add new keys (merge with existing)
+  add:
+    # Auto-generated value - generates 25 bytes = 50 hex chars
+    - name: DATABASE_PASSWORD
+      description: "Database password"
+      auto_generate: true
+      size: 25
+    - name: DATABASE_USERNAME
+      description: "Database username"
+      value: "stackctl_test_user"
+  # Add new keys (merge with existing)
+  update:
+    # Auto-generated value - generates 25 bytes = 50 hex chars
+    - name: DATABASE_PASSWORD
+      description: "Database password updated"
+    - name: DATABASE_USERNAME
+      description: "Database username updated"
+      value: "stackctl_test_user"
+EOF
+
+
+
 VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
 ROOT_TOKEN="$(cat "${VOLUMES_ABS}/vault/keys/root-token" 2>/dev/null || echo '<see root-token file>')"
 
@@ -247,6 +283,7 @@ echo ""
 echo "  Local access:"
 echo ""
 echo "     echo '${INSTANCE_IP}  stackctl.vault.network.local' | sudo tee -a /etc/hosts"
+echo "     source ${VOLUMES_DIR}/stacktl-dev-vault-env.sh"
 echo "     http://stackctl.vault.network.local"
 echo "     stackctl kubeconfig add --file .dev/multipass/.volumes/kube/config"
 echo ""

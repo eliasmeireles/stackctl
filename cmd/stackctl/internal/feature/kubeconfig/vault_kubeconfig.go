@@ -155,9 +155,11 @@ func (s *VaultKubeconfigService) FetchKubeconfigFromVault(dataPath, localKubecon
 		return fmt.Errorf("failed to read secret field: %w", err)
 	}
 
+	log.Infof("📦 Received from Vault (length: %d bytes, first 100 chars): %s", len(encodedConfig), truncateString(encodedConfig, 100))
+
 	decodedConfig, err := decodeBase64Config(encodedConfig)
 	if err != nil {
-		return fmt.Errorf("failed to decode kubeconfig: %w", err)
+		return fmt.Errorf("failed to decode kubeconfig from Vault.\n  Received value (first 200 chars): %s\n  Length: %d bytes\n  Error: %w", truncateString(encodedConfig, 200), len(encodedConfig), err)
 	}
 
 	var newConfig Config
@@ -278,10 +280,18 @@ func decodeBase64Config(encoded string) ([]byte, error) {
 	if err != nil {
 		decoded, err = base64.URLEncoding.DecodeString(encoded)
 		if err != nil {
-			return nil, fmt.Errorf("base64 decode failed: %w", err)
+			return nil, fmt.Errorf("base64 decode failed (tried both StdEncoding and URLEncoding).\n  Input (first 100 chars): %s\n  Input length: %d\n  Original error: %w", truncateString(encoded, 100), len(encoded), err)
 		}
 	}
 	return decoded, nil
+}
+
+// truncateString truncates a string to maxLen characters, adding "..." if truncated.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // renameConfigComponents renames all clusters, contexts, and users
