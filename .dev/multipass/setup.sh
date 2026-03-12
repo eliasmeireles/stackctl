@@ -263,14 +263,23 @@ EOF
   echo '[OK] hapctl config created.'
 "
 
-echo "[HAPCTL] Copying database service binds..."
+echo "[HAPCTL] Copying service binds..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
   echo '[INFO] Copying hapctl binds configuration...'
-  sudo cp /home/ubuntu/cluster/databases/hapctl-binds.yaml /etc/hapctl/resources/
-  sudo chown root:root /etc/hapctl/resources/hapctl-binds.yaml
-  sudo chmod 644 /etc/hapctl/resources/hapctl-binds.yaml
 
-  echo '[OK] hapctl-binds.yaml configured with permissions: -rw-r--r-- root:root'
+  # Copy database binds
+  sudo cp /home/ubuntu/cluster/databases/hapctl-binds-databases.yaml /etc/hapctl/resources/
+  sudo chown root:root /etc/hapctl/resources/hapctl-binds-databases.yaml
+  sudo chmod 644 /etc/hapctl/resources/hapctl-binds-databases.yaml
+
+  # Copy message broker binds
+  sudo cp /home/ubuntu/cluster/messagebrokers/hapctl-binds-messagebrokers.yaml /etc/hapctl/resources/
+  sudo chown root:root /etc/hapctl/resources/hapctl-binds-messagebrokers.yaml
+  sudo chmod 644 /etc/hapctl/resources/hapctl-binds-messagebrokers.yaml
+
+  echo '[OK] hapctl binds configured with permissions: -rw-r--r-- root:root'
+  echo '  - hapctl-binds-databases.yaml (PostgreSQL, MySQL, MongoDB)'
+  echo '  - hapctl-binds-messagebrokers.yaml (RabbitMQ)'
 "
 
 echo "[HAPCTL] Installing and starting hapctl agent service..."
