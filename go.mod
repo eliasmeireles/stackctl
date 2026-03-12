@@ -1,6 +1,6 @@
 module github.com/eliasmeireles/stackctl
 
-go 1.25
+go 1.25.5
 
 require (
 	github.com/atotto/clipboard v0.1.4
