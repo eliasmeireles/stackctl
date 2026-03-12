@@ -23,10 +23,6 @@ type RabbitMQClient struct {
 }
 
 func NewRabbitMQClient(config *entity.DatabaseConfig) (*RabbitMQClient, error) {
-	if config.Type != entity.RabbitMQ {
-		return nil, fmt.Errorf("invalid database type: expected RabbitMQ, got %s", config.Type)
-	}
-
 	return &RabbitMQClient{
 		config: config,
 	}, nil
