@@ -266,10 +266,28 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
 
 echo "[HAPCTL] Applying database service binds..."
 multipass exec "${INSTANCE_NAME}" -- bash -c "
-  sudo cp /home/ubuntu/cluster/databases/hapctl-binds.yaml /etc/hapctl/resources/
+  echo '[INFO] Resolving database service IPs...'
+  POSTGRES_IP=\$(sudo kubectl get svc postgres -n databases -o jsonpath='{.spec.clusterIP}')
+  MYSQL_IP=\$(sudo kubectl get svc mysql -n databases -o jsonpath='{.spec.clusterIP}')
+  MONGODB_IP=\$(sudo kubectl get svc mongodb -n databases -o jsonpath='{.spec.clusterIP}')
+  RABBITMQ_IP=\$(sudo kubectl get svc rabbitmq -n databases -o jsonpath='{.spec.clusterIP}')
+
+  echo \"  PostgreSQL: \${POSTGRES_IP}\"
+  echo \"  MySQL: \${MYSQL_IP}\"
+  echo \"  MongoDB: \${MONGODB_IP}\"
+  echo \"  RabbitMQ: \${RABBITMQ_IP}\"
+
+  # Replace placeholders with actual IPs
+  sed -e \"s/{{POSTGRES_IP}}/\${POSTGRES_IP}/g\" \
+      -e \"s/{{MYSQL_IP}}/\${MYSQL_IP}/g\" \
+      -e \"s/{{MONGODB_IP}}/\${MONGODB_IP}/g\" \
+      -e \"s/{{RABBITMQ_IP}}/\${RABBITMQ_IP}/g\" \
+      /home/ubuntu/cluster/databases/hapctl-binds.yaml | \
+      sudo tee /etc/hapctl/resources/hapctl-binds.yaml > /dev/null
+
   sleep 3
   sudo systemctl status hapctl-agent --no-pager || true
-  echo '[OK] Database binds applied.'
+  echo '[OK] Database binds applied with cluster IPs.'
 "
 
 echo ""
