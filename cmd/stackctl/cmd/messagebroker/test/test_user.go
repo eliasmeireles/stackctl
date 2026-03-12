@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/envvault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/spf13/cobra"
@@ -57,9 +58,13 @@ func runTestUser(flags *TestUserFlags) error {
 	fmt.Printf("  Username: %s\n", flags.Username)
 
 	if flags.VaultPath != "" {
-		fmt.Printf("\n💾 TODO: Retrieve credentials from Vault at: %s\n", flags.VaultPath)
-		fmt.Println("   (Vault integration will be implemented in a future version)")
-		return nil
+		fmt.Printf("\n💾 Retrieving credentials from Vault at: %s\n", flags.VaultPath)
+		password, err := getPasswordFromVault(flags.VaultPath)
+		if err != nil {
+			return fmt.Errorf("failed to retrieve credentials from Vault: %w", err)
+		}
+		flags.Password = password
+		fmt.Println("✅ Credentials retrieved from Vault successfully!")
 	}
 
 	if flags.Password == "" {
@@ -106,4 +111,28 @@ func runTestUser(flags *TestUserFlags) error {
 	}
 
 	return nil
+}
+
+func getPasswordFromVault(vaultPath string) (string, error) {
+	cfg, err := envvault.ConfigFromEnvForReadOnly()
+	if err != nil {
+		return "", fmt.Errorf("failed to load Vault config: %w", err)
+	}
+
+	client := envvault.NewClient(cfg)
+	if err := client.Authenticate(); err != nil {
+		return "", fmt.Errorf("vault authentication failed: %w", err)
+	}
+
+	data, err := client.ReadSecret(vaultPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read secret from Vault: %w", err)
+	}
+
+	password, ok := data["password"].(string)
+	if !ok {
+		return "", fmt.Errorf("password field not found in Vault secret")
+	}
+
+	return password, nil
 }

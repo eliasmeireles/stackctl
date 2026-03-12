@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eliasmeireles/envvault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/spf13/cobra"
@@ -128,9 +129,54 @@ func runCreateUser(flags *CreateUserFlags) error {
 	fmt.Printf("\n✅ User '%s' created successfully!\n", flags.Username)
 
 	if flags.VaultPath != "" {
-		fmt.Printf("\n💾 TODO: Store credentials in Vault at: %s\n", flags.VaultPath)
-		fmt.Println("   (Vault integration will be implemented in a future version)")
+		if err := storeCredentialsInVault(flags); err != nil {
+			return fmt.Errorf("user created but failed to store in Vault: %w", err)
+		}
+		fmt.Println("✅ Credentials stored in Vault successfully!")
 	}
 
 	return nil
+}
+
+func storeCredentialsInVault(flags *CreateUserFlags) error {
+	fmt.Printf("\n💾 Storing credentials in Vault at: %s\n", flags.VaultPath)
+
+	cfg, err := getVaultConfig()
+	if err != nil {
+		return err
+	}
+
+	vaultClient := newEnvVaultClient(cfg)
+	if err := vaultClient.Authenticate(); err != nil {
+		return fmt.Errorf("vault authentication failed: %w", err)
+	}
+
+	data := map[string]interface{}{
+		"username": flags.Username,
+		"password": flags.Password,
+		"host":     flags.Host,
+		"port":     flags.Port,
+	}
+
+	if flags.Tags != "" {
+		data["tags"] = flags.Tags
+	}
+
+	if err := vaultClient.WriteSecret(flags.VaultPath, data); err != nil {
+		return fmt.Errorf("failed to write secret to Vault: %w", err)
+	}
+
+	return nil
+}
+
+func getVaultConfig() (envvault.Config, error) {
+	cfg, err := envvault.ConfigFromEnvForReadOnly()
+	if err != nil {
+		return envvault.Config{}, fmt.Errorf("failed to load Vault config from environment: %w", err)
+	}
+	return cfg, nil
+}
+
+func newEnvVaultClient(cfg envvault.Config) *envvault.Client {
+	return envvault.NewClient(cfg)
 }
