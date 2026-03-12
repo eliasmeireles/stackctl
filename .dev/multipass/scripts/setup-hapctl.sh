@@ -80,8 +80,8 @@ exec_in_instance "${INSTANCE_NAME}" bash -c "
     sudo systemctl restart hapctl-agent
   else
     echo '[INSTALL] Installing hapctl service...'
-    sudo hapctl service install --config /etc/hapctl/config.yaml
-
+    sudo hapctl service install
+    
     echo '[START] Starting hapctl-agent...'
     sudo systemctl start hapctl-agent
   fi
