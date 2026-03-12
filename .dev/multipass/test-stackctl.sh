@@ -54,7 +54,7 @@ fi
 
 echo ""
 echo "[3/10] Testing PostgreSQL connectivity..."
-if kubectl get pod -n databases -l app=postgresql -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
+if sudo kubectl get pod -n databases -l app=postgres -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
   test_result "PostgreSQL pod running" 0
 
   POSTGRES_HOST="localhost"
@@ -71,7 +71,7 @@ fi
 
 echo ""
 echo "[4/10] Testing MySQL connectivity..."
-if kubectl get pod -n databases -l app=mysql -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
+if sudo kubectl get pod -n databases -l app=mysql -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
   test_result "MySQL pod running" 0
 
   MYSQL_HOST="localhost"
@@ -88,7 +88,7 @@ fi
 
 echo ""
 echo "[5/10] Testing MongoDB connectivity..."
-if kubectl get pod -n databases -l app=mongodb -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
+if sudo kubectl get pod -n databases -l app=mongodb -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
   test_result "MongoDB pod running" 0
 
   MONGO_HOST="localhost"
@@ -105,7 +105,7 @@ fi
 
 echo ""
 echo "[6/10] Testing RabbitMQ connectivity..."
-if kubectl get pod -n messagebrokers -l app=rabbitmq -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
+if sudo kubectl get pod -n messagebrokers -l app=rabbitmq -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
   test_result "RabbitMQ pod running" 0
 
   RABBITMQ_HOST="localhost"
@@ -129,10 +129,10 @@ fi
 
 echo ""
 echo "[7/10] Testing Vault connectivity..."
-if kubectl get pod -n vault -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
+if sudo kubectl get pod -n vault -l app=vault -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then
   test_result "Vault pod running" 0
 
-  VAULT_ADDR="${VAULT_ADDR:-http://localhost:8200}"
+  VAULT_ADDR="http://stackctl.vault.network.local"
   if curl -s -o /dev/null -w "%{http_code}" "${VAULT_ADDR}/v1/sys/health" 2>/dev/null | grep -qE "^(200|429|473|501|503)$"; then
     test_result "Vault API accessible" 0
   else
@@ -144,10 +144,10 @@ fi
 
 echo ""
 echo "[8/10] Testing K3s cluster health..."
-if kubectl cluster-info >/dev/null 2>&1; then
+if sudo kubectl cluster-info >/dev/null 2>&1; then
   test_result "K3s cluster accessible" 0
 
-  if kubectl get nodes | grep -q "Ready"; then
+  if sudo kubectl get nodes | grep -q "Ready"; then
     test_result "K3s node ready" 0
   else
     test_result "K3s node ready" 1
@@ -161,21 +161,70 @@ echo "[9/10] Testing hapctl service..."
 if systemctl is-active --quiet hapctl-agent 2>/dev/null; then
   test_result "hapctl-agent service running" 0
 
-  if hapctl bind list >/dev/null 2>&1; then
-    test_result "hapctl bind list command" 0
+  # Test HAProxy is running
+  if systemctl is-active --quiet haproxy 2>/dev/null; then
+    test_result "HAProxy service running" 0
   else
-    test_result "hapctl bind list command" 1
+    test_result "HAProxy service running" 1
   fi
 else
   test_result "hapctl-agent service running" 1
 fi
 
 echo ""
-echo "[10/10] Testing database credentials feature (if implemented)..."
-if stackctl database --help >/dev/null 2>&1; then
-  test_result "stackctl database command available" 0
+echo "[10/10] Testing Vault credentials storage..."
+if [ -f /home/ubuntu/workdir/vault/keys/root-token ]; then
+  export VAULT_ADDR='http://stackctl.vault.network.local'
+  export VAULT_TOKEN=$(cat /home/ubuntu/workdir/vault/keys/root-token)
+
+  # Test PostgreSQL credentials
+  if vault kv get secret/databases/postgresql >/dev/null 2>&1; then
+    test_result "PostgreSQL credentials in Vault" 0
+  else
+    test_result "PostgreSQL credentials in Vault" 1
+  fi
+
+  # Test MySQL credentials
+  if vault kv get secret/databases/mysql >/dev/null 2>&1; then
+    test_result "MySQL credentials in Vault" 0
+  else
+    test_result "MySQL credentials in Vault" 1
+  fi
+
+  # Test MongoDB credentials
+  if vault kv get secret/databases/mongodb >/dev/null 2>&1; then
+    test_result "MongoDB credentials in Vault" 0
+  else
+    test_result "MongoDB credentials in Vault" 1
+  fi
+
+  # Test RabbitMQ credentials
+  if vault kv get secret/messagebrokers/rabbitmq >/dev/null 2>&1; then
+    test_result "RabbitMQ credentials in Vault" 0
+  else
+    test_result "RabbitMQ credentials in Vault" 1
+  fi
+
+  # Test Vault policy exists
+  if vault policy read stackctl-credentials >/dev/null 2>&1; then
+    test_result "Vault policy 'stackctl-credentials' exists" 0
+  else
+    test_result "Vault policy 'stackctl-credentials' exists" 1
+  fi
 else
-  test_result "stackctl database command available (not yet implemented)" 0
+  test_result "Vault root token accessible" 1
+fi
+
+echo ""
+echo "[11/11] Testing stackctl database command..."
+if command -v stackctl >/dev/null 2>&1; then
+  if stackctl database --help >/dev/null 2>&1; then
+    test_result "stackctl database command available" 0
+  else
+    test_result "stackctl database command available" 1
+  fi
+else
+  test_result "stackctl binary found for database test" 1
 fi
 
 echo ""
