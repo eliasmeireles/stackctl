@@ -1,8 +1,12 @@
 package test
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/envvault"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/spf13/cobra"
 )
 
@@ -98,63 +102,160 @@ func runTestUser(flags *TestUserFlags) error {
 }
 
 func getPasswordFromVault(vaultPath string) (string, error) {
-	// TODO: Implement Vault integration
-	// For now, return error indicating it needs implementation
-	return "", fmt.Errorf("vault integration not yet implemented - use --password flag")
+	cfg, err := envvault.ConfigFromEnvForReadOnly()
+	if err != nil {
+		return "", fmt.Errorf("failed to load Vault config: %w", err)
+	}
+
+	client := envvault.NewClient(cfg)
+	if err := client.Authenticate(); err != nil {
+		return "", fmt.Errorf("vault authentication failed: %w", err)
+	}
+
+	data, err := client.ReadSecret(vaultPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read secret from Vault: %w", err)
+	}
+
+	password, ok := data["password"].(string)
+	if !ok {
+		return "", fmt.Errorf("password field not found in Vault secret")
+	}
+
+	return password, nil
 }
 
 func testPostgresUser(flags *TestUserFlags) error {
-	fmt.Println("Testing PostgreSQL connection...")
+	ctx := context.Background()
 
-	// Build connection string
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.PostgreSQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Printf("Executing: psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Database)
+	creds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
 
-	// Note: This is a placeholder - actual implementation would use database/sql
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
-		flags.Password, flags.Host, flags.Port, flags.Username, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT version()'\n",
-		flags.Password, flags.Host, flags.Port, flags.Username, flags.Database)
+	fmt.Println("📡 Connecting to PostgreSQL...")
+	pgClient, err := client.NewPostgresClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	}
 
-	_ = connStr // Avoid unused variable warning
+	if err := pgClient.Connect(ctx, creds); err != nil {
+		fmt.Printf("\n❌ Connection failed: %v\n", err)
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() {
+		_ = pgClient.Close()
+	}()
+
+	fmt.Println("✅ Connection successful!")
+
+	exists, err := pgClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	if !exists {
+		fmt.Printf("\n⚠️  Warning: User '%s' may have limited permissions\n", flags.Username)
+	} else {
+		fmt.Printf("\n✅ User '%s' verified successfully!\n", flags.Username)
+	}
+
 	return nil
 }
 
 func testMySQLUser(flags *TestUserFlags) error {
-	fmt.Println("Testing MySQL connection...")
+	ctx := context.Background()
 
-	fmt.Printf("Executing: mysql -h %s -P %d -u %s -p'***' %s -e 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.MySQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT VERSION()'\n",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
+	creds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
+
+	fmt.Println("📡 Connecting to MySQL...")
+	mysqlClient, err := client.NewMySQLClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MySQL client: %w", err)
+	}
+
+	if err := mysqlClient.Connect(ctx, creds); err != nil {
+		fmt.Printf("\n❌ Connection failed: %v\n", err)
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() {
+		_ = mysqlClient.Close()
+	}()
+
+	fmt.Println("✅ Connection successful!")
+
+	exists, err := mysqlClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	if !exists {
+		fmt.Printf("\n⚠️  Warning: User '%s' may have limited permissions\n", flags.Username)
+	} else {
+		fmt.Printf("\n✅ User '%s' verified successfully!\n", flags.Username)
+	}
 
 	return nil
 }
 
 func testMongoDBUser(flags *TestUserFlags) error {
-	fmt.Println("Testing MongoDB connection...")
+	ctx := context.Background()
 
-	connStr := fmt.Sprintf("mongodb://%s:%s@%s:%d/%s",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.MongoDB,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Printf("Executing: mongosh '%s' --eval 'db.runCommand({ping: 1})'\n", connStr)
+	creds := &entity.Credentials{
+		Username: flags.Username,
+		Password: flags.Password,
+	}
 
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.runCommand({ping: 1})'\n",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.getCollectionNames()'\n",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
+	fmt.Println("📡 Connecting to MongoDB...")
+	mongoClient, err := client.NewMongoDBClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MongoDB client: %w", err)
+	}
+
+	if err := mongoClient.Connect(ctx, creds); err != nil {
+		fmt.Printf("\n❌ Connection failed: %v\n", err)
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() {
+		_ = mongoClient.Close()
+	}()
+
+	fmt.Println("✅ Connection successful!")
+
+	exists, err := mongoClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	if !exists {
+		fmt.Printf("\n⚠️  Warning: User '%s' may have limited permissions\n", flags.Username)
+	} else {
+		fmt.Printf("\n✅ User '%s' verified successfully!\n", flags.Username)
+	}
 
 	return nil
 }
