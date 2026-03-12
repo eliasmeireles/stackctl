@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
@@ -13,11 +16,20 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/update"
 )
 
+var (
+	Version     = "dev"
+	showVersion bool
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "stackctl",
 	Short: "OAuth API CLI tool",
 	Long:  `A CLI tool for managing OAuth API resources, kubeconfigs, and NetBird integration.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if showVersion {
+			fmt.Printf("stackctl version %s\n", Version)
+			return
+		}
 		// If no command is provided, open the TUI
 		if len(args) == 0 {
 			RunUI()
@@ -41,6 +53,9 @@ func init() {
 	// Further cleanup: use a custom formatter for zero prefix
 	log.SetFormatter(new(PlainFormatter))
 
+	// Add version flags
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
+
 	// Register subcommands
 	rootCmd.AddCommand(add.NewCommand())
 	rootCmd.AddCommand(delete.NewCommand())
@@ -49,6 +64,7 @@ func init() {
 	rootCmd.AddCommand(netbird.NewCommand())
 	rootCmd.AddCommand(vault.NewCommand())
 	rootCmd.AddCommand(kubeconfig.NewCommand())
+	rootCmd.AddCommand(database.NewDatabaseCommand())
 }
 
 type PlainFormatter struct{}

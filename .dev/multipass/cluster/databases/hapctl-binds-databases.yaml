@@ -1,0 +1,39 @@
+binds:
+  # PostgreSQL
+  - name: postgres-db
+    enabled: true
+    override: true
+    description: "PostgreSQL database for stackctl testing"
+    type: tcp
+    ip: "*"
+    port: 5432
+    backend:
+      servers:
+        - name: postgres
+          address: "127.0.0.1:30432"
+
+  # MySQL
+  - name: mysql-db
+    enabled: true
+    override: true
+    description: "MySQL database for stackctl testing"
+    type: tcp
+    ip: "*"
+    port: 3306
+    backend:
+      servers:
+        - name: mysql
+          address: "127.0.0.1:30306"
+
+  # MongoDB
+  - name: mongodb-db
+    enabled: true
+    override: true
+    description: "MongoDB database for stackctl testing"
+    type: tcp
+    ip: "*"
+    port: 27017
+    backend:
+      servers:
+        - name: mongodb
+          address: "127.0.0.1:30017"
