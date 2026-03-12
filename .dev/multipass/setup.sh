@@ -239,9 +239,19 @@ multipass exec "${INSTANCE_NAME}" -- bash -c "
   if ! sudo hapctl install --check >/dev/null 2>&1; then
     echo '[INSTALL] Installing HAProxy via hapctl...'
     sudo hapctl install
+
+    # Create HAProxy runtime directory
+    echo '[FIX] Creating HAProxy runtime directory...'
+    sudo mkdir -p /run/haproxy
+    sudo chown haproxy:haproxy /run/haproxy
+
     echo '[OK] HAProxy installed.'
   else
     echo '[SKIP] HAProxy already installed.'
+
+    # Ensure runtime directory exists
+    sudo mkdir -p /run/haproxy
+    sudo chown haproxy:haproxy /run/haproxy 2>/dev/null || true
   fi
 "
 
