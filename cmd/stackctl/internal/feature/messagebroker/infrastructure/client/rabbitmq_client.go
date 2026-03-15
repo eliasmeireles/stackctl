@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"strings"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/errors"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
