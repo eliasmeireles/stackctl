@@ -16,9 +16,9 @@ log_info "Installing k3s..."
 exec_in_instance "${INSTANCE_NAME}" bash -c "
   if ! command -v k3s >/dev/null 2>&1; then
     curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable=traefik' sh -
-    log_ok 'k3s installed.'
+    echo '[OK] k3s installed.'
   else
-    log_skip 'k3s already installed.'
+    echo '[SKIP] k3s already installed.'
   fi
 "
 
