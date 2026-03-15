@@ -125,7 +125,7 @@ func (c *MongoDBClient) DeleteSchema(ctx context.Context, schemaName string) err
 	return nil
 }
 
-func (c *MongoDBClient) ListUsers(ctx context.Context) ([]string, error) {
+func (c *MongoDBClient) ListUsers(ctx context.Context) ([]entity.UserInfo, error) {
 	if c.client == nil {
 		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
@@ -139,8 +139,12 @@ func (c *MongoDBClient) ListUsers(ctx context.Context) ([]string, error) {
 
 	var usersInfo struct {
 		Users []struct {
-			User string `bson:"user"`
-			DB   string `bson:"db"`
+			User  string `bson:"user"`
+			DB    string `bson:"db"`
+			Roles []struct {
+				Role string `bson:"role"`
+				DB   string `bson:"db"`
+			} `bson:"roles"`
 		} `bson:"users"`
 	}
 
@@ -148,9 +152,16 @@ func (c *MongoDBClient) ListUsers(ctx context.Context) ([]string, error) {
 		return nil, errors.NewDatabaseError("list_users", err)
 	}
 
-	var users []string
+	var users []entity.UserInfo
 	for _, u := range usersInfo.Users {
-		users = append(users, fmt.Sprintf("%s@%s", u.User, u.DB))
+		var perms []string
+		for _, r := range u.Roles {
+			perms = append(perms, fmt.Sprintf("%s@%s", r.Role, r.DB))
+		}
+		users = append(users, entity.UserInfo{
+			Name:        fmt.Sprintf("%s@%s", u.User, u.DB),
+			Permissions: perms,
+		})
 	}
 
 	return users, nil

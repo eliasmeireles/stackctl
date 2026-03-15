@@ -242,25 +242,59 @@ func (c *PostgresClient) DeleteSchema(ctx context.Context, schemaName string, ca
 	return nil
 }
 
-func (c *PostgresClient) ListUsers(ctx context.Context) ([]string, error) {
+func (c *PostgresClient) ListUsers(ctx context.Context) ([]entity.UserInfo, error) {
 	if c.db == nil {
 		return nil, fmt.Errorf("%s", errNotConnected)
 	}
 
-	query := "SELECT usename FROM pg_user ORDER BY usename"
+	query := `
+		SELECT r.rolname,
+		       r.rolsuper,
+		       r.rolcreatedb,
+		       r.rolcreaterole,
+		       COALESCE(
+		           array_to_string(
+		               ARRAY(
+		                   SELECT b.rolname
+		                   FROM pg_catalog.pg_auth_members m
+		                   JOIN pg_catalog.pg_roles b ON m.roleid = b.oid
+		                   WHERE m.member = r.oid
+		               ), ', '
+		           ), ''
+		       ) AS member_of
+		FROM pg_catalog.pg_roles r
+		WHERE r.rolcanlogin = true
+		ORDER BY r.rolname`
+
 	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, dberrors.NewDatabaseError("list_users", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var users []string
+	var users []entity.UserInfo
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var name, memberOf string
+		var isSuper, createDB, createRole bool
+		if err := rows.Scan(&name, &isSuper, &createDB, &createRole, &memberOf); err != nil {
 			return nil, dberrors.NewDatabaseError("list_users", err)
 		}
-		users = append(users, name)
+
+		var perms []string
+		if isSuper {
+			perms = append(perms, "SUPERUSER")
+		}
+		if createDB {
+			perms = append(perms, "CREATEDB")
+		}
+		if createRole {
+			perms = append(perms, "CREATEROLE")
+		}
+		if memberOf != "" {
+			perms = append(perms, "MEMBER OF: "+memberOf)
+		}
+
+		users = append(users, entity.UserInfo{Name: name, Permissions: perms})
 	}
 
 	return users, rows.Err()

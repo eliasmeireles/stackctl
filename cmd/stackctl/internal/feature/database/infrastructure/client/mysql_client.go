@@ -70,24 +70,43 @@ func (c *MySQLClient) DeleteSchema(ctx context.Context, schemaName string) error
 	return c.DeleteDatabase(ctx, schemaName)
 }
 
-func (c *MySQLClient) ListUsers(ctx context.Context) ([]string, error) {
+func (c *MySQLClient) ListUsers(ctx context.Context) ([]entity.UserInfo, error) {
 	if c.db == nil {
 		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
-	rows, err := c.db.QueryContext(ctx, "SELECT CONCAT(USER, '@', host) FROM mysql.user ORDER BY USER")
+	query := `SELECT CONCAT(User, '@', Host),
+		Select_priv, Insert_priv, Update_priv, Delete_priv,
+		Create_priv, Drop_priv, Grant_priv, Super_priv, Repl_slave_priv
+		FROM mysql.user ORDER BY User`
+
+	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, errors.NewDatabaseError("list_users", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var users []string
+	privNames := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "GRANT", "SUPER", "REPLICATION SLAVE"}
+	var users []entity.UserInfo
 	for rows.Next() {
 		var name string
-		if err := rows.Scan(&name); err != nil {
+		privFlags := make([]string, len(privNames))
+		scanArgs := []interface{}{&name}
+		for i := range privFlags {
+			scanArgs = append(scanArgs, &privFlags[i])
+		}
+		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, errors.NewDatabaseError("list_users", err)
 		}
-		users = append(users, name)
+
+		var perms []string
+		for i, flag := range privFlags {
+			if flag == "Y" {
+				perms = append(perms, privNames[i])
+			}
+		}
+
+		users = append(users, entity.UserInfo{Name: name, Permissions: perms})
 	}
 
 	return users, rows.Err()

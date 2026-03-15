@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker/create"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker/list"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker/test"
 )
 
@@ -15,6 +16,7 @@ func NewMessageBrokerCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(create.NewCreateUserCommand())
+	cmd.AddCommand(list.NewListCommand())
 	cmd.AddCommand(test.NewTestUserCommand())
 
 	return cmd
