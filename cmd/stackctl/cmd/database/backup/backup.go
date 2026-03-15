@@ -18,7 +18,8 @@ type BackupFlags struct {
 	AdminPassword string
 	Database      string
 	OutputDir     string
-	VaultLogin    string
+	VaultLogin     string
+	VaultFixedPath string
 }
 
 func NewBackupCommand() *cobra.Command {
@@ -49,6 +50,7 @@ The backup is saved to --output-dir with a timestamp-based filename.`,
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to backup")
 	cmd.Flags().StringVar(&flags.OutputDir, "output-dir", ".", "Directory to save the backup file")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultFixedPath, "vault-fixed-path", "", "Vault path used as-is (no prefix added) to load admin credentials")
 
 	_ = cmd.MarkFlagRequired("database")
 
@@ -57,6 +59,9 @@ The backup is saved to --output-dir with a timestamp-based filename.`,
 
 func runBackup(flags *BackupFlags) error {
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ResolveFixed(flags.VaultFixedPath, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
 	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {

@@ -27,12 +27,9 @@ func NormalizePath(path string) string {
 	return secretDataPrefix + path
 }
 
-// Load reads the Vault secret at vaultPath and extracts USERNAME, PASSWORD,
-// HOST and PORT fields (case-insensitive key matching).
-// The path is normalised with NormalizePath before the lookup.
-func Load(vaultPath string) (*Credentials, error) {
-	path := NormalizePath(vaultPath)
-
+// load reads a Vault secret at the given path (used as-is) and extracts
+// USERNAME, PASSWORD, HOST and PORT fields (case-insensitive).
+func load(path string) (*Credentials, error) {
 	cfg, err := envvault.ConfigFromEnvForReadOnly()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load Vault config: %w", err)
@@ -72,7 +69,7 @@ func Load(vaultPath string) (*Credentials, error) {
 }
 
 // Apply fills any empty fields from vault creds.
-// Values explicitly set by the caller (non-zero) are never overwritten.
+// Values already set (non-zero) are never overwritten — CLI flags always win.
 func Apply(creds *Credentials, adminUser, adminPassword, host *string, port *int) {
 	if *adminUser == "" && creds.Username != "" {
 		*adminUser = creds.Username
@@ -88,14 +85,16 @@ func Apply(creds *Credentials, adminUser, adminPassword, host *string, port *int
 	}
 }
 
-// Resolve loads vault credentials when vaultLogin is non-empty and applies
-// them to the provided pointers. If vaultLogin is empty it is a no-op.
+// Resolve is triggered by --vault-login. It normalises the path
+// (prepends "secret/data/" when absent) and applies the found values.
+// No-op when vaultLogin is empty.
 func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *int) error {
 	if vaultLogin == "" {
 		return nil
 	}
-	fmt.Printf("🔑 Loading credentials from Vault: %s\n", NormalizePath(vaultLogin))
-	creds, err := Load(vaultLogin)
+	path := NormalizePath(vaultLogin)
+	fmt.Printf("🔑 Loading credentials from Vault: %s\n", path)
+	creds, err := load(path)
 	if err != nil {
 		return fmt.Errorf("--vault-login: %w", err)
 	}
@@ -103,14 +102,30 @@ func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *in
 	return nil
 }
 
-// ValidateAdminCreds returns a descriptive error when admin credentials are
-// still missing after vault resolution.
+// ResolveFixed is triggered by --vault-fixed-path. It uses the path exactly
+// as provided — no prefix is added or removed.
+// No-op when vaultFixedPath is empty.
+func ResolveFixed(vaultFixedPath string, adminUser, adminPassword, host *string, port *int) error {
+	if vaultFixedPath == "" {
+		return nil
+	}
+	fmt.Printf("🔑 Loading credentials from Vault: %s\n", vaultFixedPath)
+	creds, err := load(vaultFixedPath)
+	if err != nil {
+		return fmt.Errorf("--vault-fixed-path: %w", err)
+	}
+	Apply(creds, adminUser, adminPassword, host, port)
+	return nil
+}
+
+// ValidateAdminCreds returns a clear error when admin credentials are still
+// missing after all vault resolution has been attempted.
 func ValidateAdminCreds(adminUser, adminPassword string) error {
 	if adminUser == "" {
-		return fmt.Errorf("--admin-user is required (or use --vault-login with a secret containing USERNAME)")
+		return fmt.Errorf("--admin-user is required (or provide credentials via --vault-login / --vault-fixed-path)")
 	}
 	if adminPassword == "" {
-		return fmt.Errorf("--admin-password is required (or use --vault-login with a secret containing PASSWORD)")
+		return fmt.Errorf("--admin-password is required (or provide credentials via --vault-login / --vault-fixed-path)")
 	}
 	return nil
 }

@@ -20,7 +20,8 @@ type DeleteUserFlags struct {
 	Username      string
 	Database      string
 	Force         bool
-	VaultLogin    string
+	VaultLogin     string
+	VaultFixedPath string
 }
 
 func newDeleteUserCommand() *cobra.Command {
@@ -45,6 +46,7 @@ func newDeleteUserCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Database, "database", "admin", "Database context (required for MongoDB)")
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultFixedPath, "vault-fixed-path", "", "Vault path used as-is (no prefix added) to load admin credentials")
 
 	_ = cmd.MarkFlagRequired("username")
 
@@ -53,6 +55,9 @@ func newDeleteUserCommand() *cobra.Command {
 
 func runDeleteUser(flags *DeleteUserFlags) error {
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ResolveFixed(flags.VaultFixedPath, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
 	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
