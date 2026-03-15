@@ -16,33 +16,32 @@ type ListUsersFlags struct {
 	Port          int
 	AdminUser     string
 	AdminPassword string
-	VaultLogin string
+	VaultLogin    string
 }
 
-func NewListCommand() *cobra.Command {
+func NewListCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List message broker resources",
 	}
 
-	cmd.AddCommand(newListUsersCommand())
+	cmd.AddCommand(newListUsersCommand(brokerType))
 	return cmd
 }
 
-func newListUsersCommand() *cobra.Command {
+func newListUsersCommand(brokerType string) *cobra.Command {
 	flags := &ListUsersFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "user [rabbitmq]",
+		Use:   "user",
 		Short: "List all users in the message broker",
 		Long:  "List all users available on the specified message broker",
-		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			switch args[0] {
+			switch brokerType {
 			case "rabbitmq":
 				return runListRabbitMQUsers(flags)
 			default:
-				return fmt.Errorf("unsupported broker type: %s (supported: rabbitmq)", args[0])
+				return fmt.Errorf("unsupported broker type: %s (supported: rabbitmq)", brokerType)
 			}
 		},
 	}

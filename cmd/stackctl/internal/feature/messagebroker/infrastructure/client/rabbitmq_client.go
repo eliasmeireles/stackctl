@@ -243,11 +243,29 @@ func (c *RabbitMQClient) ListUsers(ctx context.Context) ([]entity.UserInfo, erro
 }
 
 func (c *RabbitMQClient) RemoveUser(ctx context.Context, username string) error {
-	if c.conn == nil {
+	if c.httpClient == nil || c.adminCreds == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
 			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
+	url := fmt.Sprintf("http://%s:%d/api/users/%s", c.config.Host, c.managementPort, username)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return errors.NewDatabaseError("failed to remove user", err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.NewDatabaseError("failed to remove user", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
 	return errors.NewDatabaseError("failed to remove user",
-		fmt.Errorf("RabbitMQ user management requires HTTP Management API"))
+		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }

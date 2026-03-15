@@ -4,16 +4,29 @@ Commands for managing message broker users and credentials.
 
 ## Supported Message Brokers
 
-- **RabbitMQ** - AMQP message broker
+- **RabbitMQ** - AMQP message broker (default port: 5672)
 
-## Commands
+## Command Hierarchy
 
-### Create User
+```
+stackctl messagebroker {rabbitmq}
+├── create
+│   └── user       # Create a user
+├── delete
+│   └── user       # Delete a user
+├── list
+│   └── user       # List all users
+└── test-user      # Test user credentials and connection
+```
 
-Create a user in a message broker with specified credentials and permissions.
+---
+
+## create user
+
+Create a user in a message broker with specified credentials and optional tags.
 
 ```bash
-stackctl messagebroker create-user rabbitmq \
+stackctl messagebroker rabbitmq create user \
   --host localhost \
   --port 5672 \
   --admin-user admin \
@@ -26,30 +39,93 @@ stackctl messagebroker create-user rabbitmq \
 
 #### Flags
 
-- `--host` - Message broker host (default: localhost)
-- `--port` - Message broker port (default: 5672 for RabbitMQ)
-- `--admin-user` - Admin username (required)
-- `--admin-password` - Admin password (required)
-- `--username` - Username to create (required)
-- `--password` - Password for the user (required)
-- `--tags` - User tags (e.g., 'administrator,management')
-- `--vault-path` - Vault path to store credentials
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Message broker host (default: localhost) | no |
+| `--port` | AMQP port (default: 5672) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--username` | Username to create | yes |
+| `--password` | Password for the new user | yes |
+| `--tags` | Comma-separated user tags (e.g. `administrator,management`) | no |
+| `--vault-path` | Vault path to store credentials | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
 
 #### RabbitMQ User Tags
 
-Common RabbitMQ user tags:
-- `administrator` - Full access to management UI and API
-- `management` - Access to management UI
-- `policymaker` - Can manage policies and parameters
-- `monitoring` - Read-only access to management UI
-- `impersonator` - Can impersonate other users
+| Tag | Description |
+|-----|-------------|
+| `administrator` | Full access to management UI and API |
+| `management` | Access to management UI |
+| `policymaker` | Can manage policies and parameters |
+| `monitoring` | Read-only access to management UI |
+| `impersonator` | Can impersonate other users |
 
-### Test User
+---
 
-Test user credentials and permissions in a message broker.
+## delete user
+
+Delete a user from a message broker. Prompts for confirmation unless `--force` is used.
+Returns an error if the user does not exist.
 
 ```bash
-stackctl messagebroker test-user rabbitmq \
+stackctl messagebroker rabbitmq delete user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password admin \
+  --username old_user \
+  --force
+```
+
+#### Flags
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Message broker host (default: localhost) | no |
+| `--port` | AMQP port (default: 5672) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--username` | Username to delete | yes |
+| `--force` | Skip confirmation prompt | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
+
+---
+
+## list user
+
+List all users on a message broker.
+
+```bash
+stackctl messagebroker rabbitmq list user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password admin
+```
+
+#### Flags
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Message broker host (default: localhost) | no |
+| `--port` | AMQP port (default: 5672) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
+
+---
+
+## test-user
+
+Test user credentials and verify the AMQP connection.
+
+```bash
+stackctl messagebroker rabbitmq test-user \
   --host localhost \
   --port 5672 \
   --username myapp_user \
@@ -58,18 +134,22 @@ stackctl messagebroker test-user rabbitmq \
 
 #### Flags
 
-- `--host` - Message broker host (default: localhost)
-- `--port` - Message broker port (default: 5672 for RabbitMQ)
-- `--username` - Username to test (required)
-- `--password` - Password to test
-- `--vault-path` - Vault path to retrieve credentials (optional)
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Message broker host (default: localhost) | no |
+| `--port` | AMQP port (default: 5672) | no |
+| `--username` | Username to test | yes |
+| `--password` | Password to test | no |
+| `--vault-path` | Vault path to retrieve credentials | no |
+
+---
 
 ## Examples
 
-### Create RabbitMQ Administrator
+### Create a RabbitMQ administrator
 
 ```bash
-stackctl messagebroker create-user rabbitmq \
+stackctl messagebroker rabbitmq create user \
   --host rabbitmq.example.com \
   --admin-user admin \
   --admin-password secret \
@@ -79,10 +159,10 @@ stackctl messagebroker create-user rabbitmq \
   --vault-path secret/data/rabbitmq/app_admin
 ```
 
-### Create RabbitMQ Application User
+### Create an application user (no management access)
 
 ```bash
-stackctl messagebroker create-user rabbitmq \
+stackctl messagebroker rabbitmq create user \
   --host rabbitmq.example.com \
   --admin-user admin \
   --admin-password secret \
@@ -91,42 +171,53 @@ stackctl messagebroker create-user rabbitmq \
   --vault-path secret/data/rabbitmq/app_user
 ```
 
-### Test RabbitMQ User
+### List all users with Vault login
 
 ```bash
-stackctl messagebroker test-user rabbitmq \
+stackctl messagebroker rabbitmq list user \
   --host rabbitmq.example.com \
-  --username app_user \
-  --password app_password
+  --vault-login secret/data/rabbitmq/admin
 ```
 
-### Test with Vault Credentials
+### Delete a user
 
 ```bash
-stackctl messagebroker test-user rabbitmq \
+stackctl messagebroker rabbitmq delete user \
+  --host rabbitmq.example.com \
+  --vault-login secret/data/rabbitmq/admin \
+  --username old_user \
+  --force
+```
+
+### Test user with Vault credentials
+
+```bash
+stackctl messagebroker rabbitmq test-user \
   --host rabbitmq.example.com \
   --username app_user \
   --vault-path secret/data/rabbitmq/app_user
 ```
 
+---
+
 ## Integration with Vault
 
-When `--vault-path` is specified, credentials will be stored in or retrieved from HashiCorp Vault:
+Admin credentials can be loaded from Vault using `--vault-login`. New user credentials can be stored in Vault using `--vault-path`.
 
 ```yaml
-# Stored in Vault at secret/data/rabbitmq/app_user
+# Example: credentials stored in Vault at secret/data/rabbitmq/app_user
 {
   "username": "app_user",
   "password": "app_password",
   "host": "rabbitmq.example.com",
   "port": 5672,
-  "tags": "administrator"
+  "tags": "management"
 }
 ```
 
-## Manual RabbitMQ Commands
+---
 
-If you need to manage users manually:
+## Manual RabbitMQ Commands
 
 ```bash
 # Add user
@@ -138,6 +229,9 @@ rabbitmqctl set_user_tags username administrator
 # Set permissions
 rabbitmqctl set_permissions -p / username ".*" ".*" ".*"
 
+# Delete user
+rabbitmqctl delete_user username
+
 # List users
 rabbitmqctl list_users
 
@@ -148,18 +242,24 @@ rabbitmqctl authenticate_user username password
 rabbitmqctl list_user_permissions username
 ```
 
+---
+
 ## Architecture
 
-Message broker commands are separate from database commands:
-
 ```
-cmd/stackctl/cmd/
-├── database/           # Database commands (PostgreSQL, MySQL, MongoDB)
-│   ├── create/
-│   └── test/
-└── messagebroker/      # Message broker commands (RabbitMQ)
-    ├── create/
-    └── test/
+cmd/stackctl/cmd/messagebroker/
+├── command.go          # Registers all messagebroker subcommands
+├── create/
+│   └── create_user.go  # Create a message broker user
+├── delete/
+│   └── delete_user.go  # Delete a message broker user
+├── list/
+│   └── list_users.go   # List users
+└── test/
+    └── test_user.go    # Test user credentials
+
+internal/feature/messagebroker/infrastructure/client/
+└── rabbitmq_client.go  # RabbitMQ implementation (AMQP + HTTP Management API)
 ```
 
 This separation ensures:

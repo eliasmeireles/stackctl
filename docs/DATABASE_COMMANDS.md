@@ -1,25 +1,76 @@
 # Database Commands
 
-Commands for managing database users and credentials.
+Commands for managing databases, users, schemas, backups, and testing connections.
 
 ## Supported Databases
 
-- **PostgreSQL** - Relational database
-- **MySQL** - Relational database
-- **MongoDB** - NoSQL document database
+- **PostgreSQL** - Relational database (default port: 5432)
+- **MySQL** - Relational database (default port: 3306)
+- **MongoDB** - NoSQL document database (default port: 27017)
 
-## Commands
+## Command Hierarchy
 
-### Create User
+```
+stackctl database {postgres|mysql|mongodb}
+├── list         # List databases, users and/or schemas
+├── create
+│   ├── user     # Create a database user
+│   └── schema   # Create a schema / collection
+├── delete
+│   ├── database # Delete a database
+│   ├── user     # Delete a database user
+│   └── schema   # Delete a schema / collection
+├── backup       # Backup a database
+└── test
+    └── user     # Test user credentials and connection
+```
 
-Create a user in a database with specified credentials and permissions.
+---
+
+## list
+
+List databases, users and/or schemas on a database server.
+
+When no target flag is provided, databases and users are listed by default.
+For MongoDB and MySQL, schemas/collections are shown inline under each database.
+For PostgreSQL, use `--schemas` with `--database` to list schemas in a specific database.
+
+```bash
+stackctl database postgres list \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password admin_pass
+
+stackctl database mongodb list --dbs
+stackctl database postgres list --users
+stackctl database postgres list --schemas --database myapp_db
+```
+
+#### Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--host` | Database host | `localhost` |
+| `--port` | Database port | type default |
+| `--admin-user` | Admin username | — |
+| `--admin-password` | Admin password | — |
+| `--database` | Database name (required for `--schemas` in PostgreSQL) | — |
+| `--dbs` | List databases | — |
+| `--users` | List users | — |
+| `--schemas` | List schemas/collections | — |
+| `--vault-login` | Vault path to load admin credentials from | — |
+
+---
+
+## create user
+
+Create a new user in a database and optionally store credentials in Vault.
 
 #### PostgreSQL
 
 ```bash
-stackctl database create-user postgres \
+stackctl database postgres create user \
   --host localhost \
-  --port 5432 \
   --admin-user postgres \
   --admin-password admin_pass \
   --username myapp_user \
@@ -31,9 +82,8 @@ stackctl database create-user postgres \
 #### MySQL
 
 ```bash
-stackctl database create-user mysql \
+stackctl database mysql create user \
   --host localhost \
-  --port 3306 \
   --admin-user root \
   --admin-password admin_pass \
   --username myapp_user \
@@ -45,9 +95,8 @@ stackctl database create-user mysql \
 #### MongoDB
 
 ```bash
-stackctl database create-user mongodb \
+stackctl database mongodb create user \
   --host localhost \
-  --port 27017 \
   --admin-user admin \
   --admin-password admin_pass \
   --username myapp_user \
@@ -56,131 +105,228 @@ stackctl database create-user mongodb \
   --vault-path secret/data/myapp/mongodb
 ```
 
-### Flags
+#### Flags
 
-- `--host` - Database host (default: localhost)
-- `--port` - Database port (default: 5432 for PostgreSQL, 3306 for MySQL, 27017 for MongoDB)
-- `--admin-user` - Admin username (required)
-- `--admin-password` - Admin password (required)
-- `--username` - Username to create (required)
-- `--password` - Password for the user (required)
-- `--database` - Database name (required)
-- `--vault-path` - Vault path to store credentials
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Database host (default: localhost) | no |
+| `--port` | Database port (default: type default) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--username` | Username to create | yes |
+| `--password` | Password for the new user | yes |
+| `--database` | Database to grant access to | no |
+| `--privileges` | Privileges to grant | no |
+| `--vault-path` | Vault path to store credentials | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
 
-### Test User
+\* Required unless `--vault-login` is provided.
 
-Test user credentials and permissions in a database.
+---
+
+## create schema
+
+Create a schema in the specified database.
+
+- **postgres**: creates a PostgreSQL schema (namespace within a database)
+- **mysql**: creates a schema (equivalent to a database in MySQL)
+- **mongodb**: creates a collection
 
 #### PostgreSQL
 
 ```bash
-stackctl database test-user postgres \
+stackctl database postgres create schema \
   --host localhost \
-  --port 5432 \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --admin-user postgres \
+  --admin-password admin_pass \
+  --database myapp_db \
+  --schema analytics
 ```
 
 #### MySQL
 
 ```bash
-stackctl database test-user mysql \
+stackctl database mysql create schema \
   --host localhost \
-  --port 3306 \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --admin-user root \
+  --admin-password admin_pass \
+  --schema reporting
 ```
 
 #### MongoDB
 
 ```bash
-stackctl database test-user mongodb \
+stackctl database mongodb create schema \
   --host localhost \
-  --port 27017 \
-  --username myapp_user \
-  --password myapp_pass \
+  --admin-user admin \
+  --admin-password admin_pass \
+  --database myapp_db \
+  --schema events
+```
+
+#### Flags
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Database host (default: localhost) | no |
+| `--port` | Database port (default: type default) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--database` | Database name (required for postgres and mongodb) | conditional |
+| `--schema` | Schema/collection name to create | yes |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
+
+---
+
+## delete database
+
+Delete a database from the server. Prompts for confirmation unless `--force` is used.
+Returns an error if the database does not exist.
+
+```bash
+stackctl database postgres delete database \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password admin_pass \
+  --database old_db \
+  --force
+```
+
+#### Flags
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Database host (default: localhost) | no |
+| `--port` | Database port (default: type default) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--database` | Database name to delete | yes |
+| `--force` | Skip confirmation prompt | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
+
+---
+
+## delete user
+
+Delete a user from a database server. Prompts for confirmation unless `--force` is used.
+Returns an error if the user does not exist.
+
+#### PostgreSQL
+
+```bash
+stackctl database postgres delete user \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password admin_pass \
+  --username old_user \
+  --force
+```
+
+#### MySQL
+
+```bash
+stackctl database mysql delete user \
+  --host localhost \
+  --admin-user root \
+  --admin-password admin_pass \
+  --username old_user
+```
+
+#### MongoDB
+
+```bash
+stackctl database mongodb delete user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password admin_pass \
+  --username old_user \
   --database myapp_db
 ```
 
-### Test Flags
+#### Flags
 
-- `--host` - Database host (default: localhost)
-- `--port` - Database port
-- `--username` - Username to test (required)
-- `--password` - Password to test
-- `--database` - Database name (required)
-- `--vault-path` - Vault path to retrieve credentials (optional)
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Database host (default: localhost) | no |
+| `--port` | Database port (default: type default) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--username` | Username to delete | yes |
+| `--database` | Database context (required for MongoDB; default: `admin`) | conditional |
+| `--force` | Skip confirmation prompt | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
 
-## Examples
+\* Required unless `--vault-login` is provided.
 
-### Create PostgreSQL User with Full Permissions
+---
+
+## delete schema
+
+Delete a schema/collection from the specified database. Prompts for confirmation unless `--force` is used.
+
+- **postgres**: drops a PostgreSQL schema (use `--cascade` to drop all objects inside)
+- **mysql**: drops a schema (equivalent to dropping a database in MySQL)
+- **mongodb**: drops a collection within a database
 
 ```bash
-stackctl database create-user postgres \
-  --host db.example.com \
-  --port 5432 \
+stackctl database postgres delete schema \
+  --host localhost \
   --admin-user postgres \
-  --admin-password secret \
-  --username app_user \
-  --password strong_password \
-  --database production_db \
+  --admin-password admin_pass \
+  --database myapp_db \
+  --schema old_schema \
+  --cascade
+```
+
+#### Flags
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--host` | Database host (default: localhost) | no |
+| `--port` | Database port (default: type default) | no |
+| `--admin-user` | Admin username | yes* |
+| `--admin-password` | Admin password | yes* |
+| `--database` | Database name (required for postgres and mongodb) | conditional |
+| `--schema` | Schema/collection name to delete | yes |
+| `--cascade` | Drop all objects within the schema (PostgreSQL only) | no |
+| `--force` | Skip confirmation prompt | no |
+| `--vault-login` | Vault path to load admin credentials from | no |
+
+\* Required unless `--vault-login` is provided.
+
+---
+
+## test user
+
+Test user credentials and verify the connection.
+
+```bash
+stackctl database postgres test user \
+  --host localhost \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db
+
+# With Vault credentials
+stackctl database postgres test user \
+  --host db.example.com \
+  --username myapp_user \
+  --database myapp_db \
   --vault-path secret/data/production/postgres
 ```
 
-### Create MySQL User for Application
-
-```bash
-stackctl database create-user mysql \
-  --host mysql.example.com \
-  --admin-user root \
-  --admin-password secret \
-  --username app_user \
-  --password app_password \
-  --database app_db \
-  --vault-path secret/data/app/mysql
-```
-
-### Create MongoDB User with Read/Write Access
-
-```bash
-stackctl database create-user mongodb \
-  --host mongo.example.com \
-  --admin-user admin \
-  --admin-password secret \
-  --username app_user \
-  --password app_password \
-  --database app_db \
-  --vault-path secret/data/app/mongodb
-```
-
-### Test Database Connection
-
-```bash
-# Test with explicit credentials
-stackctl database test-user postgres \
-  --host db.example.com \
-  --username app_user \
-  --password app_password \
-  --database production_db
-
-# Test with Vault credentials
-stackctl database test-user postgres \
-  --host db.example.com \
-  --username app_user \
-  --database production_db \
-  --vault-path secret/data/production/postgres
-```
+---
 
 ## Integration with Vault
 
-When `--vault-path` is specified, credentials will be stored in or retrieved from HashiCorp Vault:
-
-### PostgreSQL Credentials in Vault
+Admin credentials can be loaded from Vault using `--vault-login`. New user credentials can be stored in Vault using `--vault-path`.
 
 ```yaml
-# Stored in Vault at secret/data/production/postgres
+# Example: credentials stored in Vault at secret/data/production/postgres
 {
   "username": "app_user",
   "password": "strong_password",
@@ -190,31 +336,17 @@ When `--vault-path` is specified, credentials will be stored in or retrieved fro
 }
 ```
 
-### MySQL Credentials in Vault
+### Vault Login (load admin credentials)
 
-```yaml
-# Stored in Vault at secret/data/app/mysql
-{
-  "username": "app_user",
-  "password": "app_password",
-  "host": "mysql.example.com",
-  "port": 3306,
-  "database": "app_db"
-}
+```bash
+stackctl database postgres create user \
+  --vault-login secret/data/postgres/admin \
+  --username myapp_user \
+  --password myapp_pass \
+  --database myapp_db
 ```
 
-### MongoDB Credentials in Vault
-
-```yaml
-# Stored in Vault at secret/data/app/mongodb
-{
-  "username": "app_user",
-  "password": "app_password",
-  "host": "mongo.example.com",
-  "port": 27017,
-  "database": "app_db"
-}
-```
+---
 
 ## Manual Database Commands
 
@@ -226,16 +358,23 @@ CREATE USER app_user WITH PASSWORD 'password';
 
 # Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE app_db TO app_user;
-
-# Grant schema privileges
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_user;
+
+# Delete user
+DROP USER app_user;
+
+# Create schema
+CREATE SCHEMA analytics;
+
+# Drop schema
+DROP SCHEMA analytics CASCADE;
 
 # List users
 \du
 
-# Test connection
-psql -h localhost -U app_user -d app_db
+# List databases
+\l
 ```
 
 ### MySQL
@@ -248,11 +387,20 @@ CREATE USER 'app_user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON app_db.* TO 'app_user'@'%';
 FLUSH PRIVILEGES;
 
+# Delete user
+DROP USER 'app_user'@'%';
+
+# Create schema (database)
+CREATE DATABASE reporting;
+
+# Drop schema (database)
+DROP DATABASE reporting;
+
 # List users
 SELECT User, Host FROM mysql.user;
 
-# Test connection
-mysql -h localhost -u app_user -p app_db
+# List databases
+SHOW DATABASES;
 ```
 
 ### MongoDB
@@ -263,19 +411,28 @@ use app_db
 db.createUser({
   user: "app_user",
   pwd: "password",
-  roles: [
-    { role: "readWrite", db: "app_db" }
-  ]
+  roles: [{ role: "readWrite", db: "app_db" }]
 })
+
+# Delete user
+db.dropUser("app_user")
+
+# Create collection (schema)
+db.createCollection("events")
+
+# Drop collection
+db.events.drop()
 
 # List users
 db.getUsers()
 
-# Test connection
-mongosh --host localhost --username app_user --password password --authenticationDatabase app_db
+# List databases
+show dbs
 ```
 
-## Database Permissions
+---
+
+## Database Permissions Reference
 
 ### PostgreSQL Roles
 
@@ -300,31 +457,32 @@ mongosh --host localhost --username app_user --password password --authenticatio
 - `userAdmin` - User and role management
 - `dbOwner` - Full database access
 
-## Architecture
+---
 
-Database commands are organized by database type:
+## Architecture
 
 ```
 cmd/stackctl/cmd/database/
+├── command.go          # Registers {postgres,mysql,mongodb} subcommands
 ├── create/
-│   └── create_user.go    # Create database users
+│   ├── create_user.go  # Create database users
+│   └── create_schema.go# Create schemas / collections
+├── delete/
+│   ├── delete_database.go # Delete a database
+│   ├── delete_user.go     # Delete a database user
+│   └── delete_schema.go   # Delete a schema / collection
+├── list/
+│   └── list_databases.go  # List databases, users and schemas
+├── backup/             # Backup commands
 └── test/
-    └── test_user.go      # Test database connections
+    └── test_user.go    # Test user credentials
 
 internal/feature/database/
-├── domain/
-│   └── entity/
-│       ├── database_type.go    # PostgreSQL, MySQL, MongoDB
-│       └── database_config.go  # Connection configuration
-└── infrastructure/
-    └── client/
-        ├── postgres_client.go  # PostgreSQL implementation
-        ├── mysql_client.go     # MySQL implementation
-        └── mongodb_client.go   # MongoDB implementation
+├── domain/entity/
+│   ├── database_type.go    # PostgreSQL, MySQL, MongoDB
+│   └── database_config.go  # Connection configuration
+└── infrastructure/client/
+    ├── postgres_client.go   # PostgreSQL implementation
+    ├── mysql_client.go      # MySQL implementation
+    └── mongodb_client.go    # MongoDB implementation
 ```
-
-This architecture ensures:
-- Type-safe database operations
-- Consistent interface across database types
-- Easy addition of new database types
-- Proper separation of concerns

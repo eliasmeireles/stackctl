@@ -14,28 +14,36 @@ import (
 )
 
 type CreateUserFlags struct {
-	BrokerType string
-	Host       string
-	Port       int
-	AdminUser  string
-	AdminPass  string
-	Username   string
-	Password   string
-	Tags       string
-	VaultPath  string
-	VaultLogin string
+	BrokerType    string
+	Host          string
+	Port          int
+	AdminUser     string
+	AdminPassword string
+	Username      string
+	Password      string
+	Tags          string
+	VaultPath     string
+	VaultLogin    string
 }
 
-func NewCreateUserCommand() *cobra.Command {
-	flags := &CreateUserFlags{}
+func NewCreateCommand(brokerType string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a user",
+	}
+
+	cmd.AddCommand(newCreateUserCommand(brokerType))
+	return cmd
+}
+
+func newCreateUserCommand(brokerType string) *cobra.Command {
+	flags := &CreateUserFlags{BrokerType: brokerType}
 
 	cmd := &cobra.Command{
-		Use:   "create-user [rabbitmq]",
+		Use:   "user",
 		Short: "Create a message broker user",
 		Long:  "Create a user in a message broker (RabbitMQ) with specified credentials and permissions",
-		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.BrokerType = args[0]
 			return runCreateUser(flags)
 		},
 	}
@@ -43,7 +51,7 @@ func NewCreateUserCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Host, "host", "", "Message broker host")
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Message broker port (default: 5672 for RabbitMQ)")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
-	cmd.Flags().StringVar(&flags.AdminPass, "admin-password", "", "Admin password")
+	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to create")
 	cmd.Flags().StringVar(&flags.Password, "password", "", "Password for the user")
 	cmd.Flags().StringVar(&flags.Tags, "tags", "", "User tags (e.g., 'administrator,management')")
@@ -57,10 +65,10 @@ func NewCreateUserCommand() *cobra.Command {
 }
 
 func runCreateUser(flags *CreateUserFlags) error {
-	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPass, &flags.Host, &flags.Port); err != nil {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
-	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPass); err != nil {
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
 		return err
 	}
 	if flags.Host == "" {
@@ -90,7 +98,7 @@ func runCreateUser(flags *CreateUserFlags) error {
 
 	adminCreds := &entity.Credentials{
 		Username: flags.AdminUser,
-		Password: flags.AdminPass,
+		Password: flags.AdminPassword,
 	}
 
 	rabbitClient, err := client.NewRabbitMQClient(config)
@@ -185,7 +193,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 		return fmt.Errorf("vault authentication failed: %w", err)
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"username": flags.Username,
 		"password": flags.Password,
 		"host":     flags.Host,

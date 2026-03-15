@@ -237,11 +237,19 @@ stackctl netbird status
 
 ### Database Management — `stackctl database`
 
-Manage database users and credentials (PostgreSQL, MySQL, MongoDB).
+Manage databases, users, schemas, and test connections (PostgreSQL, MySQL, MongoDB).
+
+Commands follow a db-type-first hierarchy: `stackctl database {postgres|mysql|mongodb} {list|create|delete|test} ...`
 
 ```bash
-# Create PostgreSQL user
-stackctl database create-user postgres \
+# List databases and users
+stackctl database postgres list \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password secret
+
+# Create a user
+stackctl database postgres create user \
   --host localhost \
   --admin-user postgres \
   --admin-password secret \
@@ -250,38 +258,32 @@ stackctl database create-user postgres \
   --database myapp_db \
   --vault-path secret/data/myapp/postgres
 
-# Create MySQL user
-stackctl database create-user mysql \
+# Delete a user (prompts for confirmation)
+stackctl database postgres delete user \
   --host localhost \
-  --admin-user root \
+  --admin-user postgres \
   --admin-password secret \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --username old_user
 
-# Create MongoDB user
-stackctl database create-user mongodb \
+# Delete a database (prompts for confirmation)
+stackctl database postgres delete database \
   --host localhost \
-  --admin-user admin \
+  --admin-user postgres \
   --admin-password secret \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --database old_db \
+  --force
 
-# Test database connection
-stackctl database test-user postgres \
+# Test user credentials
+stackctl database postgres test user \
   --host localhost \
   --username myapp_user \
   --password myapp_pass \
   --database myapp_db
 ```
 
-**Supported databases:**
-- PostgreSQL
-- MySQL
-- MongoDB
+**Supported databases:** PostgreSQL · MySQL · MongoDB
 
-See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for detailed documentation.
+See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for the full command reference.
 
 ---
 
@@ -290,8 +292,8 @@ See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for detailed documentation
 Manage message broker users and credentials (RabbitMQ).
 
 ```bash
-# Create RabbitMQ user
-stackctl messagebroker create-user rabbitmq \
+# Create a RabbitMQ user
+stackctl messagebroker rabbitmq create user \
   --host localhost \
   --admin-user admin \
   --admin-password secret \
@@ -300,22 +302,31 @@ stackctl messagebroker create-user rabbitmq \
   --tags "administrator,management" \
   --vault-path secret/data/myapp/rabbitmq
 
-# Test RabbitMQ user
-stackctl messagebroker test-user rabbitmq \
+# List all users
+stackctl messagebroker rabbitmq list user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret
+
+# Delete a user (prompts for confirmation)
+stackctl messagebroker rabbitmq delete user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret \
+  --username old_user
+
+# Test user credentials
+stackctl messagebroker rabbitmq test-user \
   --host localhost \
   --username myapp_user \
   --password myapp_pass
 ```
 
-**Supported message brokers:**
-- RabbitMQ
+**Supported message brokers:** RabbitMQ
 
-**Common RabbitMQ tags:**
-- `administrator` - Full access to management UI and API
-- `management` - Access to management UI
-- `monitoring` - Read-only access
+**Common RabbitMQ tags:** `administrator` · `management` · `policymaker` · `monitoring`
 
-See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for detailed documentation.
+See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for the full command reference.
 
 ---
 

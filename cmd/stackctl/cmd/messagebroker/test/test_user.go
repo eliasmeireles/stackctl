@@ -20,16 +20,14 @@ type TestUserFlags struct {
 	VaultPath  string
 }
 
-func NewTestUserCommand() *cobra.Command {
-	flags := &TestUserFlags{}
+func NewTestUserCommand(brokerType string) *cobra.Command {
+	flags := &TestUserFlags{BrokerType: brokerType}
 
 	cmd := &cobra.Command{
-		Use:   "test-user [rabbitmq]",
+		Use:   "test-user",
 		Short: "Test message broker user credentials",
 		Long:  "Test user credentials and permissions in a message broker (RabbitMQ)",
-		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.BrokerType = args[0]
 			return runTestUser(flags)
 		},
 	}
@@ -120,12 +118,12 @@ func getPasswordFromVault(vaultPath string) (string, error) {
 		return "", fmt.Errorf("failed to load Vault config: %w", err)
 	}
 
-	client := envvault.NewClient(cfg)
-	if err := client.Authenticate(); err != nil {
+	c := envvault.NewClient(cfg)
+	if err := c.Authenticate(); err != nil {
 		return "", fmt.Errorf("vault authentication failed: %w", err)
 	}
 
-	data, err := client.ReadSecret(vaultPath)
+	data, err := c.ReadSecret(vaultPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read secret from Vault: %w", err)
 	}

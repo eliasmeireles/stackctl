@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewListCommand(t *testing.T) {
-	cmd := NewListCommand()
+	cmd := NewListCommand("rabbitmq")
 
 	assert.Equal(t, "list", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
@@ -22,7 +22,7 @@ func TestNewListCommand(t *testing.T) {
 }
 
 func TestListUserSubcommand(t *testing.T) {
-	cmd := NewListCommand()
+	cmd := NewListCommand("rabbitmq")
 
 	var found bool
 	for _, c := range cmd.Commands() {

@@ -126,6 +126,14 @@ func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 	}
 	defer func() { _ = pgClient.Close() }()
 
+	exists, err := pgClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return fmt.Errorf("failed to check if database exists: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("database '%s' does not exist in PostgreSQL", flags.Database)
+	}
+
 	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := pgClient.DeleteDatabase(ctx, flags.Database); err != nil {
 		return fmt.Errorf("failed to delete database: %w", err)
@@ -151,6 +159,14 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 	}
 	defer func() { _ = mysqlClient.Close() }()
 
+	exists, err := mysqlClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return fmt.Errorf("failed to check if database exists: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("database '%s' does not exist in MySQL", flags.Database)
+	}
+
 	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := mysqlClient.DeleteDatabase(ctx, flags.Database); err != nil {
 		return fmt.Errorf("failed to delete database: %w", err)
@@ -175,6 +191,14 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer func() { _ = mongoClient.Close() }()
+
+	exists, err := mongoClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return fmt.Errorf("failed to check if database exists: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("database '%s' does not exist in MongoDB", flags.Database)
+	}
 
 	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := mongoClient.DeleteDatabase(ctx, flags.Database); err != nil {
