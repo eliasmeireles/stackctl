@@ -130,8 +130,12 @@ func (c *MongoDBClient) ListUsers(ctx context.Context) ([]string, error) {
 		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
 	}
 
-	db := c.client.Database(c.config.Database)
-	result := db.RunCommand(ctx, bson.D{bson.E{Key: "usersInfo", Value: 1}})
+	// Run against admin db with forAllDBs to list users from every database.
+	result := c.client.Database("admin").RunCommand(ctx, bson.D{
+		bson.E{Key: "usersInfo", Value: bson.D{
+			bson.E{Key: "forAllDBs", Value: true},
+		}},
+	})
 
 	var usersInfo struct {
 		Users []struct {
