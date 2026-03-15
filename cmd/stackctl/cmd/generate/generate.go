@@ -81,14 +81,12 @@ func generateUsername(length int) (string, error) {
 }
 
 func printAndCopy(label, value string) error {
-	fmt.Printf("🔑 Generated %s: %s\n", label, value)
-
 	if err := copyToClipboard(value); err != nil {
-		fmt.Printf("⚠️  Could not copy to clipboard: %v\n", err)
+		fmt.Printf("⚠️  Could not copy %s to clipboard: %v\n", label, err)
 		return nil
 	}
 
-	fmt.Printf("✅ %s copied to clipboard.\n", label)
+	fmt.Printf("✅ %s generated and copied to clipboard.\n", label)
 	return nil
 }
 
