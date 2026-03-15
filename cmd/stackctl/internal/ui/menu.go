@@ -434,7 +434,7 @@ func (m Model) View() string {
 
 		step := fmt.Sprintf("step %d of %d", len(m.args)+1, len(m.prompts))
 		return fmt.Sprintf(
-			"\n  %s\n\n  %s  •  %s\n\n  %s: %s\n\n  %s",
+			"\n  %s\n\n  %s\n  %s\n\n  %s: %s\n\n  %s",
 			titleStyle.Render(m.category),
 			m.choice,
 			helpStyle.Render(step),
