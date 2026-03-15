@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/generate"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
@@ -58,6 +59,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 
 	// Register subcommands
+	rootCmd.AddCommand(generate.NewCommand())
 	rootCmd.AddCommand(add.NewCommand())
 	rootCmd.AddCommand(delete.NewCommand())
 	rootCmd.AddCommand(update.NewCommand())
