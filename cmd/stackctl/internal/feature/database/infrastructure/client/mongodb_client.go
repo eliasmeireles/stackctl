@@ -85,6 +85,14 @@ func (c *MongoDBClient) DatabaseExists(ctx context.Context, dbName string) (bool
 
 // MongoDB uses collections as the equivalent of schemas within a database.
 
+// ListSchemasForDatabase lists all collections in the given database using the existing connection.
+func (c *MongoDBClient) ListSchemasForDatabase(ctx context.Context, dbName string) ([]string, error) {
+	if c.client == nil {
+		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))
+	}
+	return c.client.Database(dbName).ListCollectionNames(ctx, bson.D{})
+}
+
 func (c *MongoDBClient) ListSchemas(ctx context.Context) ([]string, error) {
 	if c.client == nil {
 		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mongoErrNoConnection))

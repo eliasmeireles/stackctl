@@ -3,6 +3,7 @@ package list
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -34,17 +35,15 @@ func NewListCommand(dbType string) *cobra.Command {
 		Long: `List databases, users and/or schemas on the specified database server.
 
 When no target flag is provided, databases and users are listed by default.
-Use --schemas together with --database to also list schemas/collections.
+For MongoDB and MySQL, schemas/collections are shown inline under each database when --dbs is used.
+For PostgreSQL, use --schemas with --database to list schemas in a specific database.
 
 Examples:
-  stackctl database mongodb list                             # databases + users (default)
-  stackctl database mongodb list --dbs                       # databases only
+  stackctl database mongodb list                             # databases (with collections) + users
+  stackctl database mongodb list --dbs                       # databases with collections only
   stackctl database postgres list --users                    # users only
-  stackctl database mysql list --dbs --users --schemas       # everything
-  stackctl database mongodb list --schemas --database mydb   # collections in mydb`,
+  stackctl database postgres list --schemas --database mydb  # schemas in mydb`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// default: list databases and users when no target is specified
-			// (schemas are excluded from the default because they require --database)
 			if !flags.ListDbs && !flags.ListUsers && !flags.ListSchemas {
 				flags.ListDbs = true
 				flags.ListUsers = true
@@ -57,11 +56,11 @@ Examples:
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for --schemas with postgres/mongodb)")
+	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for --schemas with postgres)")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. databases/data/mongodb/config)")
 	cmd.Flags().BoolVar(&flags.ListDbs, "dbs", false, "List databases")
 	cmd.Flags().BoolVar(&flags.ListUsers, "users", false, "List users")
-	cmd.Flags().BoolVar(&flags.ListSchemas, "schemas", false, "List schemas/collections")
+	cmd.Flags().BoolVar(&flags.ListSchemas, "schemas", false, "List schemas (PostgreSQL: schemas in --database; MongoDB/MySQL: shown inline with --dbs)")
 
 	return cmd
 }
@@ -89,90 +88,27 @@ func runList(flags *ListFlags) error {
 		}
 	}
 
-	if flags.ListDbs {
-		if err := runListDatabases(flags); err != nil {
-			return err
-		}
-	}
-	if flags.ListUsers {
-		if err := runListUsers(flags); err != nil {
-			return err
-		}
-	}
-	if flags.ListSchemas {
-		if err := runListSchemas(flags); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func runListDatabases(flags *ListFlags) error {
 	switch flags.DBType {
-	case "postgres":
-		return listPostgresDatabases(flags)
-	case "mysql":
-		return listMySQLDatabases(flags)
 	case "mongodb":
-		return listMongoDatabases(flags)
+		return runListMongoDB(flags)
+	case "postgres":
+		return runListPostgres(flags)
+	case "mysql":
+		return runListMySQL(flags)
 	default:
 		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
 	}
 }
 
-func listPostgresDatabases(flags *ListFlags) error {
+// runListMongoDB opens a single connection and handles all requested operations.
+func runListMongoDB(flags *ListFlags) error {
 	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
-
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
-	pgClient, err := client.NewPostgresClient(config)
-	if err != nil {
-		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	config := &entity.DatabaseConfig{
+		Type:     entity.MongoDB,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: "admin",
 	}
-
-	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
-	if err := pgClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-	defer func() { _ = pgClient.Close() }()
-
-	databases, err := pgClient.ListDatabases(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list databases: %w", err)
-	}
-
-	printDatabases("PostgreSQL", flags.Host, flags.Port, databases)
-	return nil
-}
-
-func listMySQLDatabases(flags *ListFlags) error {
-	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
-
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
-	mysqlClient, err := client.NewMySQLClient(config)
-	if err != nil {
-		return fmt.Errorf("failed to create MySQL client: %w", err)
-	}
-
-	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
-	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-	defer func() { _ = mysqlClient.Close() }()
-
-	databases, err := mysqlClient.ListDatabases(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list databases: %w", err)
-	}
-
-	printDatabases("MySQL", flags.Host, flags.Port, databases)
-	return nil
-}
-
-func listMongoDatabases(flags *ListFlags) error {
-	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: "admin"}
 
 	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
 	mongoClient, err := client.NewMongoDBClient(config)
@@ -186,12 +122,118 @@ func listMongoDatabases(flags *ListFlags) error {
 	}
 	defer func() { _ = mongoClient.Close() }()
 
-	databases, err := mongoClient.ListDatabases(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list databases: %w", err)
+	if flags.ListDbs {
+		databases, err := mongoClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		printMongoDBDatabasesWithCollections(flags.Host, flags.Port, databases, func(dbName string) []string {
+			cols, _ := mongoClient.ListSchemasForDatabase(ctx, dbName)
+			return cols
+		})
 	}
 
-	printDatabases("MongoDB", flags.Host, flags.Port, databases)
+	if flags.ListUsers {
+		users, err := mongoClient.ListUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list users: %w", err)
+		}
+		printUsers("MongoDB", flags.Host, flags.Port, users)
+	}
+
+	return nil
+}
+
+// runListPostgres opens a single connection and handles all requested operations.
+func runListPostgres(flags *ListFlags) error {
+	ctx := context.Background()
+	config := &entity.DatabaseConfig{
+		Type:     entity.PostgreSQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: "postgres",
+	}
+
+	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	pgClient, err := client.NewPostgresClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	}
+
+	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
+	if err := pgClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() { _ = pgClient.Close() }()
+
+	if flags.ListDbs {
+		databases, err := pgClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		printDatabases("PostgreSQL", flags.Host, flags.Port, databases)
+	}
+
+	if flags.ListUsers {
+		users, err := pgClient.ListUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list users: %w", err)
+		}
+		printUsers("PostgreSQL", flags.Host, flags.Port, users)
+	}
+
+	if flags.ListSchemas {
+		if flags.Database == "" {
+			return fmt.Errorf("--database is required for listing PostgreSQL schemas")
+		}
+		schemas, err := pgClient.ListSchemas(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list schemas: %w", err)
+		}
+		printSchemas("PostgreSQL", flags.Database, schemas)
+	}
+
+	return nil
+}
+
+// runListMySQL opens a single connection and handles all requested operations.
+func runListMySQL(flags *ListFlags) error {
+	ctx := context.Background()
+	config := &entity.DatabaseConfig{
+		Type:     entity.MySQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: "",
+	}
+
+	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	mysqlClient, err := client.NewMySQLClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MySQL client: %w", err)
+	}
+
+	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
+	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() { _ = mysqlClient.Close() }()
+
+	if flags.ListDbs {
+		databases, err := mysqlClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		printDatabases("MySQL", flags.Host, flags.Port, databases)
+	}
+
+	if flags.ListUsers {
+		users, err := mysqlClient.ListUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list users: %w", err)
+		}
+		printUsers("MySQL", flags.Host, flags.Port, users)
+	}
+
 	return nil
 }
 
@@ -205,4 +247,26 @@ func printDatabases(dbType, host string, port int, databases []string) {
 		fmt.Printf("  %d. %s\n", i+1, db)
 	}
 	fmt.Printf("\nTotal: %d database(s)\n", len(databases))
+}
+
+func printMongoDBDatabasesWithCollections(host string, port int, databases []string, getCollections func(string) []string) {
+	fmt.Printf("\n📋 Databases on MongoDB (%s:%d):\n", host, port)
+	if len(databases) == 0 {
+		fmt.Println("  (no databases found)")
+		return
+	}
+	for i, db := range databases {
+		fmt.Printf("  %d. %s\n", i+1, db)
+		cols := getCollections(db)
+		if len(cols) == 0 {
+			fmt.Println("     📐 (no collections)")
+		} else {
+			fmt.Printf("     📐 Collections: %s\n", joinStrings(cols))
+		}
+	}
+	fmt.Printf("\nTotal: %d database(s)\n", len(databases))
+}
+
+func joinStrings(ss []string) string {
+	return strings.Join(ss, ", ")
 }
