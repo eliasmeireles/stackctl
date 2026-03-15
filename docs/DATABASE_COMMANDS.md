@@ -342,7 +342,7 @@ stackctl database postgres test user \
   --host db.example.com \
   --username myapp_user \
   --database myapp_db \
-  --vault-path secret/data/production/postgres
+  --vault-path secret/databases/postgres/myapp_user
 ```
 
 ---
@@ -379,7 +379,7 @@ Every input screen shows the full navigation breadcrumb and the current step num
 Admin credentials can be loaded from Vault using `--vault-login`. New user credentials can be stored in Vault using `--vault-path`.
 
 ```yaml
-# Example: credentials stored in Vault at secret/data/production/postgres
+# Example: credentials stored in Vault at secret/databases/postgres/myapp_user
 {
   "username": "app_user",
   "password": "strong_password",
@@ -393,7 +393,7 @@ Admin credentials can be loaded from Vault using `--vault-login`. New user crede
 
 ```bash
 stackctl database postgres create user \
-  --vault-login secret/data/postgres/admin \
+  --vault-login secret/databases/postgres/admin \
   --username myapp_user \
   --password myapp_pass \
   --database myapp_db

@@ -44,7 +44,15 @@ All Vault commands resolve credentials in this order:
 stackctl
 ```
 
-Navigates all features via a menu. Automatically retries Vault authentication every 5 seconds.
+Navigates all features via a menu. Every sub-menu shows a contextual note explaining what the current step is about, and input screens display the full navigation breadcrumb plus a step counter (`step N of M`).
+
+Key interactive features:
+- **Vault path browsing** — navigate the Vault KV tree to pick admin credentials instead of typing a path
+- **Auto-generate password** — type `auto` or `auto:<size>` to generate a random password (printed after TUI exits)
+- **Database selection** — choose from a numbered list of existing databases or type a new name
+- **Missing KV engine** — auto-created when a `--vault-path` target does not exist yet
+
+Automatically retries Vault authentication every 5 seconds if the token is not yet available.
 
 **TUI color customization** (ANSI 256-color codes):
 
@@ -248,15 +256,22 @@ stackctl database postgres list \
   --admin-user postgres \
   --admin-password secret
 
-# Create a user
+# Create a user (auto-generate password; list existing databases interactively)
 stackctl database postgres create user \
   --host localhost \
   --admin-user postgres \
   --admin-password secret \
   --username myapp_user \
+  --password auto \
+  --vault-path secret/databases/postgres/myapp_user
+
+# Create a user with explicit password and database
+stackctl database postgres create user \
+  --vault-login secret/databases/postgres/admin \
+  --username myapp_user \
   --password myapp_pass \
   --database myapp_db \
-  --vault-path secret/data/myapp/postgres
+  --vault-path secret/databases/postgres/myapp_user
 
 # Delete a user (prompts for confirmation)
 stackctl database postgres delete user \
@@ -300,7 +315,7 @@ stackctl messagebroker rabbitmq create user \
   --username myapp_user \
   --password myapp_pass \
   --tags "administrator,management" \
-  --vault-path secret/data/myapp/rabbitmq
+  --vault-path secret/messagebroker/rabbitmq/myapp_user
 
 # List all users
 stackctl messagebroker rabbitmq list user \

@@ -158,7 +158,7 @@ stackctl messagebroker rabbitmq create user \
   --username app_admin \
   --password strong_password \
   --tags "administrator" \
-  --vault-path secret/data/rabbitmq/app_admin
+  --vault-path secret/messagebroker/rabbitmq/app_admin
 ```
 
 ### Create an application user (no management access)
@@ -170,7 +170,7 @@ stackctl messagebroker rabbitmq create user \
   --admin-password secret \
   --username app_user \
   --password app_password \
-  --vault-path secret/data/rabbitmq/app_user
+  --vault-path secret/messagebroker/rabbitmq/app_user
 ```
 
 ### List all users with Vault login
@@ -178,7 +178,7 @@ stackctl messagebroker rabbitmq create user \
 ```bash
 stackctl messagebroker rabbitmq list user \
   --host rabbitmq.example.com \
-  --vault-login secret/data/rabbitmq/admin
+  --vault-login secret/messagebroker/rabbitmq/admin
 ```
 
 ### Delete a user
@@ -186,7 +186,7 @@ stackctl messagebroker rabbitmq list user \
 ```bash
 stackctl messagebroker rabbitmq delete user \
   --host rabbitmq.example.com \
-  --vault-login secret/data/rabbitmq/admin \
+  --vault-login secret/messagebroker/rabbitmq/admin \
   --username old_user \
   --force
 ```
@@ -197,7 +197,7 @@ stackctl messagebroker rabbitmq delete user \
 stackctl messagebroker rabbitmq test-user \
   --host rabbitmq.example.com \
   --username app_user \
-  --vault-path secret/data/rabbitmq/app_user
+  --vault-path secret/messagebroker/rabbitmq/app_user
 ```
 
 ---
@@ -232,7 +232,7 @@ Every input screen shows the full navigation breadcrumb and the current step num
 Admin credentials can be loaded from Vault using `--vault-login`. New user credentials can be stored in Vault using `--vault-path`.
 
 ```yaml
-# Example: credentials stored in Vault at secret/data/rabbitmq/app_user
+# Example: credentials stored in Vault at secret/messagebroker/rabbitmq/app_user
 {
   "username": "app_user",
   "password": "app_password",
