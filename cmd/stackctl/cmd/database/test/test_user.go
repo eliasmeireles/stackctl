@@ -5,9 +5,10 @@ import (
 	"fmt"
 
 	"github.com/eliasmeireles/envvault"
+	"github.com/spf13/cobra"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
-	"github.com/spf13/cobra"
 )
 
 type TestUserFlags struct {

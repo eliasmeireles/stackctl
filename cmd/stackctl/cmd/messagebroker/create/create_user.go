@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	"github.com/eliasmeireles/envvault"
+	"github.com/spf13/cobra"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
-	"github.com/spf13/cobra"
 )
 
 type CreateUserFlags struct {
@@ -101,8 +102,8 @@ func runCreateUser(flags *CreateUserFlags) error {
 	}
 
 	if exists {
-		fmt.Printf("\n⚠️  User '%s' already exists\n", flags.Username)
-		return fmt.Errorf("user '%s' already exists", flags.Username)
+		fmt.Printf("\n⚠️  User '%s' already exists in RabbitMQ.\n", flags.Username)
+		return askAndStoreInVault(flags)
 	}
 
 	userCreds := &entity.Credentials{
@@ -136,6 +137,29 @@ func runCreateUser(flags *CreateUserFlags) error {
 	}
 
 	return nil
+}
+
+func askAndStoreInVault(flags *CreateUserFlags) error {
+	fmt.Print("Do you want to store credentials in Vault? (yes/no): ")
+
+	var response string
+	if _, err := fmt.Scanln(&response); err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+
+	if response != "yes" && response != "y" {
+		fmt.Println("Skipping Vault storage.")
+		return nil
+	}
+
+	if flags.VaultPath == "" {
+		fmt.Print("Enter Vault path: ")
+		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
+			return fmt.Errorf("failed to read Vault path: %w", err)
+		}
+	}
+
+	return storeCredentialsInVault(flags)
 }
 
 func storeCredentialsInVault(flags *CreateUserFlags) error {

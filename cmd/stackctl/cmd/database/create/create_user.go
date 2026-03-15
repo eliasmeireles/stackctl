@@ -5,9 +5,10 @@ import (
 	"fmt"
 
 	"github.com/eliasmeireles/envvault"
+	"github.com/spf13/cobra"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
-	"github.com/spf13/cobra"
 )
 
 type CreateUserFlags struct {
@@ -23,11 +24,23 @@ type CreateUserFlags struct {
 	VaultPath     string
 }
 
-func NewCreateUserCommand() *cobra.Command {
+func NewCreateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a user or schema",
+	}
+
+	cmd.AddCommand(newCreateUserCommand())
+	cmd.AddCommand(newCreateSchemaCommand())
+
+	return cmd
+}
+
+func newCreateUserCommand() *cobra.Command {
 	flags := &CreateUserFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "create-user [postgres|mysql|mongodb]",
+		Use:   "user [postgres|mysql|mongodb]",
 		Short: "Create a database user with specified permissions",
 		Long: `Create a new database user with the specified permissions and optionally store credentials in Vault.
 This command:
@@ -73,7 +86,6 @@ func runCreateUser(flags *CreateUserFlags) error {
 	}
 	fmt.Println()
 
-	// Set default ports if not specified
 	if flags.Port == 0 {
 		switch flags.DBType {
 		case "postgres":
@@ -87,36 +99,37 @@ func runCreateUser(flags *CreateUserFlags) error {
 		}
 	}
 
-	// Create user based on database type
+	var userCreated bool
 	var err error
 	switch flags.DBType {
 	case "postgres":
-		err = createPostgresUser(flags)
+		userCreated, err = createPostgresUser(flags)
 	case "mysql":
-		err = createMySQLUser(flags)
+		userCreated, err = createMySQLUser(flags)
 	case "mongodb":
-		err = createMongoDBUser(flags)
+		userCreated, err = createMongoDBUser(flags)
 	default:
 		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+		return err
 	}
 
-	// Store credentials in Vault if path is provided
-	if flags.VaultPath != "" {
-		if err := storeCredentialsInVault(flags); err != nil {
-			return fmt.Errorf("user created but failed to store in Vault: %w", err)
+	if userCreated {
+		if flags.VaultPath != "" {
+			if err := storeCredentialsInVault(flags); err != nil {
+				return fmt.Errorf("user created but failed to store in Vault: %w", err)
+			}
+			fmt.Println("✓ Credentials stored in Vault")
 		}
-		fmt.Println("✓ Credentials stored in Vault")
+		fmt.Printf("\n✓ User '%s' created successfully in %s\n", flags.Username, flags.DBType)
 	}
 
-	fmt.Printf("\n✓ User '%s' created successfully in %s\n", flags.Username, flags.DBType)
 	return nil
 }
 
-func createPostgresUser(flags *CreateUserFlags) error {
+func createPostgresUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
@@ -134,23 +147,52 @@ func createPostgresUser(flags *CreateUserFlags) error {
 	fmt.Println("📡 Connecting to PostgreSQL...")
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+		return false, fmt.Errorf("failed to create PostgreSQL client: %w", err)
 	}
 
 	if err := pgClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect to PostgreSQL: %w", err)
+		return false, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
 	defer func() {
 		_ = pgClient.Close()
 	}()
 
+	fmt.Println("🔍 Checking if database exists...")
+	dbExists, err := pgClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if database exists: %w", err)
+	}
+
+	if !dbExists {
+		fmt.Printf("\n⚠️  Database '%s' does not exist.\n", flags.Database)
+		fmt.Print("Do you want to create it? (yes/no): ")
+
+		var response string
+		if _, err := fmt.Scanln(&response); err != nil {
+			return false, fmt.Errorf("failed to read user input: %w", err)
+		}
+
+		if response != "yes" && response != "y" {
+			return false, fmt.Errorf("database '%s' does not exist and user declined to create it", flags.Database)
+		}
+
+		fmt.Printf("✨ Creating database '%s'...\n", flags.Database)
+		if err := pgClient.CreateDatabase(ctx, flags.Database); err != nil {
+			return false, fmt.Errorf("failed to create database: %w", err)
+		}
+	}
+
 	exists, err := pgClient.UserExists(ctx, flags.Username)
 	if err != nil {
-		return fmt.Errorf("failed to check if user exists: %w", err)
+		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
 
 	if exists {
-		return fmt.Errorf("user '%s' already exists", flags.Username)
+		fmt.Printf("\n⚠️  User '%s' already exists in PostgreSQL.\n", flags.Username)
+		if err := askAndStoreInVault(flags); err != nil {
+			return false, err
+		}
+		return false, nil
 	}
 
 	userCreds := &entity.Credentials{
@@ -160,22 +202,22 @@ func createPostgresUser(flags *CreateUserFlags) error {
 
 	fmt.Println("👤 Creating user...")
 	if err := pgClient.CreateUser(ctx, userCreds); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+		return false, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	if flags.Privileges != "" {
 		fmt.Println("🔐 Granting privileges...")
 		privileges := []string{flags.Privileges}
 		if err := pgClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
-			return fmt.Errorf("failed to grant privileges: %w", err)
+			return false, fmt.Errorf("failed to grant privileges: %w", err)
 		}
 	}
 
 	fmt.Printf("✅ PostgreSQL user '%s' created successfully!\n", flags.Username)
-	return nil
+	return true, nil
 }
 
-func createMySQLUser(flags *CreateUserFlags) error {
+func createMySQLUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
@@ -193,23 +235,52 @@ func createMySQLUser(flags *CreateUserFlags) error {
 	fmt.Println("📡 Connecting to MySQL...")
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to create MySQL client: %w", err)
+		return false, fmt.Errorf("failed to create MySQL client: %w", err)
 	}
 
 	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect to MySQL: %w", err)
+		return false, fmt.Errorf("failed to connect to MySQL: %w", err)
 	}
 	defer func() {
 		_ = mysqlClient.Close()
 	}()
 
+	fmt.Println("🔍 Checking if database exists...")
+	dbExists, err := mysqlClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if database exists: %w", err)
+	}
+
+	if !dbExists {
+		fmt.Printf("\n⚠️  Database '%s' does not exist.\n", flags.Database)
+		fmt.Print("Do you want to create it? (yes/no): ")
+
+		var response string
+		if _, err := fmt.Scanln(&response); err != nil {
+			return false, fmt.Errorf("failed to read user input: %w", err)
+		}
+
+		if response != "yes" && response != "y" {
+			return false, fmt.Errorf("database '%s' does not exist and user declined to create it", flags.Database)
+		}
+
+		fmt.Printf("✨ Creating database '%s'...\n", flags.Database)
+		if err := mysqlClient.CreateDatabase(ctx, flags.Database); err != nil {
+			return false, fmt.Errorf("failed to create database: %w", err)
+		}
+	}
+
 	exists, err := mysqlClient.UserExists(ctx, flags.Username)
 	if err != nil {
-		return fmt.Errorf("failed to check if user exists: %w", err)
+		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
 
 	if exists {
-		return fmt.Errorf("user '%s' already exists", flags.Username)
+		fmt.Printf("\n⚠️  User '%s' already exists in MySQL.\n", flags.Username)
+		if err := askAndStoreInVault(flags); err != nil {
+			return false, err
+		}
+		return false, nil
 	}
 
 	userCreds := &entity.Credentials{
@@ -219,22 +290,22 @@ func createMySQLUser(flags *CreateUserFlags) error {
 
 	fmt.Println("👤 Creating user...")
 	if err := mysqlClient.CreateUser(ctx, userCreds); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+		return false, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	if flags.Privileges != "" {
 		fmt.Println("🔐 Granting privileges...")
 		privileges := []string{flags.Privileges}
 		if err := mysqlClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
-			return fmt.Errorf("failed to grant privileges: %w", err)
+			return false, fmt.Errorf("failed to grant privileges: %w", err)
 		}
 	}
 
 	fmt.Printf("✅ MySQL user '%s' created successfully!\n", flags.Username)
-	return nil
+	return true, nil
 }
 
-func createMongoDBUser(flags *CreateUserFlags) error {
+func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
@@ -252,45 +323,95 @@ func createMongoDBUser(flags *CreateUserFlags) error {
 	fmt.Println("📡 Connecting to MongoDB...")
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to create MongoDB client: %w", err)
+		return false, fmt.Errorf("failed to create MongoDB client: %w", err)
 	}
 
 	if err := mongoClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect to MongoDB: %w", err)
+		return false, fmt.Errorf("failed to connect to MongoDB: %w", err)
 	}
 	defer func() {
 		_ = mongoClient.Close()
 	}()
 
+	fmt.Println("🔍 Checking if database exists...")
+	dbExists, err := mongoClient.DatabaseExists(ctx, flags.Database)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if database exists: %w", err)
+	}
+
+	if !dbExists {
+		fmt.Printf("\n⚠️  Database '%s' does not exist.\n", flags.Database)
+		fmt.Print("Do you want to create it? (yes/no): ")
+
+		var response string
+		if _, err := fmt.Scanln(&response); err != nil {
+			return false, fmt.Errorf("failed to read user input: %w", err)
+		}
+
+		if response != "yes" && response != "y" {
+			return false, fmt.Errorf("database '%s' does not exist and user declined to create it", flags.Database)
+		}
+
+		fmt.Printf("✨ Creating database '%s'...\n", flags.Database)
+		if err := mongoClient.CreateDatabase(ctx, flags.Database); err != nil {
+			return false, fmt.Errorf("failed to create database: %w", err)
+		}
+	}
+
 	exists, err := mongoClient.UserExists(ctx, flags.Username)
 	if err != nil {
-		return fmt.Errorf("failed to check if user exists: %w", err)
+		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
 
 	if exists {
-		return fmt.Errorf("user '%s' already exists", flags.Username)
+		fmt.Printf("\n⚠️  User '%s' already exists in MongoDB.\n", flags.Username)
+		if err := askAndStoreInVault(flags); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+
+	var privileges []string
+	if flags.Privileges != "" {
+		privileges = []string{flags.Privileges}
 	}
 
 	userCreds := &entity.Credentials{
-		Username: flags.Username,
-		Password: flags.Password,
+		Username:   flags.Username,
+		Password:   flags.Password,
+		Privileges: privileges,
 	}
 
 	fmt.Println("👤 Creating user...")
 	if err := mongoClient.CreateUser(ctx, userCreds); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
-
-	if flags.Privileges != "" {
-		fmt.Println("🔐 Granting privileges...")
-		privileges := []string{flags.Privileges}
-		if err := mongoClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
-			return fmt.Errorf("failed to grant privileges: %w", err)
-		}
+		return false, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	fmt.Printf("✅ MongoDB user '%s' created successfully!\n", flags.Username)
-	return nil
+	return true, nil
+}
+
+func askAndStoreInVault(flags *CreateUserFlags) error {
+	fmt.Print("Do you want to store credentials in Vault? (yes/no): ")
+
+	var response string
+	if _, err := fmt.Scanln(&response); err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+
+	if response != "yes" && response != "y" {
+		fmt.Println("Skipping Vault storage.")
+		return nil
+	}
+
+	if flags.VaultPath == "" {
+		fmt.Print("Enter Vault path: ")
+		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
+			return fmt.Errorf("failed to read Vault path: %w", err)
+		}
+	}
+
+	return storeCredentialsInVault(flags)
 }
 
 func storeCredentialsInVault(flags *CreateUserFlags) error {

@@ -1,20 +1,27 @@
 package database
 
 import (
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/create"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/test"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/backup"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/create"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/delete"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/list"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/test"
 )
 
 func NewDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "database",
 		Short: "Database management commands",
-		Long:  "Commands for managing database users, credentials, and testing connections",
+		Long:  "Commands for managing databases, users, credentials, backups, and testing connections",
 	}
 
-	cmd.AddCommand(create.NewCreateUserCommand())
+	cmd.AddCommand(create.NewCreateCommand())
 	cmd.AddCommand(test.NewTestUserCommand())
+	cmd.AddCommand(list.NewListCommand())
+	cmd.AddCommand(delete.NewDeleteCommand())
+	cmd.AddCommand(backup.NewBackupCommand())
 
 	return cmd
 }

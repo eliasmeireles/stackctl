@@ -1,0 +1,162 @@
+package create
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
+)
+
+type CreateSchemaFlags struct {
+	DBType        string
+	Host          string
+	Port          int
+	AdminUser     string
+	AdminPassword string
+	Database      string
+	Schema        string
+}
+
+func newCreateSchemaCommand() *cobra.Command {
+	flags := &CreateSchemaFlags{}
+
+	cmd := &cobra.Command{
+		Use:   "schema [postgres|mysql|mongodb]",
+		Short: "Create a schema in a database",
+		Long: `Create a schema in the specified database.
+
+  postgres: creates a PostgreSQL schema (namespace within a database)
+  mysql:    creates a schema (equivalent to a database in MySQL)
+  mongodb:  creates a collection (MongoDB's equivalent of a schema)`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flags.DBType = args[0]
+			return runCreateSchema(flags)
+		},
+	}
+
+	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Database host")
+	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
+	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
+	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
+	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for postgres and mongodb)")
+	cmd.Flags().StringVar(&flags.Schema, "schema", "", "Schema name to create")
+
+	_ = cmd.MarkFlagRequired("admin-user")
+	_ = cmd.MarkFlagRequired("admin-password")
+	_ = cmd.MarkFlagRequired("schema")
+
+	return cmd
+}
+
+func runCreateSchema(flags *CreateSchemaFlags) error {
+	if flags.Port == 0 {
+		switch flags.DBType {
+		case "postgres":
+			flags.Port = 5432
+		case "mysql":
+			flags.Port = 3306
+		case "mongodb":
+			flags.Port = 27017
+		default:
+			return fmt.Errorf("unsupported database type: %s", flags.DBType)
+		}
+	}
+
+	switch flags.DBType {
+	case "postgres":
+		if flags.Database == "" {
+			return fmt.Errorf("--database is required for PostgreSQL")
+		}
+		return createPostgresSchema(flags)
+	case "mysql":
+		return createMySQLSchema(flags)
+	case "mongodb":
+		if flags.Database == "" {
+			return fmt.Errorf("--database is required for MongoDB")
+		}
+		return createMongoSchema(flags)
+	default:
+		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
+	}
+}
+
+func createPostgresSchema(flags *CreateSchemaFlags) error {
+	ctx := context.Background()
+	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: flags.Database}
+
+	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	pgClient, err := client.NewPostgresClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	}
+
+	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
+	if err := pgClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() { _ = pgClient.Close() }()
+
+	fmt.Printf("📐 Creating schema '%s' in database '%s'...\n", flags.Schema, flags.Database)
+	if err := pgClient.CreateSchema(ctx, flags.Schema); err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	fmt.Printf("✅ Schema '%s' created successfully in PostgreSQL database '%s'.\n", flags.Schema, flags.Database)
+	return nil
+}
+
+func createMySQLSchema(flags *CreateSchemaFlags) error {
+	ctx := context.Background()
+	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
+
+	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	fmt.Println("ℹ️  In MySQL, schema = database. Creating a new database.")
+	mysqlClient, err := client.NewMySQLClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MySQL client: %w", err)
+	}
+
+	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
+	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() { _ = mysqlClient.Close() }()
+
+	fmt.Printf("📐 Creating schema '%s'...\n", flags.Schema)
+	if err := mysqlClient.CreateSchema(ctx, flags.Schema); err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	fmt.Printf("✅ Schema '%s' created successfully in MySQL.\n", flags.Schema)
+	return nil
+}
+
+func createMongoSchema(flags *CreateSchemaFlags) error {
+	ctx := context.Background()
+	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
+
+	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	fmt.Println("ℹ️  In MongoDB, schema = collection. Creating a new collection.")
+	mongoClient, err := client.NewMongoDBClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MongoDB client: %w", err)
+	}
+
+	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
+	if err := mongoClient.Connect(ctx, adminCreds); err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() { _ = mongoClient.Close() }()
+
+	fmt.Printf("📐 Creating collection '%s' in database '%s'...\n", flags.Schema, flags.Database)
+	if err := mongoClient.CreateSchema(ctx, flags.Schema); err != nil {
+		return fmt.Errorf("failed to create collection: %w", err)
+	}
+
+	fmt.Printf("✅ Collection '%s' created successfully in MongoDB database '%s'.\n", flags.Schema, flags.Database)
+	return nil
+}
