@@ -76,7 +76,7 @@ VAULT_CREDS_CHECK=$(exec_in_instance "${INSTANCE_NAME}" bash -c "
   export VAULT_ADDR='http://stackctl.vault.network.local'
   export VAULT_TOKEN=\$(cat /home/ubuntu/workdir/vault/keys/root-token 2>/dev/null)
   if [ -n \"\${VAULT_TOKEN}\" ]; then
-    vault kv get secret/databases/postgresql >/dev/null 2>&1 && echo 'ok' || echo 'missing'
+    vault kv get secret/databases/postgres/admin >/dev/null 2>&1 && echo 'ok' || echo 'missing'
   else
     echo 'missing'
   fi

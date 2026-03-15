@@ -6,8 +6,10 @@ source "${SCRIPT_DIR}/common.sh"
 
 INSTANCE_NAME="${1:-stackctl}"
 VOLUMES_DIR="${2:-.dev/multipass/.volumes}"
+INSTANCE_IP="${3:-$(get_instance_ip "${INSTANCE_NAME}")}"
 
 log_info "Setting up database and message broker credentials in Vault..."
+log_info "Instance IP (used as host in credentials): ${INSTANCE_IP}"
 
 if ! check_instance_running "${INSTANCE_NAME}"; then
   exit 1
@@ -30,105 +32,117 @@ exec_in_instance "${INSTANCE_NAME}" bash -c "
   echo '[OK] KV v2 secrets engine ready.'
   echo ''
 
-  echo '[INFO] Storing database credentials in Vault...'
+  # ---------------------------------------------------------------------------
+  # Admin credentials stored following stackctl --vault-login pattern.
+  # vaultlogin.Resolve() reads: username, password, host, port (case-insensitive)
+  # Paths: secret/databases/{type}/admin  |  secret/messagebrokers/{type}/admin
+  # HAProxy exposes all services on standard ports at the instance IP.
+  # ---------------------------------------------------------------------------
 
-  # PostgreSQL credentials
-  vault kv put secret/databases/postgresql \
-    host='postgres.databases.svc.cluster.local' \
-    port='5432' \
-    database='testdb' \
+  echo '[INFO] Storing PostgreSQL admin credentials...'
+  vault kv put secret/databases/postgres/admin \
     username='postgres' \
     password='postgres' \
-    connection_string='postgresql://postgres:postgres@postgres.databases.svc.cluster.local:5432/testdb'
+    host='${INSTANCE_IP}' \
+    port='5432' \
+    database='testdb'
 
-  # MySQL credentials
-  vault kv put secret/databases/mysql \
-    host='mysql.databases.svc.cluster.local' \
-    port='3306' \
-    database='testdb' \
-    root_username='root' \
-    root_password='mysql' \
-    username='mysql' \
+  echo '[INFO] Storing MySQL admin credentials...'
+  vault kv put secret/databases/mysql/admin \
+    username='root' \
     password='mysql' \
-    connection_string='mysql://mysql:mysql@mysql.databases.svc.cluster.local:3306/testdb'
+    host='${INSTANCE_IP}' \
+    port='3306' \
+    database='testdb'
 
-  # MongoDB credentials
-  vault kv put secret/databases/mongodb \
-    host='mongodb.databases.svc.cluster.local' \
-    port='27017' \
-    database='testdb' \
+  echo '[INFO] Storing MongoDB admin credentials...'
+  vault kv put secret/databases/mongodb/admin \
     username='admin' \
     password='mongodb' \
-    connection_string='mongodb://admin:mongodb@mongodb.databases.svc.cluster.local:27017/testdb'
+    host='${INSTANCE_IP}' \
+    port='27017' \
+    database='testdb'
 
-  echo '[INFO] Storing message broker credentials in Vault...'
-
-  # RabbitMQ credentials
-  vault kv put secret/messagebrokers/rabbitmq \
-    host='rabbitmq.messagebrokers.svc.cluster.local' \
-    amqp_port='5672' \
-    management_port='15672' \
+  echo '[INFO] Storing RabbitMQ admin credentials...'
+  vault kv put secret/messagebrokers/rabbitmq/admin \
     username='admin' \
     password='rabbitmq' \
-    vhost='/' \
-    amqp_url='amqp://admin:rabbitmq@rabbitmq.messagebrokers.svc.cluster.local:5672/' \
-    management_url='http://rabbitmq.messagebrokers.svc.cluster.local:15672'
+    host='${INSTANCE_IP}' \
+    port='5672'
 
-  echo '[OK] Credentials stored in Vault.'
-
+  echo '[OK] All admin credentials stored.'
   echo ''
-  echo '[INFO] Creating Vault policy for database and message broker access...'
 
-  # Create policy for database and message broker credentials
+  echo '[INFO] Creating Vault policy for stackctl CLI access...'
   vault policy write stackctl-credentials - <<EOF
-# Allow read access to database credentials
+# Allow read access to database admin credentials
 path \"secret/data/databases/*\" {
   capabilities = [\"read\", \"list\"]
 }
 
-# Allow read access to message broker credentials
+# Allow read access to message broker admin credentials
 path \"secret/data/messagebrokers/*\" {
   capabilities = [\"read\", \"list\"]
 }
 
-# Allow listing secrets
+# Allow read access to test user credentials created by stackctl
+path \"secret/data/test/*\" {
+  capabilities = [\"read\", \"list\"]
+}
+
+# Allow listing
 path \"secret/metadata/databases\" {
   capabilities = [\"list\"]
 }
-
+path \"secret/metadata/databases/*\" {
+  capabilities = [\"list\"]
+}
 path \"secret/metadata/messagebrokers\" {
+  capabilities = [\"list\"]
+}
+path \"secret/metadata/messagebrokers/*\" {
+  capabilities = [\"list\"]
+}
+path \"secret/metadata/test\" {
+  capabilities = [\"list\"]
+}
+path \"secret/metadata/test/*\" {
   capabilities = [\"list\"]
 }
 EOF
 
   echo '[OK] Policy \"stackctl-credentials\" created.'
-
   echo ''
   echo '[INFO] Verifying stored credentials...'
   echo ''
-  echo '=== PostgreSQL ==='
-  vault kv get -format=json secret/databases/postgresql | jq -r '.data.data | to_entries[] | \"  \\(.key): \\(.value)\"'
+  echo '=== PostgreSQL admin (secret/databases/postgres/admin) ==='
+  vault kv get -format=json secret/databases/postgres/admin | jq -r '.data.data | to_entries[] | \"  \(.key): \(.value)\"'
   echo ''
-  echo '=== MySQL ==='
-  vault kv get -format=json secret/databases/mysql | jq -r '.data.data | to_entries[] | \"  \\(.key): \\(.value)\"'
+  echo '=== MySQL admin (secret/databases/mysql/admin) ==='
+  vault kv get -format=json secret/databases/mysql/admin | jq -r '.data.data | to_entries[] | \"  \(.key): \(.value)\"'
   echo ''
-  echo '=== MongoDB ==='
-  vault kv get -format=json secret/databases/mongodb | jq -r '.data.data | to_entries[] | \"  \\(.key): \\(.value)\"'
+  echo '=== MongoDB admin (secret/databases/mongodb/admin) ==='
+  vault kv get -format=json secret/databases/mongodb/admin | jq -r '.data.data | to_entries[] | \"  \(.key): \(.value)\"'
   echo ''
-  echo '=== RabbitMQ ==='
-  vault kv get -format=json secret/messagebrokers/rabbitmq | jq -r '.data.data | to_entries[] | \"  \\(.key): \\(.value)\"'
+  echo '=== RabbitMQ admin (secret/messagebrokers/rabbitmq/admin) ==='
+  vault kv get -format=json secret/messagebrokers/rabbitmq/admin | jq -r '.data.data | to_entries[] | \"  \(.key): \(.value)\"'
   echo ''
 "
 
 log_ok "Credentials setup complete!"
 echo ""
-echo "Credentials stored in Vault:"
-echo "  - secret/databases/postgresql"
-echo "  - secret/databases/mysql"
-echo "  - secret/databases/mongodb"
-echo "  - secret/messagebrokers/rabbitmq"
+echo "Admin credentials stored in Vault (stackctl --vault-login paths):"
+echo "  - secret/databases/postgres/admin     host=${INSTANCE_IP}:5432  user=postgres"
+echo "  - secret/databases/mysql/admin        host=${INSTANCE_IP}:3306  user=root"
+echo "  - secret/databases/mongodb/admin      host=${INSTANCE_IP}:27017 user=admin"
+echo "  - secret/messagebrokers/rabbitmq/admin host=${INSTANCE_IP}:5672 user=admin"
 echo ""
 echo "Policy created: stackctl-credentials"
-echo "  - Read access to all database credentials"
-echo "  - Read access to all message broker credentials"
+echo "  - Read access to secret/databases/*, secret/messagebrokers/*, secret/test/*"
+echo ""
+echo "Usage examples:"
+echo "  stackctl database postgres list --vault-login secret/databases/postgres/admin"
+echo "  stackctl database mysql list --vault-login secret/databases/mysql/admin"
+echo "  stackctl database mongodb list --vault-login secret/databases/mongodb/admin"
+echo "  stackctl messagebroker rabbitmq list user --vault-login secret/messagebrokers/rabbitmq/admin"
 echo ""
