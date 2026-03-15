@@ -8,6 +8,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
 type ListSchemasFlags struct {
@@ -17,6 +18,7 @@ type ListSchemasFlags struct {
 	AdminUser     string
 	AdminPassword string
 	Database      string
+	VaultLogin    string
 }
 
 func newListSchemasCommand() *cobra.Command {
@@ -37,19 +39,26 @@ func newListSchemasCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Database host")
+	cmd.Flags().StringVar(&flags.Host, "host", "", "Database host")
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for postgres and mongodb)")
-
-	_ = cmd.MarkFlagRequired("admin-user")
-	_ = cmd.MarkFlagRequired("admin-password")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
 	return cmd
 }
 
 func runListSchemas(flags *ListSchemasFlags) error {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
+		return err
+	}
+	if flags.Host == "" {
+		flags.Host = "localhost"
+	}
 	if flags.Port == 0 {
 		switch flags.DBType {
 		case "postgres":

@@ -32,11 +32,12 @@ func TestNewCreateUserSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "password", "database", "privileges", "vault-path"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "password", "database", "privileges", "vault-path", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password", "username", "password", "database"} {
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		for _, name := range []string{"username", "password", "database"} {
 			f := c.Flags().Lookup(name)
 			require.NotNilf(t, f, "flag --%s must exist", name)
 			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
@@ -57,11 +58,12 @@ func TestNewCreateSchemaSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "schema"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "schema", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password", "schema"} {
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		for _, name := range []string{"schema"} {
 			f := c.Flags().Lookup(name)
 			require.NotNilf(t, f, "flag --%s must exist", name)
 			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]

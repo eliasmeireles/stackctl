@@ -18,11 +18,11 @@ func TestNewBackupCommand(t *testing.T) {
 func TestBackupCommand_Flags(t *testing.T) {
 	cmd := NewBackupCommand()
 
-	for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "output-dir"} {
+	for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "output-dir", "vault-login"} {
 		assert.NotNilf(t, cmd.Flags().Lookup(flag), "flag --%s should exist", flag)
 	}
 
-	assert.Equal(t, "localhost", cmd.Flags().Lookup("host").DefValue)
+	assert.Equal(t, "", cmd.Flags().Lookup("host").DefValue)
 	assert.Equal(t, ".", cmd.Flags().Lookup("output-dir").DefValue)
 	assert.Equal(t, "0", cmd.Flags().Lookup("port").DefValue)
 }
@@ -30,12 +30,11 @@ func TestBackupCommand_Flags(t *testing.T) {
 func TestBackupCommand_RequiredFlags(t *testing.T) {
 	cmd := NewBackupCommand()
 
-	for _, name := range []string{"admin-user", "admin-password", "database"} {
-		f := cmd.Flags().Lookup(name)
-		require.NotNilf(t, f, "flag --%s must exist", name)
-		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-		assert.Truef(t, required, "flag --%s should be required", name)
-	}
+	// Only database is required; admin-user/admin-password can come from --vault-login
+	f := cmd.Flags().Lookup("database")
+	require.NotNil(t, f, "flag --database must exist")
+	_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+	assert.True(t, required, "flag --database should be required")
 }
 
 func TestRunBackup_UnsupportedType(t *testing.T) {
@@ -76,8 +75,7 @@ func TestRunBackup_DefaultPorts(t *testing.T) {
 				OutputDir:     t.TempDir(),
 			}
 
-			// runBackup will fail because the tool is not installed,
-			// but port should be set before that check.
+			// runBackup will fail to connect (no server), but port must be set first.
 			_ = runBackup(flags)
 			assert.Equal(t, tt.expectedPort, flags.Port)
 		})

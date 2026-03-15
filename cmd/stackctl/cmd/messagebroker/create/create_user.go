@@ -10,6 +10,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
 type CreateUserFlags struct {
@@ -22,6 +23,7 @@ type CreateUserFlags struct {
 	Password   string
 	Tags       string
 	VaultPath  string
+	VaultLogin string
 }
 
 func NewCreateUserCommand() *cobra.Command {
@@ -38,7 +40,7 @@ func NewCreateUserCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Message broker host")
+	cmd.Flags().StringVar(&flags.Host, "host", "", "Message broker host")
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Message broker port (default: 5672 for RabbitMQ)")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPass, "admin-password", "", "Admin password")
@@ -46,9 +48,8 @@ func NewCreateUserCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Password, "password", "", "Password for the user")
 	cmd.Flags().StringVar(&flags.Tags, "tags", "", "User tags (e.g., 'administrator,management')")
 	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
-	_ = cmd.MarkFlagRequired("admin-user")
-	_ = cmd.MarkFlagRequired("admin-password")
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
 
@@ -56,6 +57,15 @@ func NewCreateUserCommand() *cobra.Command {
 }
 
 func runCreateUser(flags *CreateUserFlags) error {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPass, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPass); err != nil {
+		return err
+	}
+	if flags.Host == "" {
+		flags.Host = "localhost"
+	}
 	if flags.BrokerType != "rabbitmq" {
 		return fmt.Errorf("unsupported message broker type: %s (only 'rabbitmq' is supported)", flags.BrokerType)
 	}

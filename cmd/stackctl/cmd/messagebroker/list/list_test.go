@@ -31,16 +31,13 @@ func TestListUserSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		f := c.Flags().Lookup("vault-login")
+		require.NotNil(t, f, "flag --vault-login must exist")
 	}
 
 	assert.True(t, found, "user subcommand must exist")

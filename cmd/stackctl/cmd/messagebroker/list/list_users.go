@@ -8,6 +8,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
 type ListUsersFlags struct {
@@ -15,6 +16,7 @@ type ListUsersFlags struct {
 	Port          int
 	AdminUser     string
 	AdminPassword string
+	VaultLogin    string
 }
 
 func NewListCommand() *cobra.Command {
@@ -45,18 +47,25 @@ func newListUsersCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Broker host")
+	cmd.Flags().StringVar(&flags.Host, "host", "", "Broker host")
 	cmd.Flags().IntVar(&flags.Port, "port", 5672, "Broker AMQP port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-
-	_ = cmd.MarkFlagRequired("admin-user")
-	_ = cmd.MarkFlagRequired("admin-password")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
 	return cmd
 }
 
 func runListRabbitMQUsers(flags *ListUsersFlags) error {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
+		return err
+	}
+	if flags.Host == "" {
+		flags.Host = "localhost"
+	}
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Host: flags.Host, Port: flags.Port}
 

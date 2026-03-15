@@ -33,16 +33,15 @@ func TestDeleteDatabaseSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "force"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "force", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password", "database"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		f := c.Flags().Lookup("database")
+		require.NotNil(t, f, "flag --database must exist")
+		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		assert.True(t, required, "flag --database should be required")
 
 		forceFlag := c.Flags().Lookup("force")
 		require.NotNil(t, forceFlag)
@@ -62,16 +61,15 @@ func TestDeleteUserSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "database", "force"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "database", "force", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password", "username"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		f := c.Flags().Lookup("username")
+		require.NotNil(t, f, "flag --username must exist")
+		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		assert.True(t, required, "flag --username should be required")
 	}
 
 	assert.True(t, found, "user subcommand must exist")
@@ -87,16 +85,15 @@ func TestDeleteSchemaSubcommand(t *testing.T) {
 		}
 		found = true
 
-		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "schema", "cascade", "force"} {
+		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "schema", "cascade", "force", "vault-login"} {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"admin-user", "admin-password", "schema"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		// admin-user and admin-password are no longer required (vault-login is an alternative)
+		f := c.Flags().Lookup("schema")
+		require.NotNil(t, f, "flag --schema must exist")
+		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		assert.True(t, required, "flag --schema should be required")
 
 		cascadeFlag := c.Flags().Lookup("cascade")
 		require.NotNil(t, cascadeFlag)

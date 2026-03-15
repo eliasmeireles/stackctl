@@ -9,6 +9,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
 type CreateUserFlags struct {
@@ -22,6 +23,7 @@ type CreateUserFlags struct {
 	Database      string
 	Privileges    string
 	VaultPath     string
+	VaultLogin    string
 }
 
 func NewCreateCommand() *cobra.Command {
@@ -54,7 +56,7 @@ This command:
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Database host")
+	cmd.Flags().StringVar(&flags.Host, "host", "", "Database host")
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
@@ -63,9 +65,8 @@ This command:
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name")
 	cmd.Flags().StringVar(&flags.Privileges, "privileges", "", "Privileges to grant (e.g., 'SELECT,INSERT,UPDATE,DELETE' or 'readWrite')")
 	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
-	_ = cmd.MarkFlagRequired("admin-user")
-	_ = cmd.MarkFlagRequired("admin-password")
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
 	_ = cmd.MarkFlagRequired("database")
@@ -74,6 +75,15 @@ This command:
 }
 
 func runCreateUser(flags *CreateUserFlags) error {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
+		return err
+	}
+	if flags.Host == "" {
+		flags.Host = "localhost"
+	}
 	fmt.Printf("Creating %s user...\n", flags.DBType)
 	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
 	fmt.Printf("  Admin: %s\n", flags.AdminUser)

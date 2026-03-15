@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
 type BackupFlags struct {
@@ -16,6 +18,7 @@ type BackupFlags struct {
 	AdminPassword string
 	Database      string
 	OutputDir     string
+	VaultLogin    string
 }
 
 func NewBackupCommand() *cobra.Command {
@@ -39,21 +42,29 @@ The backup is saved to --output-dir with a timestamp-based filename.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.Host, "host", "localhost", "Database host")
+	cmd.Flags().StringVar(&flags.Host, "host", "", "Database host")
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to backup")
 	cmd.Flags().StringVar(&flags.OutputDir, "output-dir", ".", "Directory to save the backup file")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
-	_ = cmd.MarkFlagRequired("admin-user")
-	_ = cmd.MarkFlagRequired("admin-password")
 	_ = cmd.MarkFlagRequired("database")
 
 	return cmd
 }
 
 func runBackup(flags *BackupFlags) error {
+	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+		return err
+	}
+	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
+		return err
+	}
+	if flags.Host == "" {
+		flags.Host = "localhost"
+	}
 	if flags.Port == 0 {
 		switch flags.DBType {
 		case "postgres":
