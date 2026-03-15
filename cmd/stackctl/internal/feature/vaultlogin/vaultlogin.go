@@ -18,20 +18,21 @@ type Credentials struct {
 
 // load reads a Vault secret at the given path and extracts USERNAME, PASSWORD,
 // HOST and PORT fields (case-insensitive key matching).
-func load(path string) (*Credentials, error) {
+// Returns the populated Credentials, the raw data map (for diagnostics), and any error.
+func load(path string) (*Credentials, map[string]interface{}, error) {
 	cfg, err := envvault.ConfigFromEnvForReadOnly()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load Vault config: %w", err)
+		return nil, nil, fmt.Errorf("failed to load Vault config: %w", err)
 	}
 
 	vaultClient := envvault.NewClient(cfg)
 	if err := vaultClient.Authenticate(); err != nil {
-		return nil, fmt.Errorf("vault authentication failed: %w", err)
+		return nil, nil, fmt.Errorf("vault authentication failed: %w", err)
 	}
 
 	data, err := vaultClient.ReadSecret(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read Vault secret at %s: %w", path, err)
+		return nil, nil, fmt.Errorf("failed to read Vault secret at %s: %w", path, err)
 	}
 
 	creds := &Credentials{}
@@ -54,7 +55,7 @@ func load(path string) (*Credentials, error) {
 		}
 	}
 
-	return creds, nil
+	return creds, data, nil
 }
 
 // Apply fills any empty fields from vault creds.
@@ -83,9 +84,16 @@ func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *in
 	}
 
 	fmt.Printf("🔑 Loading credentials from Vault: %s\n", vaultLogin)
-	creds, err := load(vaultLogin)
+	creds, rawData, err := load(vaultLogin)
 	if err != nil {
 		return fmt.Errorf("--vault-login: %w", err)
+	}
+	if creds.Username == "" && creds.Password == "" {
+		keys := make([]string, 0, len(rawData))
+		for k := range rawData {
+			keys = append(keys, k)
+		}
+		return fmt.Errorf("--vault-login: secret at %q was found but contains no USERNAME or PASSWORD fields (available keys: %v)", vaultLogin, keys)
 	}
 	Apply(creds, adminUser, adminPassword, host, port)
 	return nil
