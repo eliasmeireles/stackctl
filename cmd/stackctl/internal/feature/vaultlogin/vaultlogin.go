@@ -30,7 +30,7 @@ func load(path string) (*Credentials, map[string]interface{}, error) {
 		return nil, nil, fmt.Errorf("vault authentication failed: %w", err)
 	}
 
-	data, err := vaultClient.ReadSecret(path)
+	data, err := vaultClient.ReadSecret(kvv2Path(path))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read Vault secret at %s: %w", path, err)
 	}
@@ -97,6 +97,21 @@ func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *in
 	}
 	Apply(creds, adminUser, adminPassword, host, port)
 	return nil
+}
+
+// kvv2Path converts a KV path like "secret/foo/bar" into the KV v2 data path
+// "secret/data/foo/bar" expected by the Vault HTTP API. Paths that already
+// contain "/data/" after the first segment are returned unchanged.
+func kvv2Path(path string) string {
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 {
+		return path
+	}
+	mount, rest := parts[0], parts[1]
+	if strings.HasPrefix(rest, "data/") {
+		return path
+	}
+	return mount + "/data/" + rest
 }
 
 // ValidateAdminCreds returns a clear error when admin credentials are still

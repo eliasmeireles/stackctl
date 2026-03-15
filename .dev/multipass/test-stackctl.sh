@@ -64,12 +64,14 @@ fi
 echo ""
 echo "[3/9] Testing service connectivity (via HAProxy standard ports)..."
 
-for svc_name svc_port in \
-  "PostgreSQL" "5432" \
-  "MySQL"      "3306" \
-  "MongoDB"    "27017" \
-  "RabbitMQ-AMQP" "5672" \
-  "RabbitMQ-Mgmt" "15672"; do
+for svc_entry in \
+  "PostgreSQL:5432" \
+  "MySQL:3306" \
+  "MongoDB:27017" \
+  "RabbitMQ-AMQP:5672" \
+  "RabbitMQ-Mgmt:15672"; do
+  svc_name="${svc_entry%%:*}"
+  svc_port="${svc_entry##*:}"
   if nc -z -w5 localhost "${svc_port}" 2>/dev/null; then
     test_result "${svc_name} (localhost:${svc_port}) accessible" 0
   else

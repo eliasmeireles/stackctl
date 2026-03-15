@@ -204,7 +204,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 		data["tags"] = flags.Tags
 	}
 
-	if err := vaultClient.WriteSecret(flags.VaultPath, data); err != nil {
+	if err := vaultClient.WriteSecret(kvv2DataPath(flags.VaultPath), data); err != nil {
 		return fmt.Errorf("failed to write secret to Vault: %w", err)
 	}
 
@@ -221,4 +221,17 @@ func getVaultConfig() (envvault.Config, error) {
 
 func newEnvVaultClient(cfg envvault.Config) *envvault.Client {
 	return envvault.NewClient(cfg)
+}
+
+// kvv2DataPath converts "mount/path" to "mount/data/path" for KV v2 writes.
+func kvv2DataPath(path string) string {
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 {
+		return path
+	}
+	mount, rest := parts[0], parts[1]
+	if strings.HasPrefix(rest, "data/") {
+		return path
+	}
+	return mount + "/data/" + rest
 }

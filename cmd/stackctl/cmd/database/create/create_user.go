@@ -3,6 +3,7 @@ package create
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/eliasmeireles/envvault"
 	"github.com/spf13/cobra"
@@ -141,10 +142,12 @@ func createPostgresUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
-		Type:     entity.PostgreSQL,
-		Host:     flags.Host,
-		Port:     flags.Port,
-		Database: "postgres",
+		Type:      entity.PostgreSQL,
+		Host:      flags.Host,
+		Port:      flags.Port,
+		Database:  "postgres",
+		AdminUser: flags.AdminUser,
+		AdminPass: flags.AdminPassword,
 	}
 
 	adminCreds := &entity.Credentials{
@@ -229,10 +232,12 @@ func createMySQLUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
-		Type:     entity.MySQL,
-		Host:     flags.Host,
-		Port:     flags.Port,
-		Database: flags.Database,
+		Type:      entity.MySQL,
+		Host:      flags.Host,
+		Port:      flags.Port,
+		Database:  flags.Database,
+		AdminUser: flags.AdminUser,
+		AdminPass: flags.AdminPassword,
 	}
 
 	adminCreds := &entity.Credentials{
@@ -301,10 +306,13 @@ func createMySQLUser(flags *CreateUserFlags) (bool, error) {
 		return false, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	if flags.Privileges != "" {
+	privList := flags.Privileges
+	if privList == "" && flags.Database != "" {
+		privList = "write"
+	}
+	if privList != "" {
 		fmt.Println("🔐 Granting privileges...")
-		privileges := []string{flags.Privileges}
-		if err := mysqlClient.GrantPrivileges(ctx, flags.Username, privileges); err != nil {
+		if err := mysqlClient.GrantPrivileges(ctx, flags.Username, []string{privList}); err != nil {
 			return false, fmt.Errorf("failed to grant privileges: %w", err)
 		}
 	}
@@ -317,10 +325,12 @@ func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 	ctx := context.Background()
 
 	config := &entity.DatabaseConfig{
-		Type:     entity.MongoDB,
-		Host:     flags.Host,
-		Port:     flags.Port,
-		Database: flags.Database,
+		Type:      entity.MongoDB,
+		Host:      flags.Host,
+		Port:      flags.Port,
+		Database:  flags.Database,
+		AdminUser: flags.AdminUser,
+		AdminPass: flags.AdminPassword,
 	}
 
 	adminCreds := &entity.Credentials{
@@ -341,30 +351,8 @@ func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 		_ = mongoClient.Close()
 	}()
 
-	fmt.Println("🔍 Checking if database exists...")
-	dbExists, err := mongoClient.DatabaseExists(ctx, flags.Database)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if database exists: %w", err)
-	}
-
-	if !dbExists {
-		fmt.Printf("\n⚠️  Database '%s' does not exist.\n", flags.Database)
-		fmt.Print("Do you want to create it? (yes/no): ")
-
-		var response string
-		if _, err := fmt.Scanln(&response); err != nil {
-			return false, fmt.Errorf("failed to read user input: %w", err)
-		}
-
-		if response != "yes" && response != "y" {
-			return false, fmt.Errorf("database '%s' does not exist and user declined to create it", flags.Database)
-		}
-
-		fmt.Printf("✨ Creating database '%s'...\n", flags.Database)
-		if err := mongoClient.CreateDatabase(ctx, flags.Database); err != nil {
-			return false, fmt.Errorf("failed to create database: %w", err)
-		}
-	}
+	// MongoDB creates databases lazily — skip the existence check and proceed.
+	// The createUser command will target the specified database directly.
 
 	exists, err := mongoClient.UserExists(ctx, flags.Username)
 	if err != nil {
@@ -379,15 +367,15 @@ func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 		return false, nil
 	}
 
-	var privileges []string
-	if flags.Privileges != "" {
-		privileges = []string{flags.Privileges}
+	privStr := flags.Privileges
+	if privStr == "" {
+		privStr = "readWrite"
 	}
 
 	userCreds := &entity.Credentials{
 		Username:   flags.Username,
 		Password:   flags.Password,
-		Privileges: privileges,
+		Privileges: []string{privStr},
 	}
 
 	fmt.Println("👤 Creating user...")
@@ -441,7 +429,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 		"port":     flags.Port,
 	}
 
-	if err := vaultClient.WriteSecret(flags.VaultPath, data); err != nil {
+	if err := vaultClient.WriteSecret(kvv2DataPath(flags.VaultPath), data); err != nil {
 		return fmt.Errorf("failed to write secret to Vault: %w", err)
 	}
 
@@ -478,4 +466,17 @@ func getVaultConfig() (envvault.Config, error) {
 
 func newEnvVaultClient(cfg envvault.Config) *envvault.Client {
 	return envvault.NewClient(cfg)
+}
+
+// kvv2DataPath converts "mount/path" to "mount/data/path" for KV v2 writes.
+func kvv2DataPath(path string) string {
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 {
+		return path
+	}
+	mount, rest := parts[0], parts[1]
+	if strings.HasPrefix(rest, "data/") {
+		return path
+	}
+	return mount + "/data/" + rest
 }
