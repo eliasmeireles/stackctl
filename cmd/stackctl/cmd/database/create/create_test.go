@@ -36,12 +36,12 @@ func TestNewCreateUserSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		for _, name := range []string{"username", "password", "database"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		// Only username is required; password and database are optional (password
+		// supports auto-generation, database supports interactive selection).
+		f := c.Flags().Lookup("username")
+		require.NotNil(t, f, "flag --username must exist")
+		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		assert.True(t, required, "flag --username should be required")
 	}
 
 	assert.True(t, found, "user subcommand must exist")

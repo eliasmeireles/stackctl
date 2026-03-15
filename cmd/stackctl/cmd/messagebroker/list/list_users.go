@@ -9,6 +9,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type ListUsersFlags struct {
@@ -68,7 +69,9 @@ func runListRabbitMQUsers(flags *ListUsersFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Host: flags.Host, Port: flags.Port}
 
-	fmt.Printf("📡 Connecting to RabbitMQ at %s:%d...\n", flags.Host, flags.Port)
+	if !output.IsStructured() {
+		fmt.Printf("📡 Connecting to RabbitMQ at %s:%d...\n", flags.Host, flags.Port)
+	}
 	rabbitClient, err := client.NewRabbitMQClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
@@ -85,18 +88,14 @@ func runListRabbitMQUsers(flags *ListUsersFlags) error {
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 
-	printUsers(flags.Host, flags.Port, users)
-	return nil
-}
-
-func printUsers(host string, port int, users []entity.UserInfo) {
-	fmt.Printf("\n👥 Users on RabbitMQ (%s:%d):\n", host, port)
-	if len(users) == 0 {
-		fmt.Println("  (no users found)")
-		return
-	}
+	items := make([]output.ListItem, len(users))
 	for i, u := range users {
-		fmt.Printf("  %d. %s  [%s]\n", i+1, u.Name, u.PermissionsString())
+		items[i] = output.NewItem("name", u.Name, "tags", u.PermissionsString())
 	}
-	fmt.Printf("\nTotal: %d user(s)\n", len(users))
+	title := fmt.Sprintf("\n👥 Users on RabbitMQ (%s:%d):", flags.Host, flags.Port)
+	if output.IsStructured() {
+		title = ""
+	}
+	output.PrintList(title, []string{"NAME", "TAGS"}, items)
+	return nil
 }

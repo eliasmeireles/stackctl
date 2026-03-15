@@ -16,17 +16,27 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/delete"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/get"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/update"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 var (
-	Version     = "dev"
-	showVersion bool
+	Version      = "dev"
+	showVersion  bool
+	outputFormat string
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "stackctl",
 	Short: "OAuth API CLI tool",
 	Long:  `A CLI tool for managing OAuth API resources, kubeconfigs, and NetBird integration.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		f, err := output.ParseFormat(outputFormat)
+		if err != nil {
+			return err
+		}
+		output.Set(f)
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if showVersion {
 			fmt.Printf("stackctl version %s\n", Version)
@@ -57,6 +67,9 @@ func init() {
 
 	// Add version flags
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
+
+	// Output format flag (global, inherited by all subcommands)
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "Output format: table, json, yaml")
 
 	// Register subcommands
 	rootCmd.AddCommand(generate.NewCommand())

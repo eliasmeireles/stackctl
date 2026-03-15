@@ -10,6 +10,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 // ListFlags holds all flags for the unified list command.
@@ -110,7 +111,9 @@ func runListMongoDB(flags *ListFlags) error {
 		Database: "admin",
 	}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	if !output.IsStructured() {
+		fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	}
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -154,7 +157,9 @@ func runListPostgres(flags *ListFlags) error {
 		Database: "postgres",
 	}
 
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	if !output.IsStructured() {
+		fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	}
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
@@ -206,7 +211,9 @@ func runListMySQL(flags *ListFlags) error {
 		Database: "",
 	}
 
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	if !output.IsStructured() {
+		fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	}
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MySQL client: %w", err)
@@ -238,35 +245,26 @@ func runListMySQL(flags *ListFlags) error {
 }
 
 func printDatabases(dbType, host string, port int, databases []string) {
-	fmt.Printf("\n📋 Databases on %s (%s:%d):\n", dbType, host, port)
-	if len(databases) == 0 {
-		fmt.Println("  (no databases found)")
-		return
-	}
+	items := make([]output.ListItem, len(databases))
 	for i, db := range databases {
-		fmt.Printf("  %d. %s\n", i+1, db)
+		items[i] = output.NewItem("name", db)
 	}
-	fmt.Printf("\nTotal: %d database(s)\n", len(databases))
+	title := fmt.Sprintf("\n📋 Databases on %s (%s:%d):", dbType, host, port)
+	if output.IsStructured() {
+		title = ""
+	}
+	output.PrintList(title, []string{"NAME"}, items)
 }
 
 func printMongoDBDatabasesWithCollections(host string, port int, databases []string, getCollections func(string) []string) {
-	fmt.Printf("\n📋 Databases on MongoDB (%s:%d):\n", host, port)
-	if len(databases) == 0 {
-		fmt.Println("  (no databases found)")
-		return
-	}
+	items := make([]output.ListItem, len(databases))
 	for i, db := range databases {
-		fmt.Printf("  %d. %s\n", i+1, db)
 		cols := getCollections(db)
-		if len(cols) == 0 {
-			fmt.Println("     📐 (no collections)")
-		} else {
-			fmt.Printf("     📐 Collections: %s\n", joinStrings(cols))
-		}
+		items[i] = output.NewItem("name", db, "collections", strings.Join(cols, ", "))
 	}
-	fmt.Printf("\nTotal: %d database(s)\n", len(databases))
-}
-
-func joinStrings(ss []string) string {
-	return strings.Join(ss, ", ")
+	title := fmt.Sprintf("\n📋 Databases on MongoDB (%s:%d):", host, port)
+	if output.IsStructured() {
+		title = ""
+	}
+	output.PrintList(title, []string{"NAME", "COLLECTIONS"}, items)
 }

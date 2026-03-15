@@ -1,15 +1,19 @@
 package list
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
+)
 
 func printSchemas(dbType, dbContext string, schemas []string) {
-	fmt.Printf("\n📐 Schemas in %s (%s):\n", dbType, dbContext)
-	if len(schemas) == 0 {
-		fmt.Println("  (no schemas found)")
-		return
-	}
+	items := make([]output.ListItem, len(schemas))
 	for i, s := range schemas {
-		fmt.Printf("  %d. %s\n", i+1, s)
+		items[i] = output.NewItem("name", s)
 	}
-	fmt.Printf("\nTotal: %d schema(s)\n", len(schemas))
+	title := fmt.Sprintf("\n📐 Schemas in %s (%s):", dbType, dbContext)
+	if output.IsStructured() {
+		title = ""
+	}
+	output.PrintList(title, []string{"NAME"}, items)
 }

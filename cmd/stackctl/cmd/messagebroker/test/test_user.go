@@ -9,6 +9,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type TestUserFlags struct {
@@ -52,18 +53,24 @@ func runTestUser(flags *TestUserFlags) error {
 		flags.Port = 5672
 	}
 
-	fmt.Printf("🐰 Testing RabbitMQ user credentials...\n")
-	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
-	fmt.Printf("  Username: %s\n", flags.Username)
+	if !output.IsStructured() {
+		fmt.Printf("🐰 Testing RabbitMQ user credentials...\n")
+		fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
+		fmt.Printf("  Username: %s\n", flags.Username)
+	}
 
 	if flags.VaultPath != "" {
-		fmt.Printf("\n💾 Retrieving credentials from Vault at: %s\n", flags.VaultPath)
+		if !output.IsStructured() {
+			fmt.Printf("\n💾 Retrieving credentials from Vault at: %s\n", flags.VaultPath)
+		}
 		password, err := getPasswordFromVault(flags.VaultPath)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve credentials from Vault: %w", err)
 		}
 		flags.Password = password
-		fmt.Println("✅ Credentials retrieved from Vault successfully!")
+		if !output.IsStructured() {
+			fmt.Println("✅ Credentials retrieved from Vault successfully!")
+		}
 	}
 
 	if flags.Password == "" {
@@ -72,43 +79,41 @@ func runTestUser(flags *TestUserFlags) error {
 
 	ctx := context.Background()
 
-	config := &entity.DatabaseConfig{
-		Host: flags.Host,
-		Port: flags.Port,
-	}
+	config := &entity.DatabaseConfig{Host: flags.Host, Port: flags.Port}
+	testCreds := &entity.Credentials{Username: flags.Username, Password: flags.Password}
 
-	testCreds := &entity.Credentials{
-		Username: flags.Username,
-		Password: flags.Password,
+	if !output.IsStructured() {
+		fmt.Println("\n📡 Connecting to RabbitMQ...")
 	}
-
-	fmt.Println("\n📡 Connecting to RabbitMQ...")
 	rabbitClient, err := client.NewRabbitMQClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
 	}
 
 	if err := rabbitClient.Connect(ctx, testCreds); err != nil {
-		fmt.Printf("\n❌ Connection failed: %v\n", err)
+		output.PrintStatus(output.StatusResult{
+			Success: false,
+			Message: fmt.Sprintf("Connection failed: %v", err),
+			Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username),
+		})
 		return fmt.Errorf("authentication failed - invalid credentials")
 	}
-	defer func() {
-		_ = rabbitClient.Close()
-	}()
-
-	fmt.Println("✅ Connection successful!")
+	defer func() { _ = rabbitClient.Close() }()
 
 	exists, err := rabbitClient.UserExists(ctx, flags.Username)
 	if err != nil {
 		return fmt.Errorf("failed to verify user: %w", err)
 	}
 
+	msg := fmt.Sprintf("User '%s' verified successfully", flags.Username)
 	if !exists {
-		fmt.Printf("\n⚠️  Warning: User '%s' exists but may have limited permissions\n", flags.Username)
-	} else {
-		fmt.Printf("\n✅ User '%s' verified successfully!\n", flags.Username)
+		msg = fmt.Sprintf("User '%s' connected but may have limited permissions", flags.Username)
 	}
-
+	output.PrintStatus(output.StatusResult{
+		Success: true,
+		Message: msg,
+		Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username),
+	})
 	return nil
 }
 

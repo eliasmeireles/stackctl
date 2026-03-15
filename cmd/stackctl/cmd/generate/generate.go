@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/generator"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 const fallbackDir = ".stackctl"
@@ -87,6 +88,10 @@ func generateUsername(length int) (string, error) {
 }
 
 func printAndCopy(label, value string) error {
+	if output.IsStructured() {
+		output.PrintValue(label, value)
+		return nil
+	}
 	if err := copyToClipboard(value); err != nil {
 		fmt.Printf("⚠️  Could not copy to clipboard: %v\n", err)
 		path, saveErr := saveToFile(label, value)
