@@ -5,13 +5,19 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/generator"
 )
+
+const fallbackDir = ".stackctl"
+const fallbackFile = "pass"
 
 const (
 	defaultPasswordLength = 24
@@ -82,12 +88,42 @@ func generateUsername(length int) (string, error) {
 
 func printAndCopy(label, value string) error {
 	if err := copyToClipboard(value); err != nil {
-		fmt.Printf("⚠️  Could not copy %s to clipboard: %v\n", label, err)
+		fmt.Printf("⚠️  Could not copy to clipboard: %v\n", err)
+		path, saveErr := saveToFile(label, value)
+		if saveErr != nil {
+			return fmt.Errorf("also failed to save to file: %w", saveErr)
+		}
+		fmt.Printf("💾 %s saved to: %s\n", label, path)
 		return nil
 	}
 
 	fmt.Printf("✅ %s generated and copied to clipboard.\n", label)
 	return nil
+}
+
+func saveToFile(label, value string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not determine home directory: %w", err)
+	}
+
+	dir := filepath.Join(home, fallbackDir)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", fmt.Errorf("could not create directory %s: %w", dir, err)
+	}
+
+	path := filepath.Join(dir, fallbackFile)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return "", fmt.Errorf("could not open file %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	entry := fmt.Sprintf("[%s] %s: %s\n", time.Now().Format("2006-01-02 15:04:05"), label, value)
+	if _, err := f.WriteString(entry); err != nil {
+		return "", fmt.Errorf("could not write to file: %w", err)
+	}
+	return path, nil
 }
 
 func copyToClipboard(value string) error {
