@@ -19,8 +19,7 @@ type CreateSchemaFlags struct {
 	AdminPassword string
 	Database      string
 	Schema        string
-	VaultLogin     string
-	VaultFixedPath string
+	VaultLogin string
 }
 
 func newCreateSchemaCommand() *cobra.Command {
@@ -48,7 +47,6 @@ func newCreateSchemaCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for postgres and mongodb)")
 	cmd.Flags().StringVar(&flags.Schema, "schema", "", "Schema name to create")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
-	cmd.Flags().StringVar(&flags.VaultFixedPath, "vault-fixed-path", "", "Vault path used as-is (no prefix added) to load admin credentials")
 
 	_ = cmd.MarkFlagRequired("schema")
 
@@ -57,9 +55,6 @@ func newCreateSchemaCommand() *cobra.Command {
 
 func runCreateSchema(flags *CreateSchemaFlags) error {
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
-		return err
-	}
-	if err := vaultlogin.ResolveFixed(flags.VaultFixedPath, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
 	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {

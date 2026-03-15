@@ -22,9 +22,8 @@ type CreateUserFlags struct {
 	Username   string
 	Password   string
 	Tags       string
-	VaultPath      string
-	VaultLogin     string
-	VaultFixedPath string
+	VaultPath  string
+	VaultLogin string
 }
 
 func NewCreateUserCommand() *cobra.Command {
@@ -50,7 +49,6 @@ func NewCreateUserCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.Tags, "tags", "", "User tags (e.g., 'administrator,management')")
 	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
-	cmd.Flags().StringVar(&flags.VaultFixedPath, "vault-fixed-path", "", "Vault path used as-is (no prefix added) to load admin credentials")
 
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
@@ -60,9 +58,6 @@ func NewCreateUserCommand() *cobra.Command {
 
 func runCreateUser(flags *CreateUserFlags) error {
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPass, &flags.Host, &flags.Port); err != nil {
-		return err
-	}
-	if err := vaultlogin.ResolveFixed(flags.VaultFixedPath, &flags.AdminUser, &flags.AdminPass, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
 	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPass); err != nil {
