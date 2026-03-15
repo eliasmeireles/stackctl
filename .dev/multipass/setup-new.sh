@@ -72,6 +72,10 @@ secrets:
       size: 25
 EOF
 
+# Copy test script into .volumes so it's accessible inside the VM at /home/ubuntu/workdir/test-stackctl.sh
+cp "${SCRIPT_DIR}/test-stackctl.sh" "${VOLUMES_DIR}/test-stackctl.sh"
+chmod +x "${VOLUMES_DIR}/test-stackctl.sh"
+
 VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
 ROOT_TOKEN="$(cat "${VOLUMES_ABS}/vault/keys/root-token" 2>/dev/null || echo '<see root-token file>')"
 
