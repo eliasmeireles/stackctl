@@ -92,6 +92,9 @@ func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *in
 	if vaultLogin == "" {
 		return nil
 	}
+	if strings.HasPrefix(vaultLogin, "-") {
+		return fmt.Errorf("invalid --vault-login value %q: expected a vault path, not a flag name (did you forget to provide the path?)", vaultLogin)
+	}
 	path := NormalizePath(vaultLogin)
 	fmt.Printf("🔑 Loading credentials from Vault: %s\n", path)
 	creds, err := load(path)
@@ -108,6 +111,9 @@ func Resolve(vaultLogin string, adminUser, adminPassword, host *string, port *in
 func ResolveFixed(vaultFixedPath string, adminUser, adminPassword, host *string, port *int) error {
 	if vaultFixedPath == "" {
 		return nil
+	}
+	if strings.HasPrefix(vaultFixedPath, "-") {
+		return fmt.Errorf("invalid --vault-fixed-path value %q: expected a vault path, not a flag name (did you forget to provide the path?)", vaultFixedPath)
 	}
 	fmt.Printf("🔑 Loading credentials from Vault: %s\n", vaultFixedPath)
 	creds, err := load(vaultFixedPath)
