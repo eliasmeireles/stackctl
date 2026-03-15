@@ -25,11 +25,11 @@ type ListFlags struct {
 	ListSchemas   bool
 }
 
-func NewListCommand() *cobra.Command {
-	flags := &ListFlags{}
+func NewListCommand(dbType string) *cobra.Command {
+	flags := &ListFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "list [postgres|mysql|mongodb]",
+		Use:   "list",
 		Short: "List databases, users and/or schemas",
 		Long: `List databases, users and/or schemas on the specified database server.
 
@@ -37,14 +37,12 @@ When no target flag is provided, databases and users are listed by default.
 Use --schemas together with --database to also list schemas/collections.
 
 Examples:
-  stackctl database list mongodb                                   # databases + users (default)
-  stackctl database list mongodb --dbs                             # databases only
-  stackctl database list postgres --users                          # users only
-  stackctl database list mysql --dbs --users --schemas             # everything (mysql needs no --database for schemas)
-  stackctl database list mongodb --schemas --database mydb         # collections in mydb`,
-		Args: cobra.ExactArgs(1),
+  stackctl database mongodb list                             # databases + users (default)
+  stackctl database mongodb list --dbs                       # databases only
+  stackctl database postgres list --users                    # users only
+  stackctl database mysql list --dbs --users --schemas       # everything
+  stackctl database mongodb list --schemas --database mydb   # collections in mydb`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			// default: list databases and users when no target is specified
 			// (schemas are excluded from the default because they require --database)
 			if !flags.ListDbs && !flags.ListUsers && !flags.ListSchemas {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewDeleteCommand(t *testing.T) {
-	cmd := NewDeleteCommand()
+	cmd := NewDeleteCommand("mongodb")
 
 	assert.Equal(t, "delete", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
@@ -24,7 +24,7 @@ func TestNewDeleteCommand(t *testing.T) {
 }
 
 func TestDeleteDatabaseSubcommand(t *testing.T) {
-	cmd := NewDeleteCommand()
+	cmd := NewDeleteCommand("postgres")
 
 	var found bool
 	for _, c := range cmd.Commands() {
@@ -37,7 +37,6 @@ func TestDeleteDatabaseSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		// admin-user and admin-password are no longer required (vault-login is an alternative)
 		f := c.Flags().Lookup("database")
 		require.NotNil(t, f, "flag --database must exist")
 		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
@@ -52,7 +51,7 @@ func TestDeleteDatabaseSubcommand(t *testing.T) {
 }
 
 func TestDeleteUserSubcommand(t *testing.T) {
-	cmd := NewDeleteCommand()
+	cmd := NewDeleteCommand("mysql")
 
 	var found bool
 	for _, c := range cmd.Commands() {
@@ -65,7 +64,6 @@ func TestDeleteUserSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		// admin-user and admin-password are no longer required (vault-login is an alternative)
 		f := c.Flags().Lookup("username")
 		require.NotNil(t, f, "flag --username must exist")
 		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
@@ -76,7 +74,7 @@ func TestDeleteUserSubcommand(t *testing.T) {
 }
 
 func TestDeleteSchemaSubcommand(t *testing.T) {
-	cmd := NewDeleteCommand()
+	cmd := NewDeleteCommand("mongodb")
 
 	var found bool
 	for _, c := range cmd.Commands() {
@@ -89,7 +87,6 @@ func TestDeleteSchemaSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		// admin-user and admin-password are no longer required (vault-login is an alternative)
 		f := c.Flags().Lookup("schema")
 		require.NotNil(t, f, "flag --schema must exist")
 		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]

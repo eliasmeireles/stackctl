@@ -21,11 +21,11 @@ type BackupFlags struct {
 	VaultLogin string
 }
 
-func NewBackupCommand() *cobra.Command {
-	flags := &BackupFlags{}
+func NewBackupCommand(dbType string) *cobra.Command {
+	flags := &BackupFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "backup [postgres|mysql|mongodb]",
+		Use:   "backup",
 		Short: "Generate a database backup",
 		Long: `Generate a backup of a database directly via the database driver — no external tools required.
 
@@ -35,9 +35,7 @@ Supported databases:
   - mongodb:  exports each collection as a JSON file
 
 The backup is saved to --output-dir with a timestamp-based filename.`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runBackup(flags)
 		},
 	}

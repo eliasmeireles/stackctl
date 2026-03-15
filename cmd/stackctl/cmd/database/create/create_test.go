@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewCreateCommand(t *testing.T) {
-	cmd := NewCreateCommand()
+	cmd := NewCreateCommand("mongodb")
 
 	assert.Equal(t, "create", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
@@ -23,7 +23,7 @@ func TestNewCreateCommand(t *testing.T) {
 }
 
 func TestNewCreateUserSubcommand(t *testing.T) {
-	cmd := NewCreateCommand()
+	cmd := NewCreateCommand("postgres")
 
 	var found bool
 	for _, c := range cmd.Commands() {
@@ -36,7 +36,6 @@ func TestNewCreateUserSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		// admin-user and admin-password are no longer required (vault-login is an alternative)
 		for _, name := range []string{"username", "password", "database"} {
 			f := c.Flags().Lookup(name)
 			require.NotNilf(t, f, "flag --%s must exist", name)
@@ -49,7 +48,7 @@ func TestNewCreateUserSubcommand(t *testing.T) {
 }
 
 func TestNewCreateSchemaSubcommand(t *testing.T) {
-	cmd := NewCreateCommand()
+	cmd := NewCreateCommand("mysql")
 
 	var found bool
 	for _, c := range cmd.Commands() {
@@ -62,13 +61,10 @@ func TestNewCreateSchemaSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		// admin-user and admin-password are no longer required (vault-login is an alternative)
-		for _, name := range []string{"schema"} {
-			f := c.Flags().Lookup(name)
-			require.NotNilf(t, f, "flag --%s must exist", name)
-			_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-			assert.Truef(t, required, "flag --%s should be required", name)
-		}
+		f := c.Flags().Lookup("schema")
+		require.NotNil(t, f, "flag --schema must exist")
+		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		assert.True(t, required, "flag --schema should be required")
 	}
 
 	assert.True(t, found, "schema subcommand must exist")

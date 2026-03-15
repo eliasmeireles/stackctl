@@ -22,29 +22,27 @@ type DeleteDatabaseFlags struct {
 	VaultLogin string
 }
 
-func NewDeleteCommand() *cobra.Command {
+func NewDeleteCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete a database or user",
+		Short: "Delete a database, user or schema",
 	}
 
-	cmd.AddCommand(newDeleteDatabaseCommand())
-	cmd.AddCommand(newDeleteUserCommand())
-	cmd.AddCommand(newDeleteSchemaCommand())
+	cmd.AddCommand(newDeleteDatabaseCommand(dbType))
+	cmd.AddCommand(newDeleteUserCommand(dbType))
+	cmd.AddCommand(newDeleteSchemaCommand(dbType))
 
 	return cmd
 }
 
-func newDeleteDatabaseCommand() *cobra.Command {
-	flags := &DeleteDatabaseFlags{}
+func newDeleteDatabaseCommand(dbType string) *cobra.Command {
+	flags := &DeleteDatabaseFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "database [postgres|mysql|mongodb]",
+		Use:   "database",
 		Short: "Delete a database",
 		Long:  "Delete a database from the specified server. Requires confirmation unless --force is used.",
-		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runDeleteDatabase(flags)
 		},
 	}

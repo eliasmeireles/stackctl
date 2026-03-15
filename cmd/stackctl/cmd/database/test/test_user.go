@@ -21,11 +21,11 @@ type TestUserFlags struct {
 	VaultPath string
 }
 
-func NewTestUserCommand() *cobra.Command {
-	flags := &TestUserFlags{}
+func NewTestUserCommand(dbType string) *cobra.Command {
+	flags := &TestUserFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "test-user [postgres|mysql|mongodb]",
+		Use:   "test-user",
 		Short: "Test database user credentials and permissions",
 		Long: `Test if a database user can connect and has the expected permissions.
 This command validates:
@@ -33,9 +33,7 @@ This command validates:
 - User authentication
 - Basic permissions (SELECT, INSERT, etc.)
 - Optionally retrieves credentials from Vault`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runTestUser(flags)
 		},
 	}

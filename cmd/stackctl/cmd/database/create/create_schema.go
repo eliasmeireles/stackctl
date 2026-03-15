@@ -22,20 +22,18 @@ type CreateSchemaFlags struct {
 	VaultLogin string
 }
 
-func newCreateSchemaCommand() *cobra.Command {
-	flags := &CreateSchemaFlags{}
+func newCreateSchemaCommand(dbType string) *cobra.Command {
+	flags := &CreateSchemaFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "schema [postgres|mysql|mongodb]",
+		Use:   "schema",
 		Short: "Create a schema in a database",
 		Long: `Create a schema in the specified database.
 
   postgres: creates a PostgreSQL schema (namespace within a database)
   mysql:    creates a schema (equivalent to a database in MySQL)
   mongodb:  creates a collection (MongoDB's equivalent of a schema)`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runCreateSchema(flags)
 		},
 	}

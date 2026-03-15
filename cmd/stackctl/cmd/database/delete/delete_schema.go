@@ -24,20 +24,18 @@ type DeleteSchemaFlags struct {
 	VaultLogin string
 }
 
-func newDeleteSchemaCommand() *cobra.Command {
-	flags := &DeleteSchemaFlags{}
+func newDeleteSchemaCommand(dbType string) *cobra.Command {
+	flags := &DeleteSchemaFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "schema [postgres|mysql|mongodb]",
+		Use:   "schema",
 		Short: "Delete a schema from a database",
 		Long: `Delete a schema from the specified database.
 
   postgres: drops a PostgreSQL schema (use --cascade to drop all objects inside)
   mysql:    drops a schema (equivalent to dropping a database in MySQL)
   mongodb:  drops a collection within a database`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runDeleteSchema(flags)
 		},
 	}

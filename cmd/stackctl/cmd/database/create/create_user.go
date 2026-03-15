@@ -26,32 +26,30 @@ type CreateUserFlags struct {
 	VaultLogin string
 }
 
-func NewCreateCommand() *cobra.Command {
+func NewCreateCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a user or schema",
 	}
 
-	cmd.AddCommand(newCreateUserCommand())
-	cmd.AddCommand(newCreateSchemaCommand())
+	cmd.AddCommand(newCreateUserCommand(dbType))
+	cmd.AddCommand(newCreateSchemaCommand(dbType))
 
 	return cmd
 }
 
-func newCreateUserCommand() *cobra.Command {
-	flags := &CreateUserFlags{}
+func newCreateUserCommand(dbType string) *cobra.Command {
+	flags := &CreateUserFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "user [postgres|mysql|mongodb]",
+		Use:   "user",
 		Short: "Create a database user with specified permissions",
 		Long: `Create a new database user with the specified permissions and optionally store credentials in Vault.
 This command:
 - Creates the user in the database
 - Grants the specified permissions
 - Stores credentials in Vault (if --vault-path is provided)`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runCreateUser(flags)
 		},
 	}

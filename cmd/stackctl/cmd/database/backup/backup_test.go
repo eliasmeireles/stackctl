@@ -8,15 +8,15 @@ import (
 )
 
 func TestNewBackupCommand(t *testing.T) {
-	cmd := NewBackupCommand()
+	cmd := NewBackupCommand("mongodb")
 
-	assert.Equal(t, "backup [postgres|mysql|mongodb]", cmd.Use)
+	assert.Equal(t, "backup", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 	assert.NotEmpty(t, cmd.Long)
 }
 
 func TestBackupCommand_Flags(t *testing.T) {
-	cmd := NewBackupCommand()
+	cmd := NewBackupCommand("postgres")
 
 	for _, flag := range []string{"host", "port", "admin-user", "admin-password", "database", "output-dir", "vault-login"} {
 		assert.NotNilf(t, cmd.Flags().Lookup(flag), "flag --%s should exist", flag)
@@ -28,9 +28,8 @@ func TestBackupCommand_Flags(t *testing.T) {
 }
 
 func TestBackupCommand_RequiredFlags(t *testing.T) {
-	cmd := NewBackupCommand()
+	cmd := NewBackupCommand("mysql")
 
-	// Only database is required; admin-user/admin-password can come from --vault-login
 	f := cmd.Flags().Lookup("database")
 	require.NotNil(t, f, "flag --database must exist")
 	_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
