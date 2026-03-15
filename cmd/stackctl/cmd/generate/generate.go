@@ -21,7 +21,7 @@ const fallbackFile = "pass"
 
 const (
 	defaultPasswordLength = 24
-	defaultUsernameLength = 12
+	defaultUsernameLength = 18
 
 	usernameCharset = "abcdefghijklmnopqrstuvwxyz0123456789"
 )
