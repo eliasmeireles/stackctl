@@ -4,70 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
-type ListUsersFlags struct {
-	DBType        string
-	Host          string
-	Port          int
-	AdminUser     string
-	AdminPassword string
-	Database      string
-	VaultLogin string
-}
-
-func newListUsersCommand() *cobra.Command {
-	flags := &ListUsersFlags{}
-
-	cmd := &cobra.Command{
-		Use:   "user [postgres|mysql|mongodb]",
-		Short: "List all users in a database server",
-		Long:  "List all users available on the specified database server",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
-			return runListUsers(flags)
-		},
-	}
-
-	cmd.Flags().StringVar(&flags.Host, "host", "", "Database host")
-	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
-	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
-	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.Database, "database", "admin", "Database context (required for MongoDB)")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
-
-	return cmd
-}
-
-func runListUsers(flags *ListUsersFlags) error {
-	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
-		return err
-	}
-	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
-		return err
-	}
-	if flags.Host == "" {
-		flags.Host = "localhost"
-	}
-	if flags.Port == 0 {
-		switch flags.DBType {
-		case "postgres":
-			flags.Port = 5432
-		case "mysql":
-			flags.Port = 3306
-		case "mongodb":
-			flags.Port = 27017
-		default:
-			return fmt.Errorf("unsupported database type: %s", flags.DBType)
-		}
-	}
-
+func runListUsers(flags *ListFlags) error {
 	switch flags.DBType {
 	case "postgres":
 		return listPostgresUsers(flags)
@@ -80,7 +21,7 @@ func runListUsers(flags *ListUsersFlags) error {
 	}
 }
 
-func listPostgresUsers(flags *ListUsersFlags) error {
+func listPostgresUsers(flags *ListFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
 
@@ -105,7 +46,7 @@ func listPostgresUsers(flags *ListUsersFlags) error {
 	return nil
 }
 
-func listMySQLUsers(flags *ListUsersFlags) error {
+func listMySQLUsers(flags *ListFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
@@ -130,11 +71,15 @@ func listMySQLUsers(flags *ListUsersFlags) error {
 	return nil
 }
 
-func listMongoUsers(flags *ListUsersFlags) error {
+func listMongoUsers(flags *ListFlags) error {
 	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
+	dbName := flags.Database
+	if dbName == "" {
+		dbName = "admin"
+	}
+	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: dbName}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d (database: %s)...\n", flags.Host, flags.Port, flags.Database)
+	fmt.Printf("📡 Connecting to MongoDB at %s:%d (database: %s)...\n", flags.Host, flags.Port, dbName)
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)

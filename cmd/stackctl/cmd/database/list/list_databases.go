@@ -11,39 +11,45 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
-type ListDatabasesFlags struct {
+// ListFlags holds all flags for the unified list command.
+type ListFlags struct {
 	DBType        string
 	Host          string
 	Port          int
 	AdminUser     string
 	AdminPassword string
-	VaultLogin string
+	Database      string
+	VaultLogin    string
+	ListDbs       bool
+	ListUsers     bool
+	ListSchemas   bool
 }
 
 func NewListCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List databases or users",
-	}
-
-	cmd.AddCommand(newListDatabasesCommand())
-	cmd.AddCommand(newListUsersCommand())
-	cmd.AddCommand(newListSchemasCommand())
-
-	return cmd
-}
-
-func newListDatabasesCommand() *cobra.Command {
-	flags := &ListDatabasesFlags{}
+	flags := &ListFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "database [postgres|mysql|mongodb]",
-		Short: "List all databases on a server",
-		Long:  "List all databases available on the specified database server",
-		Args:  cobra.ExactArgs(1),
+		Use:   "list [postgres|mysql|mongodb]",
+		Short: "List databases, users and/or schemas",
+		Long: `List databases, users and/or schemas on the specified database server.
+
+When no target flag is provided, all resources (--dbs, --users, --schemas) are listed.
+
+Examples:
+  stackctl database list mongodb                     # lists everything
+  stackctl database list mongodb --dbs               # databases only
+  stackctl database list postgres --users            # users only
+  stackctl database list mysql --dbs --users         # databases and users`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.DBType = args[0]
-			return runListDatabases(flags)
+			// default: list everything when no target is specified
+			if !flags.ListDbs && !flags.ListUsers && !flags.ListSchemas {
+				flags.ListDbs = true
+				flags.ListUsers = true
+				flags.ListSchemas = true
+			}
+			return runList(flags)
 		},
 	}
 
@@ -51,12 +57,16 @@ func newListDatabasesCommand() *cobra.Command {
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for --schemas with postgres/mongodb)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. databases/data/mongodb/config)")
+	cmd.Flags().BoolVar(&flags.ListDbs, "dbs", false, "List databases")
+	cmd.Flags().BoolVar(&flags.ListUsers, "users", false, "List users")
+	cmd.Flags().BoolVar(&flags.ListSchemas, "schemas", false, "List schemas/collections")
 
 	return cmd
 }
 
-func runListDatabases(flags *ListDatabasesFlags) error {
+func runList(flags *ListFlags) error {
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
@@ -79,6 +89,25 @@ func runListDatabases(flags *ListDatabasesFlags) error {
 		}
 	}
 
+	if flags.ListDbs {
+		if err := runListDatabases(flags); err != nil {
+			return err
+		}
+	}
+	if flags.ListUsers {
+		if err := runListUsers(flags); err != nil {
+			return err
+		}
+	}
+	if flags.ListSchemas {
+		if err := runListSchemas(flags); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runListDatabases(flags *ListFlags) error {
 	switch flags.DBType {
 	case "postgres":
 		return listPostgresDatabases(flags)
@@ -91,7 +120,7 @@ func runListDatabases(flags *ListDatabasesFlags) error {
 	}
 }
 
-func listPostgresDatabases(flags *ListDatabasesFlags) error {
+func listPostgresDatabases(flags *ListFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
 
@@ -116,7 +145,7 @@ func listPostgresDatabases(flags *ListDatabasesFlags) error {
 	return nil
 }
 
-func listMySQLDatabases(flags *ListDatabasesFlags) error {
+func listMySQLDatabases(flags *ListFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
@@ -141,7 +170,7 @@ func listMySQLDatabases(flags *ListDatabasesFlags) error {
 	return nil
 }
 
-func listMongoDatabases(flags *ListDatabasesFlags) error {
+func listMongoDatabases(flags *ListFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: "admin"}
 
