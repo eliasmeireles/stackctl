@@ -25,6 +25,8 @@ stackctl messagebroker {rabbitmq}
 
 Create a user in a message broker with specified credentials and optional tags.
 
+If `--vault-path` points to a missing KV engine, the engine is created automatically. Paths must follow the format `<engine>/<key>` (e.g. `secret/messagebroker/rabbitmq/myuser`); invalid formats are rejected with an example and re-prompted.
+
 ```bash
 stackctl messagebroker rabbitmq create user \
   --host localhost \
@@ -34,7 +36,7 @@ stackctl messagebroker rabbitmq create user \
   --username myapp_user \
   --password myapp_pass \
   --tags "administrator,management" \
-  --vault-path secret/data/myapp/rabbitmq
+  --vault-path secret/messagebroker/rabbitmq/myapp_user
 ```
 
 #### Flags
@@ -197,6 +199,31 @@ stackctl messagebroker rabbitmq test-user \
   --username app_user \
   --vault-path secret/data/rabbitmq/app_user
 ```
+
+---
+
+## Interactive TUI
+
+Run `stackctl` without arguments to open the interactive menu. Message broker operations are under **Message Broker → RabbitMQ**.
+
+### Navigation
+
+```
+Message Broker → RabbitMQ
+├── List Users
+├── Create User
+├── Delete User
+└── Test Connection
+```
+
+All operations that require admin credentials offer two methods:
+
+```
+├── Browse Vault (admin credentials)   # navigate the Vault KV tree to select the admin secret
+└── Type admin credentials path        # type the Vault path directly (e.g. secret/messagebroker/rabbitmq/admin)
+```
+
+Every input screen shows the full navigation breadcrumb and the current step number (`step N of M`).
 
 ---
 

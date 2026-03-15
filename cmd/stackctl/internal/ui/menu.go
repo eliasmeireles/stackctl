@@ -365,15 +365,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.action = i.actionWithArgs
 						actionFn := i.actionWithArgs
 						m.pendingAction = func(args []string) {
-							cmd := actionFn(args)
-							if cmd != nil {
-								cmd()
-							}
+							runPendingCmd(actionFn(args))
 						}
 					} else if i.action != nil {
 						m.action = func(args []string) tea.Cmd { return i.action() }
 					}
 					return m, nil
+				}
+
+				// actionWithArgs with no prompts: execute immediately after TUI exits.
+				if i.actionWithArgs != nil {
+					actionFn := i.actionWithArgs
+					m.pendingAction = func(args []string) {
+						runPendingCmd(actionFn(args))
+					}
+					m.pendingArgs = []string{}
+					return m, tea.Quit
 				}
 
 				// Only quit if item has an action callback (e.g. commands to execute).
@@ -425,9 +432,12 @@ func (m Model) View() string {
 			currPrompt = m.prompts[len(m.args)]
 		}
 
+		step := fmt.Sprintf("step %d of %d", len(m.args)+1, len(m.prompts))
 		return fmt.Sprintf(
-			"\n  %s\n\n  %s: %s\n\n  %s",
-			titleStyle.Render(m.choice),
+			"\n  %s\n\n  %s  •  %s\n\n  %s: %s\n\n  %s",
+			titleStyle.Render(m.category),
+			m.choice,
+			helpStyle.Render(step),
 			currPrompt,
 			m.textInput.View(),
 			helpStyle.Render("(enter to confirm, esc to back)"),

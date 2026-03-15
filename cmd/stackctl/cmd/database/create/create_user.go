@@ -3,13 +3,16 @@ package create
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/eliasmeireles/envvault"
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/generator"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
@@ -67,8 +70,7 @@ This command:
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
 
 	_ = cmd.MarkFlagRequired("username")
-	_ = cmd.MarkFlagRequired("password")
-	_ = cmd.MarkFlagRequired("database")
+	// password is not required; if omitted or set to "auto[:<size>]" it will be auto-generated
 
 	return cmd
 }
@@ -83,6 +85,24 @@ func runCreateUser(flags *CreateUserFlags) error {
 	if flags.Host == "" {
 		flags.Host = "localhost"
 	}
+
+	// Resolve password: auto-generate if blank or starts with "auto"
+	lower := strings.ToLower(strings.TrimSpace(flags.Password))
+	if lower == "" || strings.HasPrefix(lower, "auto") {
+		size := 16
+		if strings.HasPrefix(lower, "auto:") {
+			if n, err := strconv.Atoi(strings.TrimPrefix(lower, "auto:")); err == nil && n > 0 {
+				size = n
+			}
+		}
+		pw, err := generator.NewPasswordGenerator().GeneratePassword(size)
+		if err != nil {
+			return fmt.Errorf("failed to generate password: %w", err)
+		}
+		flags.Password = pw
+		fmt.Printf("🔑 Generated password: %s\n", pw)
+	}
+
 	fmt.Printf("Creating %s user...\n", flags.DBType)
 	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
 	fmt.Printf("  Admin: %s\n", flags.AdminUser)
@@ -167,6 +187,17 @@ func createPostgresUser(flags *CreateUserFlags) (bool, error) {
 	defer func() {
 		_ = pgClient.Close()
 	}()
+
+	if flags.Database == "" {
+		dbs, err := pgClient.ListDatabases(ctx)
+		if err != nil {
+			return false, fmt.Errorf("failed to list databases: %w", err)
+		}
+		flags.Database, err = listAndSelectDatabase(dbs)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	fmt.Println("🔍 Checking if database exists...")
 	dbExists, err := pgClient.DatabaseExists(ctx, flags.Database)
@@ -257,6 +288,17 @@ func createMySQLUser(flags *CreateUserFlags) (bool, error) {
 	defer func() {
 		_ = mysqlClient.Close()
 	}()
+
+	if flags.Database == "" {
+		dbs, err := mysqlClient.ListDatabases(ctx)
+		if err != nil {
+			return false, fmt.Errorf("failed to list databases: %w", err)
+		}
+		flags.Database, err = listAndSelectDatabase(dbs)
+		if err != nil {
+			return false, err
+		}
+	}
 
 	fmt.Println("🔍 Checking if database exists...")
 	dbExists, err := mysqlClient.DatabaseExists(ctx, flags.Database)
@@ -351,6 +393,17 @@ func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 		_ = mongoClient.Close()
 	}()
 
+	if flags.Database == "" {
+		dbs, err := mongoClient.ListDatabases(ctx)
+		if err != nil {
+			return false, fmt.Errorf("failed to list databases: %w", err)
+		}
+		flags.Database, err = listAndSelectDatabase(dbs)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	// MongoDB creates databases lazily — skip the existence check and proceed.
 	// The createUser command will target the specified database directly.
 
@@ -387,6 +440,33 @@ func createMongoDBUser(flags *CreateUserFlags) (bool, error) {
 	return true, nil
 }
 
+// listAndSelectDatabase prints existing databases and lets the user pick one by
+// number or type a new name. Returning an empty string is treated as an error.
+func listAndSelectDatabase(databases []string) (string, error) {
+	if len(databases) == 0 {
+		fmt.Print("\n  No existing databases found. Enter database name: ")
+	} else {
+		fmt.Println("\n📋 Existing databases:")
+		for i, db := range databases {
+			fmt.Printf("  %d. %s\n", i+1, db)
+		}
+		fmt.Print("\n  Select a number or type a new database name: ")
+	}
+
+	var input string
+	if _, err := fmt.Scanln(&input); err != nil {
+		return "", fmt.Errorf("failed to read database selection: %w", err)
+	}
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return "", fmt.Errorf("no database selected")
+	}
+	if n, err := strconv.Atoi(input); err == nil && n >= 1 && n <= len(databases) {
+		return databases[n-1], nil
+	}
+	return input, nil
+}
+
 func askAndStoreInVault(flags *CreateUserFlags) error {
 	fmt.Print("Do you want to store credentials in Vault? (yes/no): ")
 
@@ -401,7 +481,7 @@ func askAndStoreInVault(flags *CreateUserFlags) error {
 	}
 
 	if flags.VaultPath == "" {
-		fmt.Print("Enter Vault path: ")
+		fmt.Print("Enter Vault path (e.g. secret/databases/postgres/myuser): ")
 		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
 			return fmt.Errorf("failed to read Vault path: %w", err)
 		}
@@ -411,14 +491,30 @@ func askAndStoreInVault(flags *CreateUserFlags) error {
 }
 
 func storeCredentialsInVault(flags *CreateUserFlags) error {
+	// Validate format; re-prompt until valid
+	for {
+		if err := validateVaultPath(flags.VaultPath); err == nil {
+			break
+		}
+		fmt.Printf("\n❌ Invalid vault path %q\n", flags.VaultPath)
+		fmt.Println("  Expected format: <engine>/<path>  (e.g. secret/databases/postgres/credentials)")
+		fmt.Print("  Enter a valid vault path: ")
+		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
+			return fmt.Errorf("failed to read vault path: %w", err)
+		}
+		flags.VaultPath = strings.TrimSpace(flags.VaultPath)
+	}
+
 	fmt.Printf("\n💾 Storing credentials in Vault at: %s\n", flags.VaultPath)
 
-	ctx := context.Background()
-	_ = ctx
-
-	vaultClient, err := getVaultClient()
+	cfg, err := getVaultConfig()
 	if err != nil {
-		return fmt.Errorf("failed to create Vault client: %w", err)
+		return err
+	}
+
+	vc := newEnvVaultClient(cfg)
+	if err := vc.Authenticate(); err != nil {
+		return fmt.Errorf("vault authentication failed: %w", err)
 	}
 
 	data := map[string]interface{}{
@@ -429,31 +525,57 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 		"port":     flags.Port,
 	}
 
-	if err := vaultClient.WriteSecret(kvv2DataPath(flags.VaultPath), data); err != nil {
-		return fmt.Errorf("failed to write secret to Vault: %w", err)
+	targetPath := kvv2DataPath(flags.VaultPath)
+	if err := vc.WriteSecret(targetPath, data); err != nil {
+		if isNoHandlerError(err) {
+			mount := strings.SplitN(flags.VaultPath, "/", 2)[0]
+			fmt.Printf("  ⚙️  KV engine %q not found, creating it...\n", mount)
+			if mountErr := enableKVEngine(vc, mount); mountErr != nil {
+				return fmt.Errorf("KV engine %q not found and could not be created (check admin permissions): %w", mount, mountErr)
+			}
+			fmt.Printf("  ✓ KV engine %q created\n", mount)
+			if err := vc.WriteSecret(targetPath, data); err != nil {
+				return fmt.Errorf("failed to write secret after creating engine: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to write secret to Vault: %w", err)
+		}
 	}
 
 	fmt.Println("✅ Credentials stored in Vault successfully!")
 	return nil
 }
 
-func getVaultClient() (vaultSecretWriter, error) {
-	cfg, err := getVaultConfig()
-	if err != nil {
-		return nil, err
+func validateVaultPath(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("path is empty")
 	}
-
-	client := newEnvVaultClient(cfg)
-	if err := client.Authenticate(); err != nil {
-		return nil, fmt.Errorf("vault authentication failed: %w", err)
+	if strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") {
+		return fmt.Errorf("must not start or end with '/'")
 	}
-
-	return client, nil
+	if !strings.Contains(path, "/") {
+		return fmt.Errorf("must contain '/' to separate engine name from key")
+	}
+	if strings.Contains(path, "//") {
+		return fmt.Errorf("must not contain consecutive slashes")
+	}
+	return nil
 }
 
-type vaultSecretWriter interface {
-	WriteSecret(path string, data map[string]interface{}) error
-	Authenticate() error
+func isNoHandlerError(err error) bool {
+	return strings.Contains(err.Error(), "no handler for route")
+}
+
+func enableKVEngine(vc *envvault.Client, mount string) error {
+	apiClient, err := vc.VaultClient()
+	if err != nil {
+		return fmt.Errorf("failed to get vault API client: %w", err)
+	}
+	return apiClient.Sys().Mount(mount, &vaultapi.MountInput{
+		Type:    "kv",
+		Options: map[string]string{"version": "2"},
+	})
 }
 
 func getVaultConfig() (envvault.Config, error) {

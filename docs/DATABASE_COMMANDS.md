@@ -66,9 +66,22 @@ stackctl database postgres list --schemas --database myapp_db
 
 Create a new user in a database and optionally store credentials in Vault.
 
+The `--password` flag accepts a literal value or an auto-generate token:
+
+| Value | Effect |
+|-------|--------|
+| `mypassword` | Use the given password |
+| `auto` | Generate a random 16-character password (printed to stdout) |
+| `auto:24` | Generate a random 24-character password (printed to stdout) |
+
+If `--database` is omitted the command lists existing databases interactively so the user can select one by number or type a new name. If the selected database does not exist, the command asks whether to create it.
+
+If `--vault-path` points to a missing KV engine, the engine is created automatically. Paths must follow the format `<engine>/<key>` (e.g. `secret/databases/postgres/myuser`); invalid formats are rejected with an example.
+
 #### PostgreSQL
 
 ```bash
+# With explicit password and database
 stackctl database postgres create user \
   --host localhost \
   --admin-user postgres \
@@ -76,7 +89,20 @@ stackctl database postgres create user \
   --username myapp_user \
   --password myapp_pass \
   --database myapp_db \
-  --vault-path secret/data/myapp/postgres
+  --vault-path secret/databases/postgres/myapp_user
+
+# Auto-generate a 20-character password
+stackctl database postgres create user \
+  --vault-login secret/databases/postgres/admin \
+  --username myapp_user \
+  --password auto:20 \
+  --database myapp_db
+
+# Let the command list existing databases interactively
+stackctl database postgres create user \
+  --vault-login secret/databases/postgres/admin \
+  --username myapp_user \
+  --password auto
 ```
 
 #### MySQL
@@ -87,9 +113,9 @@ stackctl database mysql create user \
   --admin-user root \
   --admin-password admin_pass \
   --username myapp_user \
-  --password myapp_pass \
+  --password auto \
   --database myapp_db \
-  --vault-path secret/data/myapp/mysql
+  --vault-path secret/databases/mysql/myapp_user
 ```
 
 #### MongoDB
@@ -100,9 +126,9 @@ stackctl database mongodb create user \
   --admin-user admin \
   --admin-password admin_pass \
   --username myapp_user \
-  --password myapp_pass \
+  --password auto:32 \
   --database myapp_db \
-  --vault-path secret/data/myapp/mongodb
+  --vault-path secret/databases/mongodb/myapp_user
 ```
 
 #### Flags
@@ -114,9 +140,9 @@ stackctl database mongodb create user \
 | `--admin-user` | Admin username | yes* |
 | `--admin-password` | Admin password | yes* |
 | `--username` | Username to create | yes |
-| `--password` | Password for the new user | yes |
-| `--database` | Database to grant access to | no |
-| `--privileges` | Privileges to grant | no |
+| `--password` | Password or `auto[:<size>]` to generate (default size: 16) | no |
+| `--database` | Database to grant access to (interactive list if omitted) | no |
+| `--privileges` | Privileges to grant (`read` or `read-write`) | no |
 | `--vault-path` | Vault path to store credentials | no |
 | `--vault-login` | Vault path to load admin credentials from | no |
 
@@ -318,6 +344,33 @@ stackctl database postgres test user \
   --database myapp_db \
   --vault-path secret/data/production/postgres
 ```
+
+---
+
+## Interactive TUI
+
+Run `stackctl` without arguments to open the interactive menu. Database operations are under **Database → {PostgreSQL | MySQL | MongoDB}**.
+
+### Create User flow
+
+```
+Database → PostgreSQL → Create User
+├── Auto-generate password
+│   ├── Select database from existing   # lists DB names after connecting; pick by number or type new
+│   └── Enter database name             # type the DB name directly
+└── Enter password manually
+    ├── Select database from existing
+    └── Enter database name
+```
+
+Each path then asks how to provide admin credentials:
+
+```
+├── Browse Vault (admin credentials)   # navigate the Vault KV tree to select the admin secret
+└── Type admin credentials path        # type the Vault path directly (e.g. secret/databases/postgres/admin)
+```
+
+Every input screen shows the full navigation breadcrumb and the current step number (`step N of M`) so it is always clear what is being collected and why.
 
 ---
 

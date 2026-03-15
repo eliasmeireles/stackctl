@@ -11,7 +11,9 @@ import (
 	"golang.org/x/term"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
+	dbcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
 	kubecmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
+	mbcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
 	vaultcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
@@ -20,6 +22,8 @@ import (
 func RunUI() {
 	for {
 		mainItems := []list.Item{
+			dbcmd.Menu,
+			mbcmd.Menu,
 			kubecmd.Menu,
 			netbird.Menu,
 			vaultcmd.Menu,
