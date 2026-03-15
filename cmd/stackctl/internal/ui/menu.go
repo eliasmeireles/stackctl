@@ -49,6 +49,7 @@ func init() {
 
 type item struct {
 	title, desc     string
+	note            string // shown below the list when this sub-menu is active
 	action          func() tea.Cmd
 	actionWithArgs  func(args []string) tea.Cmd
 	subMenu         []list.Item
@@ -129,6 +130,7 @@ func isAuthError(err error) bool {
 
 type Model struct {
 	listStack []list.Model
+	noteStack []string // parallel to listStack; note shown while that list is active
 	textInput textinput.Model
 	spinner   spinner.Model
 	state     State
@@ -143,6 +145,7 @@ type Model struct {
 	errorMsg      string
 	retryProvider func() ([]list.Item, error)
 	retryTitle    string
+	pendingNote   string // note for in-flight dynamic sub-menu
 	quitting      bool
 	action        func(args []string) tea.Cmd
 	// pendingAction stores an action to be executed AFTER the TUI exits.
@@ -161,6 +164,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		breadcrumb := m.breadcrumbTitle(msg.title)
 		newList := newList(breadcrumb, msg.items)
 		m.listStack = append(m.listStack, newList)
+		m.noteStack = append(m.noteStack, m.pendingNote)
+		m.pendingNote = ""
 		m.state = StateList
 		m.retryProvider = nil
 		m.retryTitle = ""
@@ -296,6 +301,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "backspace":
 			if len(m.listStack) > 1 {
 				m.listStack = m.listStack[:len(m.listStack)-1]
+				if len(m.noteStack) > 0 {
+					m.noteStack = m.noteStack[:len(m.noteStack)-1]
+				}
 				return m, nil
 			}
 		case "enter":
@@ -314,6 +322,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.loadingLabel = i.title
 					m.retryProvider = i.dynamicProvider
 					m.retryTitle = i.title
+					m.pendingNote = i.note
 					provider := i.dynamicProvider
 					title := i.title
 					return m, tea.Batch(
@@ -337,6 +346,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					breadcrumb := m.breadcrumbTitle(i.title)
 					newList := newList(breadcrumb, i.subMenu)
 					m.listStack = append(m.listStack, newList)
+					m.noteStack = append(m.noteStack, i.note)
 					return m, nil
 				}
 
@@ -465,7 +475,14 @@ func (m Model) View() string {
 		return quitTextStyle.Render("Bye!")
 	}
 
-	return "\n" + m.currentList().View()
+	out := "\n" + m.currentList().View()
+	if len(m.noteStack) > 0 {
+		if note := m.noteStack[len(m.noteStack)-1]; note != "" {
+			noteStyle := lipgloss.NewStyle().PaddingLeft(4).PaddingTop(1).Foreground(lipgloss.Color("244"))
+			out += "\n" + noteStyle.Render(note) + "\n"
+		}
+	}
+	return out
 }
 
 func (m Model) currentList() *list.Model {
@@ -508,6 +525,7 @@ func NewMenu(items []list.Item) Model {
 
 	return Model{
 		listStack: []list.Model{newList(CLIName, items)},
+		noteStack: []string{""},
 		textInput: ti,
 		spinner:   s,
 		state:     StateList,
@@ -544,8 +562,12 @@ func CreateItem(title, desc string, action func() tea.Cmd) list.Item {
 	return item{title: title, desc: desc, action: action}
 }
 
-func CreateSubMenu(title, desc string, items []list.Item) list.Item {
-	return item{title: title, desc: desc, subMenu: items}
+func CreateSubMenu(title, desc string, items []list.Item, notes ...string) list.Item {
+	note := ""
+	if len(notes) > 0 {
+		note = notes[0]
+	}
+	return item{title: title, desc: desc, note: note, subMenu: items}
 }
 
 func CreatePromptItem(title, desc, prompt string, action func() tea.Cmd) list.Item {
@@ -558,8 +580,12 @@ func CreateMultiPromptItem(title, desc string, prompts []string, action func() t
 
 // CreateDynamicSubMenu creates a menu item that calls provider() at selection
 // time to generate its submenu items dynamically (e.g. fetching from an API).
-func CreateDynamicSubMenu(title, desc string, provider func() ([]list.Item, error)) list.Item {
-	return item{title: title, desc: desc, dynamicProvider: provider}
+func CreateDynamicSubMenu(title, desc string, provider func() ([]list.Item, error), notes ...string) list.Item {
+	note := ""
+	if len(notes) > 0 {
+		note = notes[0]
+	}
+	return item{title: title, desc: desc, note: note, dynamicProvider: provider}
 }
 
 // CreateDetailItem creates a menu item that shows detail content when selected.

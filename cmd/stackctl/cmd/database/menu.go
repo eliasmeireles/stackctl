@@ -81,6 +81,7 @@ func initMenu() {
 								dbCreateUserAutoAction(e.cliType),
 							),
 						},
+						"Choose the target database for the new user.",
 					),
 					ui.CreateSubMenu(
 						"Enter password manually",
@@ -112,8 +113,10 @@ func initMenu() {
 								dbCreateUserAction(e.cliType),
 							),
 						},
+						"Choose the target database for the new user.",
 					),
 				},
+				"Choose how to set the password for the new user.",
 			),
 			vaultLoginSubMenu(
 				"Delete User",
@@ -138,11 +141,11 @@ func initMenu() {
 		}
 
 		dbTypeMenus = append(dbTypeMenus,
-			ui.CreateSubMenu(e.display, "Manage "+e.display+" databases", items),
+			ui.CreateSubMenu(e.display, "Manage "+e.display+" databases", items, "Select an operation to perform on "+e.display+"."),
 		)
 	}
 
-	Menu = ui.CreateSubMenu("Database", "Manage databases (PostgreSQL, MySQL, MongoDB)", dbTypeMenus)
+	Menu = ui.CreateSubMenu("Database", "Manage databases (PostgreSQL, MySQL, MongoDB)", dbTypeMenus, "Select a database engine to manage.")
 }
 
 // vaultLoginSubMenu wraps an operation in a sub-menu offering both vault-path
@@ -151,6 +154,7 @@ func vaultLoginSubMenu(title, desc, dbType string, extraPrompts []string, action
 	vaultPrompt := "Vault Login Path (e.g. secret/databases/" + dbType + "/admin)"
 	allManualPrompts := append([]string{vaultPrompt}, extraPrompts...)
 
+	const vaultNote = "Select the Vault path that holds the admin credentials to authenticate with the database."
 	return ui.CreateSubMenu(title, desc, []list.Item{
 		vaultclient.BrowseVaultLoginItem(
 			"Browse Vault (admin credentials)",
@@ -164,7 +168,7 @@ func vaultLoginSubMenu(title, desc, dbType string, extraPrompts []string, action
 			allManualPrompts,
 			action,
 		),
-	})
+	}, vaultNote)
 }
 
 func dbListAction(dbType string) func(args []string) tea.Cmd {

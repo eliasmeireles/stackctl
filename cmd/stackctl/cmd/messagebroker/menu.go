@@ -59,8 +59,8 @@ func initMenu() {
 		),
 	}
 
-	rabbitMQMenu := ui.CreateSubMenu("RabbitMQ", "Manage RabbitMQ users", items)
-	Menu = ui.CreateSubMenu("Message Broker", "Manage message brokers (RabbitMQ)", []list.Item{rabbitMQMenu})
+	rabbitMQMenu := ui.CreateSubMenu("RabbitMQ", "Manage RabbitMQ users", items, "Select an operation to perform on RabbitMQ.")
+	Menu = ui.CreateSubMenu("Message Broker", "Manage message brokers (RabbitMQ)", []list.Item{rabbitMQMenu}, "Select a message broker to manage.")
 }
 
 // vaultLoginSubMenu wraps an operation in a sub-menu offering both vault-path
@@ -69,6 +69,7 @@ func vaultLoginSubMenu(title, desc string, extraPrompts []string, action func(ar
 	const vaultPrompt = "Vault Login Path (e.g. secret/messagebroker/rabbitmq/admin)"
 	allManualPrompts := append([]string{vaultPrompt}, extraPrompts...)
 
+	const vaultNote = "Select the Vault path that holds the admin credentials to authenticate with RabbitMQ."
 	return ui.CreateSubMenu(title, desc, []list.Item{
 		vaultclient.BrowseVaultLoginItem(
 			"Browse Vault (admin credentials)",
@@ -82,7 +83,7 @@ func vaultLoginSubMenu(title, desc string, extraPrompts []string, action func(ar
 			allManualPrompts,
 			action,
 		),
-	})
+	}, vaultNote)
 }
 
 func mbListAction(brokerType string) func(args []string) tea.Cmd {
