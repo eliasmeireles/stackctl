@@ -3,6 +3,8 @@ package kubeconfig
 import (
 	"fmt"
 	"strings"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 // ListContexts lists all available contexts in the kubeconfig
@@ -12,28 +14,29 @@ func ListContexts(path string) error {
 		return fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
 
-	if len(config.Contexts) == 0 {
-		fmt.Println("No contexts found in kubeconfig")
-		return nil
-	}
-
-	fmt.Println("📋 Available contexts:")
-	for _, ctx := range config.Contexts {
-		marker := "  "
+	items := make([]output.ListItem, len(config.Contexts))
+	for i, ctx := range config.Contexts {
+		current := "false"
 		if ctx.Name == config.CurrentContext {
-			marker = "* "
+			current = "true"
 		}
-
-		namespace := ""
-		if ctx.Context.Namespace != "" {
-			namespace = fmt.Sprintf(" (namespace: %s)", ctx.Context.Namespace)
+		ns := ctx.Context.Namespace
+		if ns == "" {
+			ns = "default"
 		}
-
-		fmt.Printf("%s%s%s\n", marker, ctx.Name, namespace)
+		items[i] = output.NewItem("name", ctx.Name, "current", current, "namespace", ns)
 	}
 
-	// Show duplicate warning at the end
-	ShowDuplicateWarning(config)
+	title := ""
+	if !output.IsStructured() {
+		title = "📋 Available contexts:"
+	}
+	output.PrintList(title, []string{"NAME", "CURRENT", "NAMESPACE"}, items)
+
+	if !output.IsStructured() {
+		// Show duplicate warning at the end
+		ShowDuplicateWarning(config)
+	}
 
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/decoder"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 const (
@@ -105,6 +106,12 @@ var runSecretCmd = func(path *string, toFile *string, decodeFromB64 *bool, repla
 		value, err = dec.Decode(value)
 		if err != nil {
 			return fmt.Errorf("❌ %w", err)
+		}
+
+		// In structured mode, print the value directly instead of clipboard/file
+		if output.IsStructured() {
+			output.PrintValue(key, value)
+			return nil
 		}
 
 		if *toFile != "" {

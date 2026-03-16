@@ -1,11 +1,12 @@
 package vault
 
 import (
-	"encoding/json"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 // NewRoleCmd creates the role subcommand.
@@ -52,16 +53,11 @@ Examples:
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			if len(roles) == 0 {
-				log.Info("No roles found.")
-				return nil
+			items := make([]output.ListItem, len(roles))
+			for i, role := range roles {
+				items[i] = output.NewItem("name", role)
 			}
-
-			for _, role := range roles {
-				fmt.Println(role)
-			}
-
-			log.Infof("✅ Found %d role(s)", len(roles))
+			output.PrintList("", []string{"NAME"}, items)
 			return nil
 		},
 	}
@@ -90,12 +86,7 @@ Examples:
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			output, err := json.MarshalIndent(data, "", "  ")
-			if err != nil {
-				return fmt.Errorf("❌ Failed to format output: %v", err)
-			}
-
-			fmt.Println(string(output))
+			output.PrintSecretMap(args[1], data)
 			return nil
 		},
 	}
@@ -145,7 +136,7 @@ For AppRole auth:
 			authMount := args[0]
 			roleName := args[1]
 
-			data := make(map[string]interface{})
+			data := make(map[string]any)
 
 			if roleBoundSANames != "" {
 				data["bound_service_account_names"] = roleBoundSANames

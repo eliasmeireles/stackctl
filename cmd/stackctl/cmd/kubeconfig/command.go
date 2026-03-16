@@ -12,6 +12,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 const (
@@ -467,10 +468,15 @@ var newListRemoteCmdFunc = func() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("List kubeconfig contexts stored in Vault:")
-			for _, item := range items {
-				fmt.Printf(" - %s\n", item.FilterValue())
+			listItems := make([]output.ListItem, len(items))
+			for i, item := range items {
+				listItems[i] = output.NewItem("name", item.FilterValue())
 			}
+			title := ""
+			if !output.IsStructured() {
+				title = "Kubeconfig contexts stored in Vault:"
+			}
+			output.PrintList(title, []string{"NAME"}, listItems)
 			return nil
 		},
 	}

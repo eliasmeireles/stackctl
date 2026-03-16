@@ -42,6 +42,12 @@ func Get() *Printer {
 	return global
 }
 
+// SetWriter configures the global printer with the given format and writer.
+// Intended for use in tests to capture output without touching os.Stdout.
+func SetWriter(format Format, w io.Writer) {
+	global = &Printer{format: format, w: w}
+}
+
 // IsStructured returns true when the current format is not table (i.e. machine-readable).
 // Commands can use this to suppress emoji/decorative output.
 func IsStructured() bool {
