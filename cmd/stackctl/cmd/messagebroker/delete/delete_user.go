@@ -3,7 +3,7 @@ package delete
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -11,6 +11,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
 type DeleteUserFlags struct {
@@ -99,8 +100,7 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := filterAdminUser(users, flags.AdminUser)
-		selected, err := selectFromList("users", names)
+		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
 		if err != nil {
 			return err
 		}
@@ -108,15 +108,8 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete user '%s' from RabbitMQ at %s:%d.\n",
-			flags.Username, flags.Host, flags.Port)
-		fmt.Println("This action is irreversible. Type the username to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Username {
-			return fmt.Errorf("confirmation does not match username, aborting")
+		if err := confirmDeletion("user", flags.Username); err != nil {
+			return err
 		}
 	}
 
@@ -148,25 +141,17 @@ func filterAdminUser(users []entity.UserInfo, adminUser string) []string {
 	return names
 }
 
-// selectFromList prints a numbered list and prompts the user to pick by number or type a name.
-func selectFromList(label string, items []string) (string, error) {
-	if len(items) == 0 {
-		return "", fmt.Errorf("no %s found", label)
-	}
-	fmt.Printf("\nAvailable %s:\n", label)
-	for i, item := range items {
-		fmt.Printf("  %d) %s\n", i+1, item)
-	}
-	fmt.Print("\nEnter number or name: ")
+// confirmDeletion shows an irreversible-action warning and asks for y/yes confirmation.
+func confirmDeletion(kind, name string) error {
+	fmt.Printf("\n⚠️  You are about to delete %s '%s'.\n", kind, name)
+	fmt.Println("This action is irreversible.")
+	fmt.Print("Type 'yes' to confirm: ")
 	var input string
 	if _, err := fmt.Scanln(&input); err != nil {
-		return "", fmt.Errorf("failed to read selection: %w", err)
+		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
-	if n, err := strconv.Atoi(input); err == nil {
-		if n < 1 || n > len(items) {
-			return "", fmt.Errorf("invalid selection: %d (valid range: 1-%d)", n, len(items))
-		}
-		return items[n-1], nil
+	if strings.ToLower(strings.TrimSpace(input)) != "yes" {
+		return fmt.Errorf("deletion cancelled")
 	}
-	return input, nil
+	return nil
 }

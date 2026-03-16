@@ -10,6 +10,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
 type DeleteDatabaseFlags struct {
@@ -120,7 +121,7 @@ func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list databases: %w", err)
 		}
-		selected, err := selectFromList("databases", databases)
+		selected, err := ui.SelectFromList("Select database to delete:", databases)
 		if err != nil {
 			return err
 		}
@@ -128,15 +129,8 @@ func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete database '%s' from PostgreSQL at %s:%d.\n",
-			flags.Database, flags.Host, flags.Port)
-		fmt.Print("This action is irreversible. Type the database name to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Database {
-			return fmt.Errorf("confirmation does not match database name, aborting")
+		if err := confirmDeletion("database", flags.Database); err != nil {
+			return err
 		}
 	}
 
@@ -178,7 +172,7 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list databases: %w", err)
 		}
-		selected, err := selectFromList("databases", databases)
+		selected, err := ui.SelectFromList("Select database to delete:", databases)
 		if err != nil {
 			return err
 		}
@@ -186,15 +180,8 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete database '%s' from MySQL at %s:%d.\n",
-			flags.Database, flags.Host, flags.Port)
-		fmt.Print("This action is irreversible. Type the database name to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Database {
-			return fmt.Errorf("confirmation does not match database name, aborting")
+		if err := confirmDeletion("database", flags.Database); err != nil {
+			return err
 		}
 	}
 
@@ -236,7 +223,7 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list databases: %w", err)
 		}
-		selected, err := selectFromList("databases", databases)
+		selected, err := ui.SelectFromList("Select database to delete:", databases)
 		if err != nil {
 			return err
 		}
@@ -244,15 +231,8 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete database '%s' from MongoDB at %s:%d.\n",
-			flags.Database, flags.Host, flags.Port)
-		fmt.Print("This action is irreversible. Type the database name to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Database {
-			return fmt.Errorf("confirmation does not match database name, aborting")
+		if err := confirmDeletion("database", flags.Database); err != nil {
+			return err
 		}
 	}
 

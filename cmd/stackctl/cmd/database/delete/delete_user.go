@@ -3,7 +3,7 @@ package delete
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -11,6 +11,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
 type DeleteUserFlags struct {
@@ -110,8 +111,7 @@ func deletePostgresUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := filterAdminUser(users, flags.AdminUser)
-		selected, err := selectFromList("users", names)
+		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
 		if err != nil {
 			return err
 		}
@@ -119,15 +119,8 @@ func deletePostgresUser(flags *DeleteUserFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete user '%s' from PostgreSQL at %s:%d.\n",
-			flags.Username, flags.Host, flags.Port)
-		fmt.Println("This action is irreversible. Type the username to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Username {
-			return fmt.Errorf("confirmation does not match username, aborting")
+		if err := confirmDeletion("user", flags.Username); err != nil {
+			return err
 		}
 	}
 
@@ -169,8 +162,7 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := filterAdminUser(users, flags.AdminUser)
-		selected, err := selectFromList("users", names)
+		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
 		if err != nil {
 			return err
 		}
@@ -178,15 +170,8 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 	}
 
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete user '%s' from MySQL at %s:%d.\n",
-			flags.Username, flags.Host, flags.Port)
-		fmt.Println("This action is irreversible. Type the username to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Username {
-			return fmt.Errorf("confirmation does not match username, aborting")
+		if err := confirmDeletion("user", flags.Username); err != nil {
+			return err
 		}
 	}
 
@@ -209,9 +194,10 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 
 func deleteMongoUser(flags *DeleteUserFlags) error {
 	ctx := context.Background()
+	// Connect to admin DB first for listing users
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d (database: %s)...\n", flags.Host, flags.Port, flags.Database)
+	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -221,52 +207,73 @@ func deleteMongoUser(flags *DeleteUserFlags) error {
 	if err := mongoClient.Connect(ctx, adminCreds); err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer func() { _ = mongoClient.Close() }()
 
 	if flags.Username == "" {
 		users, err := mongoClient.ListUsers(ctx)
 		if err != nil {
+			_ = mongoClient.Close()
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := filterAdminUser(users, flags.AdminUser)
-		selected, err := selectFromList("users", names)
+		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
 		if err != nil {
+			_ = mongoClient.Close()
 			return err
 		}
 		flags.Username = selected
 	}
 
+	// MongoDB lists users as "username@database" — parse to get the actual DB
+	actualUsername, actualDB := parseMongoUser(flags.Username, flags.Database)
+
 	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete user '%s' from MongoDB at %s:%d.\n",
-			flags.Username, flags.Host, flags.Port)
-		fmt.Println("This action is irreversible. Type the username to confirm: ")
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-		if confirmation != flags.Username {
-			return fmt.Errorf("confirmation does not match username, aborting")
+		displayName := fmt.Sprintf("%s (database: %s)", actualUsername, actualDB)
+		if err := confirmDeletion("user", displayName); err != nil {
+			_ = mongoClient.Close()
+			return err
 		}
 	}
 
-	exists, err := mongoClient.UserExists(ctx, flags.Username)
+	// If the user belongs to a different database, reconnect against that DB
+	if actualDB != flags.Database {
+		_ = mongoClient.Close()
+		config2 := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: actualDB}
+		mongoClient, err = client.NewMongoDBClient(config2)
+		if err != nil {
+			return fmt.Errorf("failed to create MongoDB client for database '%s': %w", actualDB, err)
+		}
+		if err := mongoClient.Connect(ctx, adminCreds); err != nil {
+			return fmt.Errorf("failed to connect to database '%s': %w", actualDB, err)
+		}
+	}
+	defer func() { _ = mongoClient.Close() }()
+
+	exists, err := mongoClient.UserExists(ctx, actualUsername)
 	if err != nil {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("user '%s' does not exist in MongoDB database '%s'", flags.Username, flags.Database)
+		return fmt.Errorf("user '%s' does not exist in MongoDB database '%s'", actualUsername, actualDB)
 	}
 
-	fmt.Printf("🗑️  Deleting user '%s'...\n", flags.Username)
-	if err := mongoClient.RemoveUser(ctx, flags.Username); err != nil {
+	fmt.Printf("🗑️  Deleting user '%s' from database '%s'...\n", actualUsername, actualDB)
+	if err := mongoClient.RemoveUser(ctx, actualUsername); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	fmt.Printf("✅ User '%s' deleted successfully from MongoDB.\n", flags.Username)
+	fmt.Printf("✅ User '%s' deleted successfully from MongoDB (database: %s).\n", actualUsername, actualDB)
 	return nil
 }
 
-// filterAdminUser returns the names of users, excluding the current admin user (cannot delete self).
+// parseMongoUser splits "username@database" into (username, database).
+// If there is no "@", returns (username, defaultDB).
+func parseMongoUser(name, defaultDB string) (username, db string) {
+	if idx := strings.LastIndex(name, "@"); idx != -1 {
+		return name[:idx], name[idx+1:]
+	}
+	return name, defaultDB
+}
+
+// filterAdminUser returns user names excluding the current admin (cannot delete self).
 func filterAdminUser(users []entity.UserInfo, adminUser string) []string {
 	var names []string
 	for _, u := range users {
@@ -277,25 +284,17 @@ func filterAdminUser(users []entity.UserInfo, adminUser string) []string {
 	return names
 }
 
-// selectFromList prints a numbered list and prompts the user to pick by number or type a name.
-func selectFromList(label string, items []string) (string, error) {
-	if len(items) == 0 {
-		return "", fmt.Errorf("no %s found", label)
-	}
-	fmt.Printf("\nAvailable %s:\n", label)
-	for i, item := range items {
-		fmt.Printf("  %d) %s\n", i+1, item)
-	}
-	fmt.Print("\nEnter number or name: ")
+// confirmDeletion shows an irreversible-action warning and asks for y/yes confirmation.
+func confirmDeletion(kind, name string) error {
+	fmt.Printf("\n⚠️  You are about to delete %s '%s'.\n", kind, name)
+	fmt.Println("This action is irreversible.")
+	fmt.Print("Type 'yes' to confirm: ")
 	var input string
 	if _, err := fmt.Scanln(&input); err != nil {
-		return "", fmt.Errorf("failed to read selection: %w", err)
+		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
-	if n, err := strconv.Atoi(input); err == nil {
-		if n < 1 || n > len(items) {
-			return "", fmt.Errorf("invalid selection: %d (valid range: 1-%d)", n, len(items))
-		}
-		return items[n-1], nil
+	if strings.ToLower(strings.TrimSpace(input)) != "yes" {
+		return fmt.Errorf("deletion cancelled")
 	}
-	return input, nil
+	return nil
 }
