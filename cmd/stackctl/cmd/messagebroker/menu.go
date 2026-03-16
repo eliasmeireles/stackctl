@@ -42,9 +42,7 @@ func initMenu() {
 		vaultLoginSubMenu(
 			"Delete User",
 			"Delete an existing RabbitMQ user",
-			[]string{
-				"Username to delete",
-			},
+			nil,
 			mbDeleteUserAction("rabbitmq"),
 		),
 		ui.CreateMultiPromptItemWithArgs(
@@ -126,12 +124,10 @@ func mbCreateUserAction(brokerType string) func(args []string) tea.Cmd {
 func mbDeleteUserAction(brokerType string) func(args []string) tea.Cmd {
 	return func(args []string) tea.Cmd {
 		return func() tea.Msg {
-			// args: [vaultLogin, username]
+			// args: [vaultLogin]
+			// No --username: the CLI will list existing users and prompt for selection.
+			// No --force: the CLI will ask for irreversible-action confirmation.
 			cmdArgs := buildVaultLoginArgs(args, 0)
-			if argAt(args, 1) != "" {
-				cmdArgs = append(cmdArgs, "--username", args[1])
-			}
-			cmdArgs = append(cmdArgs, "--force")
 
 			cmd := ui.SilenceInteractive(mbdelete.NewDeleteCommand(brokerType))
 			cmd.SetArgs(append([]string{"user"}, cmdArgs...))

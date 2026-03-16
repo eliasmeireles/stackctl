@@ -110,10 +110,7 @@ func deletePostgresUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := make([]string, len(users))
-		for i, u := range users {
-			names[i] = u.Name
-		}
+		names := filterAdminUser(users, flags.AdminUser)
 		selected, err := selectFromList("users", names)
 		if err != nil {
 			return err
@@ -172,10 +169,7 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := make([]string, len(users))
-		for i, u := range users {
-			names[i] = u.Name
-		}
+		names := filterAdminUser(users, flags.AdminUser)
 		selected, err := selectFromList("users", names)
 		if err != nil {
 			return err
@@ -234,10 +228,7 @@ func deleteMongoUser(flags *DeleteUserFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to list users: %w", err)
 		}
-		names := make([]string, len(users))
-		for i, u := range users {
-			names[i] = u.Name
-		}
+		names := filterAdminUser(users, flags.AdminUser)
 		selected, err := selectFromList("users", names)
 		if err != nil {
 			return err
@@ -273,6 +264,17 @@ func deleteMongoUser(flags *DeleteUserFlags) error {
 
 	fmt.Printf("✅ User '%s' deleted successfully from MongoDB.\n", flags.Username)
 	return nil
+}
+
+// filterAdminUser returns the names of users, excluding the current admin user (cannot delete self).
+func filterAdminUser(users []entity.UserInfo, adminUser string) []string {
+	var names []string
+	for _, u := range users {
+		if u.Name != adminUser {
+			names = append(names, u.Name)
+		}
+	}
+	return names
 }
 
 // selectFromList prints a numbered list and prompts the user to pick by number or type a name.

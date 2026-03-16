@@ -122,9 +122,7 @@ func initMenu() {
 				"Delete User",
 				"Delete an existing database user",
 				e.cliType,
-				[]string{
-					"Username to delete",
-				},
+				nil,
 				dbDeleteUserAction(e.cliType),
 			),
 			ui.CreateMultiPromptItemWithArgs(
@@ -303,12 +301,10 @@ func dbCreateUserAction(dbType string) func(args []string) tea.Cmd {
 func dbDeleteUserAction(dbType string) func(args []string) tea.Cmd {
 	return func(args []string) tea.Cmd {
 		return func() tea.Msg {
-			// args: [vaultLogin, username]
+			// args: [vaultLogin]
+			// No --username: the CLI will list existing users and prompt for selection.
+			// No --force: the CLI will ask for irreversible-action confirmation.
 			cmdArgs := buildVaultLoginArgs(args, 0)
-			if argAt(args, 1) != "" {
-				cmdArgs = append(cmdArgs, "--username", args[1])
-			}
-			cmdArgs = append(cmdArgs, "--force")
 
 			cmd := ui.SilenceInteractive(dbdelete.NewDeleteCommand(dbType))
 			cmd.SetArgs(append([]string{"user"}, cmdArgs...))
