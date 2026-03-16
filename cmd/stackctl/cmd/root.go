@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/generate"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
@@ -72,6 +73,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "Output format: table, json, yaml")
 
 	// Register subcommands
+	rootCmd.AddCommand(context.NewCommand())
 	rootCmd.AddCommand(generate.NewCommand())
 	rootCmd.AddCommand(add.NewCommand())
 	rootCmd.AddCommand(delete.NewCommand())

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/eliasmeireles/envvault"
+
+	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/spf13/cobra"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
@@ -59,6 +61,12 @@ func runTestUser(flags *TestUserFlags) error {
 		fmt.Printf("  Username: %s\n", flags.Username)
 		fmt.Printf("  Database: %s\n", flags.Database)
 		fmt.Println()
+	}
+
+	// Apply .stackctl.yaml defaults (explicit flags win).
+	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
+		defaults := ctx.DatabaseDefaults(flags.DBType)
+		stackctlctx.ApplyDatabaseDefaults(defaults, &flags.Host, &flags.Port, nil, nil, &flags.VaultPath)
 	}
 
 	if flags.VaultPath != "" {

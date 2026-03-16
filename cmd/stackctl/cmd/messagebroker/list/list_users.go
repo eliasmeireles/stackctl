@@ -9,6 +9,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
@@ -57,6 +58,11 @@ func newListUsersCommand(brokerType string) *cobra.Command {
 }
 
 func runListRabbitMQUsers(flags *ListUsersFlags) error {
+	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
+		defaults := ctx.BrokerDefaults("rabbitmq")
+		stackctlctx.ApplyBrokerDefaults(defaults, &flags.Host, &flags.Port, &flags.AdminUser, &flags.AdminPassword, &flags.VaultLogin)
+	}
+
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}

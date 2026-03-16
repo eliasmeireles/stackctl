@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
@@ -67,6 +68,12 @@ Examples:
 }
 
 func runList(flags *ListFlags) error {
+	// Apply .stackctl.yaml defaults before flag resolution (explicit flags win).
+	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
+		defaults := ctx.DatabaseDefaults(flags.DBType)
+		stackctlctx.ApplyDatabaseDefaults(defaults, &flags.Host, &flags.Port, &flags.AdminUser, &flags.AdminPassword, &flags.VaultLogin)
+	}
+
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
