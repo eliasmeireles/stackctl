@@ -109,10 +109,10 @@ func (p *Printer) PrintList(title string, headers []string, items []ListItem) {
 
 func (p *Printer) printListTable(title string, headers []string, items []ListItem) {
 	if title != "" {
-		fmt.Fprintln(p.w, title)
+		_, _ = fmt.Fprintln(p.w, title)
 	}
 	if len(items) == 0 {
-		fmt.Fprintln(p.w, "  (none)")
+		_, _ = fmt.Fprintln(p.w, "  (none)")
 		return
 	}
 
@@ -120,12 +120,12 @@ func (p *Printer) printListTable(title string, headers []string, items []ListIte
 
 	// header
 	if len(headers) > 0 {
-		fmt.Fprintln(tw, strings.Join(headers, "\t"))
+		_, _ = fmt.Fprintln(tw, strings.Join(headers, "\t"))
 		dividers := make([]string, len(headers))
 		for i, h := range headers {
 			dividers[i] = strings.Repeat("-", len(h))
 		}
-		fmt.Fprintln(tw, strings.Join(dividers, "\t"))
+		_, _ = fmt.Fprintln(tw, strings.Join(dividers, "\t"))
 	}
 
 	for _, item := range items {
@@ -133,10 +133,10 @@ func (p *Printer) printListTable(title string, headers []string, items []ListIte
 		for i, kv := range item.Pairs {
 			vals[i] = kv.Value
 		}
-		fmt.Fprintln(tw, strings.Join(vals, "\t"))
+		_, _ = fmt.Fprintln(tw, strings.Join(vals, "\t"))
 	}
 	_ = tw.Flush()
-	fmt.Fprintf(p.w, "\nTotal: %d\n", len(items))
+	_, _ = fmt.Fprintf(p.w, "\nTotal: %d\n", len(items))
 }
 
 func (p *Printer) printListJSON(items []ListItem) {
@@ -192,11 +192,11 @@ func (p *Printer) PrintRecord(title string, item ListItem) {
 		_, _ = p.w.Write(b)
 	default:
 		if title != "" {
-			fmt.Fprintln(p.w, title)
+			_, _ = fmt.Fprintln(p.w, title)
 		}
 		tw := tabwriter.NewWriter(p.w, 0, 0, 3, ' ', 0)
 		for _, kv := range item.Pairs {
-			fmt.Fprintf(tw, "  %s\t%s\n", kv.Key, kv.Value)
+			_, _ = fmt.Fprintf(tw, "  %s\t%s\n", kv.Key, kv.Value)
 		}
 		_ = tw.Flush()
 	}
@@ -244,10 +244,10 @@ func (p *Printer) PrintStatus(r StatusResult) {
 		if !r.Success {
 			icon = "❌"
 		}
-		fmt.Fprintf(p.w, "%s %s\n", icon, r.Message)
+		_, _ = fmt.Fprintf(p.w, "%s %s\n", icon, r.Message)
 		tw := tabwriter.NewWriter(p.w, 0, 0, 3, ' ', 0)
 		for _, kv := range r.Fields.Pairs {
-			fmt.Fprintf(tw, "  %s:\t%s\n", kv.Key, kv.Value)
+			_, _ = fmt.Fprintf(tw, "  %s:\t%s\n", kv.Key, kv.Value)
 		}
 		_ = tw.Flush()
 	}
@@ -270,7 +270,7 @@ func (p *Printer) PrintValue(key, value string) {
 		b, _ := yaml.Marshal(map[string]string{key: value})
 		_, _ = p.w.Write(b)
 	default:
-		fmt.Fprintln(p.w, value)
+		_, _ = fmt.Fprintln(p.w, value)
 	}
 }
 
@@ -292,6 +292,6 @@ func (p *Printer) PrintSecretMap(path string, data map[string]any) {
 		_, _ = p.w.Write(b)
 	default:
 		b, _ := json.MarshalIndent(data, "", "  ")
-		fmt.Fprintln(p.w, string(b))
+		_, _ = fmt.Fprintln(p.w, string(b))
 	}
 }
