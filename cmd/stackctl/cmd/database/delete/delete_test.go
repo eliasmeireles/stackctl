@@ -37,11 +37,6 @@ func TestDeleteDatabaseSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		f := c.Flags().Lookup("database")
-		require.NotNil(t, f, "flag --database must exist")
-		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-		assert.True(t, required, "flag --database should be required")
-
 		forceFlag := c.Flags().Lookup("force")
 		require.NotNil(t, forceFlag)
 		assert.Equal(t, "false", forceFlag.DefValue)
@@ -64,10 +59,7 @@ func TestDeleteUserSubcommand(t *testing.T) {
 			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
 
-		f := c.Flags().Lookup("username")
-		require.NotNil(t, f, "flag --username must exist")
-		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-		assert.True(t, required, "flag --username should be required")
+		require.NotNil(t, c.Flags().Lookup("username"), "flag --username must exist")
 	}
 
 	assert.True(t, found, "user subcommand must exist")

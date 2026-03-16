@@ -36,6 +36,64 @@ All Vault commands resolve credentials in this order:
 
 ---
 
+## Global Flags
+
+| Flag              | Default   | Description                              |
+| :---------------- | :-------- | :--------------------------------------- |
+| `--output` / `-o` | `table`   | Output format: `table`, `json`, `yaml`   |
+
+When `--output json` or `--output yaml` is used, decorative emoji and progress messages are suppressed so the output is machine-readable.
+
+```bash
+stackctl database postgres list --host localhost --admin-user postgres --admin-password secret --output json
+stackctl vault secret list --output yaml
+```
+
+---
+
+## Project Context — `stackctl context`
+
+Avoid repeating `--host`, `--port`, `--admin-user` on every command by storing defaults in a `.stackctl.yaml` file. The file is searched hierarchically from the current directory up to your home directory.
+
+```bash
+# Create .stackctl.yaml interactively in the current directory
+stackctl context init
+
+# Show the active configuration
+stackctl context show
+```
+
+**`.stackctl.yaml` format:**
+
+```yaml
+version: "1"
+databases:
+  postgres:
+    host: localhost
+    port: 5432
+    user: postgres
+    vault-login: secret/databases/postgres/admin   # optional
+  mysql:
+    host: localhost
+    port: 3306
+    user: root
+  mongodb:
+    host: localhost
+    port: 27017
+    user: admin
+messagebrokers:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    user: guest
+```
+
+> **Note:** Add `.stackctl.yaml` to your `.gitignore` — it may contain passwords or Vault paths.
+
+Explicit CLI flags always override context defaults.
+
+---
+
 ## Commands
 
 ### Interactive TUI
@@ -228,6 +286,28 @@ stackctl delete pass <KEY>
 
 ---
 
+### Generate — `stackctl generate`
+
+Generate random passwords and usernames, automatically copied to the clipboard.
+
+```bash
+# Generate a random password (copied to clipboard)
+stackctl generate password
+
+# Generate a password of a specific size (bytes of entropy)
+stackctl generate password --size 32
+
+# Generate a random username
+stackctl generate username
+
+# Print value instead of copying (useful in scripts)
+stackctl generate password --output json
+```
+
+When the clipboard is unavailable (e.g. in CI/CD), the generated value is saved to `~/.stackctl/pass`.
+
+---
+
 ### NetBird VPN — `stackctl netbird`
 
 ```bash
@@ -273,14 +353,20 @@ stackctl database postgres create user \
   --database myapp_db \
   --vault-path secret/databases/postgres/myapp_user
 
-# Delete a user (prompts for confirmation)
+# Delete a user — omit --username to see a numbered list and select interactively
+stackctl database postgres delete user \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password secret
+
+# Delete a specific user directly (prompts for irreversible-action confirmation)
 stackctl database postgres delete user \
   --host localhost \
   --admin-user postgres \
   --admin-password secret \
   --username old_user
 
-# Delete a database (prompts for confirmation)
+# Delete a database — omit --database to select from list; --force skips confirmation
 stackctl database postgres delete database \
   --host localhost \
   --admin-user postgres \
@@ -323,12 +409,11 @@ stackctl messagebroker rabbitmq list user \
   --admin-user admin \
   --admin-password secret
 
-# Delete a user (prompts for confirmation)
+# Delete a user — omit --username to see a numbered list and select interactively
 stackctl messagebroker rabbitmq delete user \
   --host localhost \
   --admin-user admin \
-  --admin-password secret \
-  --username old_user
+  --admin-password secret
 
 # Test user credentials
 stackctl messagebroker rabbitmq test-user \

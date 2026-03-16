@@ -37,17 +37,14 @@ func TestDeleteUserSubcommand_Flags(t *testing.T) {
 	assert.True(t, found, "user subcommand must exist")
 }
 
-func TestDeleteUserSubcommand_RequiredFlags(t *testing.T) {
+func TestDeleteUserSubcommand_Defaults(t *testing.T) {
 	cmd := NewDeleteCommand("rabbitmq")
 
 	for _, c := range cmd.Commands() {
 		if c.Name() != "user" {
 			continue
 		}
-		f := c.Flags().Lookup("username")
-		require.NotNil(t, f, "flag --username must exist")
-		_, required := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]
-		assert.True(t, required, "flag --username should be required")
+		require.NotNil(t, c.Flags().Lookup("username"), "flag --username must exist")
 
 		// --force should default to false
 		forceFlag := c.Flags().Lookup("force")

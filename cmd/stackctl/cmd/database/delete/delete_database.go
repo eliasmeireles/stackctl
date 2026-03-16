@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
@@ -19,7 +20,7 @@ type DeleteDatabaseFlags struct {
 	AdminPassword string
 	Database      string
 	Force         bool
-	VaultLogin string
+	VaultLogin    string
 }
 
 func NewDeleteCommand(dbType string) *cobra.Command {
@@ -51,16 +52,19 @@ func newDeleteDatabaseCommand(dbType string) *cobra.Command {
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to delete")
+	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to delete (omit to select from list)")
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
 	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
-
-	_ = cmd.MarkFlagRequired("database")
 
 	return cmd
 }
 
 func runDeleteDatabase(flags *DeleteDatabaseFlags) error {
+	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
+		defaults := ctx.DatabaseDefaults(flags.DBType)
+		stackctlctx.ApplyDatabaseDefaults(defaults, &flags.Host, &flags.Port, &flags.AdminUser, &flags.AdminPassword, &flags.VaultLogin)
+	}
+
 	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
 		return err
 	}
@@ -80,21 +84,6 @@ func runDeleteDatabase(flags *DeleteDatabaseFlags) error {
 			flags.Port = 27017
 		default:
 			return fmt.Errorf("unsupported database type: %s", flags.DBType)
-		}
-	}
-
-	if !flags.Force {
-		fmt.Printf("⚠️  You are about to delete database '%s' from %s at %s:%d.\n",
-			flags.Database, flags.DBType, flags.Host, flags.Port)
-		fmt.Print("This action is irreversible. Type the database name to confirm: ")
-
-		var confirmation string
-		if _, err := fmt.Scanln(&confirmation); err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
-		}
-
-		if confirmation != flags.Database {
-			return fmt.Errorf("confirmation does not match database name, aborting")
 		}
 	}
 
@@ -125,6 +114,31 @@ func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer func() { _ = pgClient.Close() }()
+
+	if flags.Database == "" {
+		databases, err := pgClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		selected, err := selectFromList("databases", databases)
+		if err != nil {
+			return err
+		}
+		flags.Database = selected
+	}
+
+	if !flags.Force {
+		fmt.Printf("⚠️  You are about to delete database '%s' from PostgreSQL at %s:%d.\n",
+			flags.Database, flags.Host, flags.Port)
+		fmt.Print("This action is irreversible. Type the database name to confirm: ")
+		var confirmation string
+		if _, err := fmt.Scanln(&confirmation); err != nil {
+			return fmt.Errorf("failed to read confirmation: %w", err)
+		}
+		if confirmation != flags.Database {
+			return fmt.Errorf("confirmation does not match database name, aborting")
+		}
+	}
 
 	exists, err := pgClient.DatabaseExists(ctx, flags.Database)
 	if err != nil {
@@ -159,6 +173,31 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 	}
 	defer func() { _ = mysqlClient.Close() }()
 
+	if flags.Database == "" {
+		databases, err := mysqlClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		selected, err := selectFromList("databases", databases)
+		if err != nil {
+			return err
+		}
+		flags.Database = selected
+	}
+
+	if !flags.Force {
+		fmt.Printf("⚠️  You are about to delete database '%s' from MySQL at %s:%d.\n",
+			flags.Database, flags.Host, flags.Port)
+		fmt.Print("This action is irreversible. Type the database name to confirm: ")
+		var confirmation string
+		if _, err := fmt.Scanln(&confirmation); err != nil {
+			return fmt.Errorf("failed to read confirmation: %w", err)
+		}
+		if confirmation != flags.Database {
+			return fmt.Errorf("confirmation does not match database name, aborting")
+		}
+	}
+
 	exists, err := mysqlClient.DatabaseExists(ctx, flags.Database)
 	if err != nil {
 		return fmt.Errorf("failed to check if database exists: %w", err)
@@ -191,6 +230,31 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer func() { _ = mongoClient.Close() }()
+
+	if flags.Database == "" {
+		databases, err := mongoClient.ListDatabases(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list databases: %w", err)
+		}
+		selected, err := selectFromList("databases", databases)
+		if err != nil {
+			return err
+		}
+		flags.Database = selected
+	}
+
+	if !flags.Force {
+		fmt.Printf("⚠️  You are about to delete database '%s' from MongoDB at %s:%d.\n",
+			flags.Database, flags.Host, flags.Port)
+		fmt.Print("This action is irreversible. Type the database name to confirm: ")
+		var confirmation string
+		if _, err := fmt.Scanln(&confirmation); err != nil {
+			return fmt.Errorf("failed to read confirmation: %w", err)
+		}
+		if confirmation != flags.Database {
+			return fmt.Errorf("confirmation does not match database name, aborting")
+		}
+	}
 
 	exists, err := mongoClient.DatabaseExists(ctx, flags.Database)
 	if err != nil {
