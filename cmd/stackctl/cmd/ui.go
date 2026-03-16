@@ -12,6 +12,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/cmd"
 	dbcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
+	gencmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/generate"
 	kubecmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	mbcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
@@ -27,6 +28,7 @@ func RunUI() {
 			kubecmd.Menu,
 			netbird.Menu,
 			vaultcmd.Menu,
+			gencmd.Menu,
 		}
 
 		m := ui.NewMenu(mainItems)
