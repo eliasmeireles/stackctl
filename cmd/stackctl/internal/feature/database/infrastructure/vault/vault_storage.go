@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/vault/api"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/repository"
 	vaultclient "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/client"
-	"github.com/hashicorp/vault/api"
 )
 
 const (

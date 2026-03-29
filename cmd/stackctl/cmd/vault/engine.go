@@ -5,6 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 func NewEngineCmd() *cobra.Command {
@@ -39,9 +41,11 @@ var NewEngineListCmdFunc = func() *cobra.Command {
 				return fmt.Errorf("❌ %v", err)
 			}
 
+			items := make([]output.ListItem, 0, len(mounts))
 			for path, mount := range mounts {
-				fmt.Printf("%-30s type=%-12s description=%s\n", path, mount.Type, mount.Description)
+				items = append(items, output.NewItem("path", path, "type", mount.Type, "description", mount.Description))
 			}
+			output.PrintList("", []string{"PATH", "TYPE", "DESCRIPTION"}, items)
 			return nil
 		},
 	}

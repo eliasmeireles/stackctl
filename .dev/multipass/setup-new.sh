@@ -51,11 +51,11 @@ bash "${SCRIPTS_DIR}/setup-k3s.sh" "${INSTANCE_NAME}"
 bash "${SCRIPTS_DIR}/setup-vault.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}"
 bash "${SCRIPTS_DIR}/setup-databases.sh" "${INSTANCE_NAME}"
 bash "${SCRIPTS_DIR}/setup-messagebrokers.sh" "${INSTANCE_NAME}"
-bash "${SCRIPTS_DIR}/setup-credentials.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}"
 
 INSTANCE_IP="$(multipass info "${INSTANCE_NAME}" | grep IPv4 | awk '{print $2}')"
-echo "   Instance IP: ${INSTANCE_IP}"
+log_info "Instance IP: ${INSTANCE_IP}"
 
+bash "${SCRIPTS_DIR}/setup-credentials.sh" "${INSTANCE_NAME}" "${VOLUMES_DIR}" "${INSTANCE_IP}"
 bash "${SCRIPTS_DIR}/setup-hapctl.sh" "${INSTANCE_NAME}" "${INSTANCE_IP}"
 bash "${SCRIPTS_DIR}/setup-cli-tools.sh" "${INSTANCE_NAME}"
 
@@ -71,6 +71,10 @@ secrets:
       auto_generate: true
       size: 25
 EOF
+
+# Copy test script into .volumes so it's accessible inside the VM at /home/ubuntu/workdir/test-stackctl.sh
+cp "${SCRIPT_DIR}/test-stackctl.sh" "${VOLUMES_DIR}/test-stackctl.sh"
+chmod +x "${VOLUMES_DIR}/test-stackctl.sh"
 
 VOLUMES_ABS="$(cd "${VOLUMES_DIR}" && pwd)"
 ROOT_TOKEN="$(cat "${VOLUMES_ABS}/vault/keys/root-token" 2>/dev/null || echo '<see root-token file>')"

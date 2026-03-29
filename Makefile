@@ -86,7 +86,7 @@ install: binary
 	@echo "✅ Installed successfully to $(GOPATH)/bin/$(BINARY_NAME)"
 
 multipass:
-	@bash .dev/multipass/setup.sh
+	@bash .dev/multipass/setup-new.sh
 
 multipass-shell:
 	@multipass shell stackctl
@@ -101,7 +101,7 @@ multipass-recreate: multipass-delete multipass
 
 multipass-test:
 	@echo "🧪 Running stackctl validation tests inside Multipass instance..."
-	@multipass exec stackctl -- bash /home/ubuntu/workdir/../test-stackctl.sh
+	@multipass exec stackctl -- bash /home/ubuntu/workdir/test-stackctl.sh
 
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64

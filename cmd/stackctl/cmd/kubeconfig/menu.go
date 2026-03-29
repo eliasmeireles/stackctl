@@ -10,7 +10,8 @@ import (
 
 var (
 	addConfigItems = []list.Item{
-		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList),
+		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList,
+			"Select the Vault path containing the kubeconfig to import."),
 		ui.CreatePromptItem("From Base64", "Import from a base64 string", "Base64 String", nil),
 		ui.CreatePromptItem("From Local File", "Import from a local yaml file", "File Path", nil),
 		ui.CreateMultiPromptItem("From Remote (SSH)", "Fetch config from a remote VPS", []string{"Host (IP/DNS)", "SSH User (default: root)", "Remote Path"}, nil),
@@ -18,16 +19,22 @@ var (
 	}
 
 	configItems = []list.Item{
-		ui.CreateSubMenu("Add Configuration", "Import config from various sources", addConfigItems),
+		ui.CreateSubMenu("Add Configuration", "Import config from various sources", addConfigItems,
+			"Choose the source to import a new kubeconfig from."),
 		ui.CreateItem("List Contexts", "List kubeconfig contexts available in local host", ui.HoopAction),
-		ui.CreateDynamicSubMenu("Set Current Context", "Switch to another context", getContextItems),
+		ui.CreateDynamicSubMenu("Set Current Context", "Switch to another context", getContextItems,
+			"Select the context to set as current."),
 		ui.CreateItem("Clean Duplicates", "Remove duplicate entries", ui.HoopAction),
-		ui.CreateDynamicSubMenu("Remove Context", "Delete a context from config", getContextItems),
-		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext),
-		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", VaultContexts),
+		ui.CreateDynamicSubMenu("Remove Context", "Delete a context from config", getContextItems,
+			"Select the context to remove from the local kubeconfig."),
+		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext,
+			"Select the local context to save to Vault."),
+		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", VaultContexts,
+			"Browse Vault-stored kubeconfig contexts."),
 	}
 
-	Menu = ui.CreateSubMenu("K8s Config", "Manage Kubernetes configurations", configItems)
+	Menu = ui.CreateSubMenu("K8s Config", "Manage Kubernetes configurations", configItems,
+		"Select a Kubernetes configuration operation.")
 )
 
 func getContextItems() ([]list.Item, error) {

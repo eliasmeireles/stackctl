@@ -36,6 +36,64 @@ All Vault commands resolve credentials in this order:
 
 ---
 
+## Global Flags
+
+| Flag              | Default   | Description                              |
+| :---------------- | :-------- | :--------------------------------------- |
+| `--output` / `-o` | `table`   | Output format: `table`, `json`, `yaml`   |
+
+When `--output json` or `--output yaml` is used, decorative emoji and progress messages are suppressed so the output is machine-readable.
+
+```bash
+stackctl database postgres list --host localhost --admin-user postgres --admin-password secret --output json
+stackctl vault secret list --output yaml
+```
+
+---
+
+## Project Context — `stackctl context`
+
+Avoid repeating `--host`, `--port`, `--admin-user` on every command by storing defaults in a `.stackctl.yaml` file. The file is searched hierarchically from the current directory up to your home directory.
+
+```bash
+# Create .stackctl.yaml interactively in the current directory
+stackctl context init
+
+# Show the active configuration
+stackctl context show
+```
+
+**`.stackctl.yaml` format:**
+
+```yaml
+version: "1"
+databases:
+  postgres:
+    host: localhost
+    port: 5432
+    user: postgres
+    vault-login: secret/databases/postgres/admin   # optional
+  mysql:
+    host: localhost
+    port: 3306
+    user: root
+  mongodb:
+    host: localhost
+    port: 27017
+    user: admin
+messagebrokers:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    user: guest
+```
+
+> **Note:** Add `.stackctl.yaml` to your `.gitignore` — it may contain passwords or Vault paths.
+
+Explicit CLI flags always override context defaults.
+
+---
+
 ## Commands
 
 ### Interactive TUI
@@ -44,7 +102,15 @@ All Vault commands resolve credentials in this order:
 stackctl
 ```
 
-Navigates all features via a menu. Automatically retries Vault authentication every 5 seconds.
+Navigates all features via a menu. Every sub-menu shows a contextual note explaining what the current step is about, and input screens display the full navigation breadcrumb plus a step counter (`step N of M`).
+
+Key interactive features:
+- **Vault path browsing** — navigate the Vault KV tree to pick admin credentials instead of typing a path
+- **Auto-generate password** — type `auto` or `auto:<size>` to generate a random password (printed after TUI exits)
+- **Database selection** — choose from a numbered list of existing databases or type a new name
+- **Missing KV engine** — auto-created when a `--vault-path` target does not exist yet
+
+Automatically retries Vault authentication every 5 seconds if the token is not yet available.
 
 **TUI color customization** (ANSI 256-color codes):
 
@@ -220,6 +286,28 @@ stackctl delete pass <KEY>
 
 ---
 
+### Generate — `stackctl generate`
+
+Generate random passwords and usernames, automatically copied to the clipboard.
+
+```bash
+# Generate a random password (copied to clipboard)
+stackctl generate password
+
+# Generate a password of a specific size (bytes of entropy)
+stackctl generate password --size 32
+
+# Generate a random username
+stackctl generate username
+
+# Print value instead of copying (useful in scripts)
+stackctl generate password --output json
+```
+
+When the clipboard is unavailable (e.g. in CI/CD), the generated value is saved to `~/.stackctl/pass`.
+
+---
+
 ### NetBird VPN — `stackctl netbird`
 
 ```bash
@@ -237,51 +325,66 @@ stackctl netbird status
 
 ### Database Management — `stackctl database`
 
-Manage database users and credentials (PostgreSQL, MySQL, MongoDB).
+Manage databases, users, schemas, and test connections (PostgreSQL, MySQL, MongoDB).
+
+Commands follow a db-type-first hierarchy: `stackctl database {postgres|mysql|mongodb} {list|create|delete|test} ...`
 
 ```bash
-# Create PostgreSQL user
-stackctl database create-user postgres \
+# List databases and users
+stackctl database postgres list \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password secret
+
+# Create a user (auto-generate password; list existing databases interactively)
+stackctl database postgres create user \
   --host localhost \
   --admin-user postgres \
   --admin-password secret \
   --username myapp_user \
+  --password auto \
+  --vault-path secret/databases/postgres/myapp_user
+
+# Create a user with explicit password and database
+stackctl database postgres create user \
+  --vault-login secret/databases/postgres/admin \
+  --username myapp_user \
   --password myapp_pass \
   --database myapp_db \
-  --vault-path secret/data/myapp/postgres
+  --vault-path secret/databases/postgres/myapp_user
 
-# Create MySQL user
-stackctl database create-user mysql \
+# Delete a user — omit --username to see a numbered list and select interactively
+stackctl database postgres delete user \
   --host localhost \
-  --admin-user root \
-  --admin-password secret \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --admin-user postgres \
+  --admin-password secret
 
-# Create MongoDB user
-stackctl database create-user mongodb \
+# Delete a specific user directly (prompts for irreversible-action confirmation)
+stackctl database postgres delete user \
   --host localhost \
-  --admin-user admin \
+  --admin-user postgres \
   --admin-password secret \
-  --username myapp_user \
-  --password myapp_pass \
-  --database myapp_db
+  --username old_user
 
-# Test database connection
-stackctl database test-user postgres \
+# Delete a database — omit --database to select from list; --force skips confirmation
+stackctl database postgres delete database \
+  --host localhost \
+  --admin-user postgres \
+  --admin-password secret \
+  --database old_db \
+  --force
+
+# Test user credentials
+stackctl database postgres test user \
   --host localhost \
   --username myapp_user \
   --password myapp_pass \
   --database myapp_db
 ```
 
-**Supported databases:**
-- PostgreSQL
-- MySQL
-- MongoDB
+**Supported databases:** PostgreSQL · MySQL · MongoDB
 
-See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for detailed documentation.
+See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for the full command reference.
 
 ---
 
@@ -290,32 +393,40 @@ See [DATABASE_COMMANDS.md](docs/DATABASE_COMMANDS.md) for detailed documentation
 Manage message broker users and credentials (RabbitMQ).
 
 ```bash
-# Create RabbitMQ user
-stackctl messagebroker create-user rabbitmq \
+# Create a RabbitMQ user
+stackctl messagebroker rabbitmq create user \
   --host localhost \
   --admin-user admin \
   --admin-password secret \
   --username myapp_user \
   --password myapp_pass \
   --tags "administrator,management" \
-  --vault-path secret/data/myapp/rabbitmq
+  --vault-path secret/messagebroker/rabbitmq/myapp_user
 
-# Test RabbitMQ user
-stackctl messagebroker test-user rabbitmq \
+# List all users
+stackctl messagebroker rabbitmq list user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret
+
+# Delete a user — omit --username to see a numbered list and select interactively
+stackctl messagebroker rabbitmq delete user \
+  --host localhost \
+  --admin-user admin \
+  --admin-password secret
+
+# Test user credentials
+stackctl messagebroker rabbitmq test-user \
   --host localhost \
   --username myapp_user \
   --password myapp_pass
 ```
 
-**Supported message brokers:**
-- RabbitMQ
+**Supported message brokers:** RabbitMQ
 
-**Common RabbitMQ tags:**
-- `administrator` - Full access to management UI and API
-- `management` - Access to management UI
-- `monitoring` - Read-only access
+**Common RabbitMQ tags:** `administrator` · `management` · `policymaker` · `monitoring`
 
-See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for detailed documentation.
+See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for the full command reference.
 
 ---
 

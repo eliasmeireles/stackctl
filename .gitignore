@@ -60,6 +60,11 @@ tmp/
 .env.*
 
 ########################
+# Project context (may contain local credentials)
+########################
+.stackctl.yaml
+
+########################
 # Planning / docs (local)
 ########################
 .planning/

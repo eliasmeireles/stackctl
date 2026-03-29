@@ -6,6 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 func NewPolicyCmd() *cobra.Command {
@@ -41,11 +43,11 @@ var NewPolicyListCmdFunc = func() *cobra.Command {
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			for _, p := range policies {
-				fmt.Println(p)
+			items := make([]output.ListItem, len(policies))
+			for i, p := range policies {
+				items[i] = output.NewItem("name", p)
 			}
-
-			log.Infof("✅ Found %d policy(ies)", len(policies))
+			output.PrintList("", []string{"NAME"}, items)
 			return nil
 		},
 	}
@@ -67,7 +69,7 @@ var NewPolicyGetCmdFunc = func() *cobra.Command {
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			fmt.Println(policy)
+			output.PrintRecord("", output.NewItem("name", args[0], "policy", policy))
 			return nil
 		},
 	}

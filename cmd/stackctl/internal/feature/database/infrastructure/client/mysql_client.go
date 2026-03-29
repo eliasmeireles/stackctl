@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/errors"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -55,6 +56,133 @@ func (c *MySQLClient) Connect(ctx context.Context, adminCreds *entity.Credential
 	return nil
 }
 
+// MySQL treats schemas as databases. These methods map schema operations to database operations.
+
+func (c *MySQLClient) ListSchemas(ctx context.Context) ([]string, error) {
+	return c.ListDatabases(ctx)
+}
+
+func (c *MySQLClient) CreateSchema(ctx context.Context, schemaName string) error {
+	return c.CreateDatabase(ctx, schemaName)
+}
+
+func (c *MySQLClient) DeleteSchema(ctx context.Context, schemaName string) error {
+	return c.DeleteDatabase(ctx, schemaName)
+}
+
+func (c *MySQLClient) ListUsers(ctx context.Context) ([]entity.UserInfo, error) {
+	if c.db == nil {
+		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
+	}
+
+	query := `SELECT CONCAT(User, '@', Host),
+		Select_priv, Insert_priv, Update_priv, Delete_priv,
+		Create_priv, Drop_priv, Grant_priv, Super_priv, Repl_slave_priv
+		FROM mysql.user ORDER BY User`
+
+	rows, err := c.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, errors.NewDatabaseError("list_users", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	privNames := []string{"SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "GRANT", "SUPER", "REPLICATION SLAVE"}
+	var users []entity.UserInfo
+	for rows.Next() {
+		var name string
+		privFlags := make([]string, len(privNames))
+		scanArgs := []interface{}{&name}
+		for i := range privFlags {
+			scanArgs = append(scanArgs, &privFlags[i])
+		}
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, errors.NewDatabaseError("list_users", err)
+		}
+
+		var perms []string
+		for i, flag := range privFlags {
+			if flag == "Y" {
+				perms = append(perms, privNames[i])
+			}
+		}
+
+		users = append(users, entity.UserInfo{Name: name, Permissions: perms})
+	}
+
+	return users, rows.Err()
+}
+
+func (c *MySQLClient) ListDatabases(ctx context.Context) ([]string, error) {
+	if c.db == nil {
+		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
+	}
+
+	rows, err := c.db.QueryContext(ctx, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA ORDER BY SCHEMA_NAME")
+	if err != nil {
+		return nil, errors.NewDatabaseError("list_databases", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var databases []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, errors.NewDatabaseError("list_databases", err)
+		}
+		databases = append(databases, name)
+	}
+
+	return databases, rows.Err()
+}
+
+func (c *MySQLClient) DeleteDatabase(ctx context.Context, dbName string) error {
+	if c.db == nil {
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
+	}
+
+	exists, err := c.DatabaseExists(ctx, dbName)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.NewDatabaseError("delete_database", fmt.Errorf("database '%s' does not exist", dbName))
+	}
+
+	query := fmt.Sprintf("DROP DATABASE `%s`", dbName)
+	if _, err := c.db.ExecContext(ctx, query); err != nil {
+		return errors.NewDatabaseError("delete_database", err)
+	}
+
+	return nil
+}
+
+func (c *MySQLClient) DatabaseExists(ctx context.Context, dbName string) (bool, error) {
+	if c.db == nil {
+		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
+	}
+
+	query := "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?"
+	var count int
+	if err := c.db.QueryRowContext(ctx, query, dbName).Scan(&count); err != nil {
+		return false, errors.NewDatabaseError("database_exists", err)
+	}
+
+	return count > 0, nil
+}
+
+func (c *MySQLClient) CreateDatabase(ctx context.Context, dbName string) error {
+	if c.db == nil {
+		return errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
+	}
+
+	query := fmt.Sprintf("CREATE DATABASE `%s`", dbName)
+	if _, err := c.db.ExecContext(ctx, query); err != nil {
+		return errors.NewDatabaseError("create_database", err)
+	}
+
+	return nil
+}
+
 func (c *MySQLClient) Close() error {
 	if c.db != nil {
 		return c.db.Close()
@@ -67,7 +195,7 @@ func (c *MySQLClient) UserExists(ctx context.Context, username string) (bool, er
 		return false, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", mysqlErrNoConnection))
 	}
 
-	query := "SELECT COUNT(*) FROM mysql.user WHERE user = ?"
+	query := "SELECT COUNT(*) FROM mysql.user WHERE USER = ?"
 	var count int
 	err := c.db.QueryRowContext(ctx, query, username).Scan(&count)
 	if err != nil {

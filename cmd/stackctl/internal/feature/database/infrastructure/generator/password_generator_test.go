@@ -61,7 +61,7 @@ func TestPasswordGenerator_GeneratePassword(t *testing.T) {
 			if expectedSize == 0 {
 				expectedSize = defaultPasswordSize
 			}
-			require.Equal(t, expectedSize*2, len(password))
+			require.Equal(t, expectedSize, len(password))
 		})
 	}
 }

@@ -1,7 +1,6 @@
 package vault
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 
 	vaultpkg "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault/flags"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 const defaultListPath = "secret/metadata/resources/kubeconfig"
@@ -58,23 +58,24 @@ Examples:
 				listPath = args[0]
 			}
 
-			log.Infof("📋 Listing secrets at: %s\n", listPath)
+			if !output.IsStructured() {
+				log.Infof("📋 Listing secrets at: %s\n", listPath)
+			}
 
 			keys, err := client.ListSecrets(listPath)
 			if err != nil {
 				return fmt.Errorf("❌ Failed to list secrets: %v", err)
 			}
 
-			if len(keys) == 0 {
-				log.Info("No secrets found.")
-				return nil
+			items := make([]output.ListItem, len(keys))
+			for i, k := range keys {
+				items[i] = output.NewItem("key", k)
 			}
-
-			for _, key := range keys {
-				fmt.Printf(" - %s\n", key)
+			title := fmt.Sprintf("Secrets at %s:", listPath)
+			if output.IsStructured() {
+				title = ""
 			}
-
-			log.Infof("\n✅ Found %d secret(s)", len(keys))
+			output.PrintList(title, []string{"KEY"}, items)
 			return nil
 		},
 	}
@@ -105,19 +106,16 @@ Examples:
 			}
 
 			path := args[0]
-			log.Infof("🔍 Reading secret: %s", path)
+			if !output.IsStructured() {
+				log.Infof("🔍 Reading secret: %s", path)
+			}
 
 			data, err := client.ReadSecret(path)
 			if err != nil {
 				return fmt.Errorf("❌ Failed to read secret: %v", err)
 			}
 
-			output, err := json.MarshalIndent(data, "", "  ")
-			if err != nil {
-				return fmt.Errorf("❌ Failed to format output: %v", err)
-			}
-
-			fmt.Println(string(output))
+			output.PrintSecretMap(path, data)
 			return nil
 		},
 	}

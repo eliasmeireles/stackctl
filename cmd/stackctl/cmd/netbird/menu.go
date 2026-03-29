@@ -13,5 +13,5 @@ var (
 		ui.CreateItem("Install", "Download NetBird binary", ui.HoopAction),
 	}
 
-	Menu = ui.CreateSubMenu("NetBird", "Manage VPN connection", items)
+	Menu = ui.CreateSubMenu("NetBird", "Manage VPN connection", items, "Select a NetBird VPN operation.")
 )

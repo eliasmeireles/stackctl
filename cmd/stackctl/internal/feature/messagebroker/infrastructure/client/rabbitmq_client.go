@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"strings"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/errors"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
@@ -197,12 +198,74 @@ func (c *RabbitMQClient) GrantPrivileges(ctx context.Context, username string, p
 		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }
 
+func (c *RabbitMQClient) ListUsers(ctx context.Context) ([]entity.UserInfo, error) {
+	if c.httpClient == nil || c.adminCreds == nil {
+		return nil, errors.NewConnectionError(c.config.Host, c.config.Port, fmt.Errorf("%s", rabbitErrNoConnection))
+	}
+
+	url := fmt.Sprintf("http://%s:%d/api/users", c.config.Host, c.managementPort)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, errors.NewDatabaseError("list_users", err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.NewDatabaseError("list_users", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, errors.NewDatabaseError("list_users",
+			fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
+	}
+
+	var rawUsers []struct {
+		Name string `json:"name"`
+		Tags string `json:"tags"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&rawUsers); err != nil {
+		return nil, errors.NewDatabaseError("list_users", err)
+	}
+
+	var users []entity.UserInfo
+	for _, u := range rawUsers {
+		var perms []string
+		if u.Tags != "" {
+			perms = strings.Split(u.Tags, ",")
+		}
+		users = append(users, entity.UserInfo{Name: u.Name, Permissions: perms})
+	}
+
+	return users, nil
+}
+
 func (c *RabbitMQClient) RemoveUser(ctx context.Context, username string) error {
-	if c.conn == nil {
+	if c.httpClient == nil || c.adminCreds == nil {
 		return errors.NewConnectionError(c.config.Host, c.config.Port,
 			fmt.Errorf("%s", rabbitErrNoConnection))
 	}
 
+	url := fmt.Sprintf("http://%s:%d/api/users/%s", c.config.Host, c.managementPort, username)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return errors.NewDatabaseError("failed to remove user", err)
+	}
+
+	req.SetBasicAuth(c.adminCreds.Username, c.adminCreds.Password)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.NewDatabaseError("failed to remove user", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
 	return errors.NewDatabaseError("failed to remove user",
-		fmt.Errorf("RabbitMQ user management requires HTTP Management API"))
+		fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body)))
 }

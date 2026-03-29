@@ -26,23 +26,17 @@ exec_in_instance "${INSTANCE_NAME}" bash -c "
 
 log_info "Installing HAProxy via hapctl..."
 exec_in_instance "${INSTANCE_NAME}" bash -c "
-  if ! sudo hapctl install --check >/dev/null 2>&1; then
+  if command -v haproxy >/dev/null 2>&1 && sudo systemctl is-enabled haproxy >/dev/null 2>&1; then
+    echo '[SKIP] HAProxy already installed.'
+  else
     echo '[INSTALL] Installing HAProxy via hapctl...'
     sudo hapctl install
-
-    # Create HAProxy runtime directory
-    echo '[FIX] Creating HAProxy runtime directory...'
-    sudo mkdir -p /run/haproxy
-    sudo chown haproxy:haproxy /run/haproxy
-
     echo '[OK] HAProxy installed.'
-  else
-    echo '[SKIP] HAProxy already installed.'
-
-    # Ensure runtime directory exists
-    sudo mkdir -p /run/haproxy
-    sudo chown haproxy:haproxy /run/haproxy 2>/dev/null || true
   fi
+
+  # Ensure runtime directory exists
+  sudo mkdir -p /run/haproxy
+  sudo chown haproxy:haproxy /run/haproxy 2>/dev/null || true
 "
 
 log_info "Configuring hapctl agent..."

@@ -1,9 +1,17 @@
 package test
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/eliasmeireles/envvault"
+
+	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type TestUserFlags struct {
@@ -16,11 +24,11 @@ type TestUserFlags struct {
 	VaultPath string
 }
 
-func NewTestUserCommand() *cobra.Command {
-	flags := &TestUserFlags{}
+func NewTestUserCommand(dbType string) *cobra.Command {
+	flags := &TestUserFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "test-user [postgres|mysql|mongodb]",
+		Use:   "test-user",
 		Short: "Test database user credentials and permissions",
 		Long: `Test if a database user can connect and has the expected permissions.
 This command validates:
@@ -28,9 +36,7 @@ This command validates:
 - User authentication
 - Basic permissions (SELECT, INSERT, etc.)
 - Optionally retrieves credentials from Vault`,
-		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.DBType = args[0]
 			return runTestUser(flags)
 		},
 	}
@@ -49,28 +55,38 @@ This command validates:
 }
 
 func runTestUser(flags *TestUserFlags) error {
-	fmt.Printf("Testing %s user credentials...\n", flags.DBType)
-	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
-	fmt.Printf("  Username: %s\n", flags.Username)
-	fmt.Printf("  Database: %s\n", flags.Database)
-	fmt.Println()
+	if !output.IsStructured() {
+		fmt.Printf("Testing %s user credentials...\n", flags.DBType)
+		fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
+		fmt.Printf("  Username: %s\n", flags.Username)
+		fmt.Printf("  Database: %s\n", flags.Database)
+		fmt.Println()
+	}
 
-	// Retrieve credentials from Vault if vault-path is provided
+	// Apply .stackctl.yaml defaults (explicit flags win).
+	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
+		defaults := ctx.DatabaseDefaults(flags.DBType)
+		stackctlctx.ApplyDatabaseDefaults(defaults, &flags.Host, &flags.Port, nil, nil, &flags.VaultPath)
+	}
+
 	if flags.VaultPath != "" {
-		fmt.Printf("Retrieving credentials from Vault: %s\n", flags.VaultPath)
+		if !output.IsStructured() {
+			fmt.Printf("Retrieving credentials from Vault: %s\n", flags.VaultPath)
+		}
 		password, err := getPasswordFromVault(flags.VaultPath)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve password from Vault: %w", err)
 		}
 		flags.Password = password
-		fmt.Println("✓ Credentials retrieved from Vault")
+		if !output.IsStructured() {
+			fmt.Println("✓ Credentials retrieved from Vault")
+		}
 	}
 
 	if flags.Password == "" {
 		return fmt.Errorf("password is required (use --password or --vault-path)")
 	}
 
-	// Set default ports if not specified
 	if flags.Port == 0 {
 		switch flags.DBType {
 		case "postgres":
@@ -84,7 +100,6 @@ func runTestUser(flags *TestUserFlags) error {
 		}
 	}
 
-	// Test connection based on database type
 	switch flags.DBType {
 	case "postgres":
 		return testPostgresUser(flags)
@@ -98,63 +113,166 @@ func runTestUser(flags *TestUserFlags) error {
 }
 
 func getPasswordFromVault(vaultPath string) (string, error) {
-	// TODO: Implement Vault integration
-	// For now, return error indicating it needs implementation
-	return "", fmt.Errorf("vault integration not yet implemented - use --password flag")
+	cfg, err := envvault.ConfigFromEnvForReadOnly()
+	if err != nil {
+		return "", fmt.Errorf("failed to load Vault config: %w", err)
+	}
+
+	c := envvault.NewClient(cfg)
+	if err := c.Authenticate(); err != nil {
+		return "", fmt.Errorf("vault authentication failed: %w", err)
+	}
+
+	data, err := c.ReadSecret(vaultPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read secret from Vault: %w", err)
+	}
+
+	password, ok := data["password"].(string)
+	if !ok {
+		return "", fmt.Errorf("password field not found in Vault secret")
+	}
+
+	return password, nil
 }
 
 func testPostgresUser(flags *TestUserFlags) error {
-	fmt.Println("Testing PostgreSQL connection...")
+	ctx := context.Background()
 
-	// Build connection string
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.PostgreSQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Printf("Executing: psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Database)
+	creds := &entity.Credentials{Username: flags.Username, Password: flags.Password}
 
-	// Note: This is a placeholder - actual implementation would use database/sql
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT 1'\n",
-		flags.Password, flags.Host, flags.Port, flags.Username, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  PGPASSWORD='%s' psql -h %s -p %d -U %s -d %s -c 'SELECT version()'\n",
-		flags.Password, flags.Host, flags.Port, flags.Username, flags.Database)
+	if !output.IsStructured() {
+		fmt.Println("📡 Connecting to PostgreSQL...")
+	}
+	pgClient, err := client.NewPostgresClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+	}
 
-	_ = connStr // Avoid unused variable warning
+	if err := pgClient.Connect(ctx, creds); err != nil {
+		output.PrintStatus(output.StatusResult{
+			Success: false,
+			Message: fmt.Sprintf("Connection failed: %v", err),
+			Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+		})
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() { _ = pgClient.Close() }()
+
+	exists, err := pgClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	msg := fmt.Sprintf("User '%s' verified successfully", flags.Username)
+	if !exists {
+		msg = fmt.Sprintf("User '%s' connected but may have limited permissions", flags.Username)
+	}
+	output.PrintStatus(output.StatusResult{
+		Success: true,
+		Message: msg,
+		Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+	})
 	return nil
 }
 
 func testMySQLUser(flags *TestUserFlags) error {
-	fmt.Println("Testing MySQL connection...")
+	ctx := context.Background()
 
-	fmt.Printf("Executing: mysql -h %s -P %d -u %s -p'***' %s -e 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.MySQL,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT 1'\n",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  mysql -h %s -P %d -u %s -p'%s' %s -e 'SELECT VERSION()'\n",
-		flags.Host, flags.Port, flags.Username, flags.Password, flags.Database)
+	creds := &entity.Credentials{Username: flags.Username, Password: flags.Password}
 
+	if !output.IsStructured() {
+		fmt.Println("📡 Connecting to MySQL...")
+	}
+	mysqlClient, err := client.NewMySQLClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MySQL client: %w", err)
+	}
+
+	if err := mysqlClient.Connect(ctx, creds); err != nil {
+		output.PrintStatus(output.StatusResult{
+			Success: false,
+			Message: fmt.Sprintf("Connection failed: %v", err),
+			Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+		})
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() { _ = mysqlClient.Close() }()
+
+	exists, err := mysqlClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	msg := fmt.Sprintf("User '%s' verified successfully", flags.Username)
+	if !exists {
+		msg = fmt.Sprintf("User '%s' connected but may have limited permissions", flags.Username)
+	}
+	output.PrintStatus(output.StatusResult{
+		Success: true,
+		Message: msg,
+		Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+	})
 	return nil
 }
 
 func testMongoDBUser(flags *TestUserFlags) error {
-	fmt.Println("Testing MongoDB connection...")
+	ctx := context.Background()
 
-	connStr := fmt.Sprintf("mongodb://%s:%s@%s:%d/%s",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
+	config := &entity.DatabaseConfig{
+		Type:     entity.MongoDB,
+		Host:     flags.Host,
+		Port:     flags.Port,
+		Database: flags.Database,
+	}
 
-	fmt.Printf("Executing: mongosh '%s' --eval 'db.runCommand({ping: 1})'\n", connStr)
+	creds := &entity.Credentials{Username: flags.Username, Password: flags.Password}
 
-	fmt.Println("\n⚠️  This is a CLI command wrapper. For actual testing, use:")
-	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.runCommand({ping: 1})'\n",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
-	fmt.Println("\nTo test permissions:")
-	fmt.Printf("  mongosh 'mongodb://%s:%s@%s:%d/%s' --eval 'db.getCollectionNames()'\n",
-		flags.Username, flags.Password, flags.Host, flags.Port, flags.Database)
+	if !output.IsStructured() {
+		fmt.Println("📡 Connecting to MongoDB...")
+	}
+	mongoClient, err := client.NewMongoDBClient(config)
+	if err != nil {
+		return fmt.Errorf("failed to create MongoDB client: %w", err)
+	}
 
+	if err := mongoClient.Connect(ctx, creds); err != nil {
+		output.PrintStatus(output.StatusResult{
+			Success: false,
+			Message: fmt.Sprintf("Connection failed: %v", err),
+			Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+		})
+		return fmt.Errorf("authentication failed - invalid credentials")
+	}
+	defer func() { _ = mongoClient.Close() }()
+
+	exists, err := mongoClient.UserExists(ctx, flags.Username)
+	if err != nil {
+		return fmt.Errorf("failed to verify user: %w", err)
+	}
+
+	msg := fmt.Sprintf("User '%s' verified successfully", flags.Username)
+	if !exists {
+		msg = fmt.Sprintf("User '%s' connected but may have limited permissions", flags.Username)
+	}
+	output.PrintStatus(output.StatusResult{
+		Success: true,
+		Message: msg,
+		Fields:  output.NewItem("host", fmt.Sprintf("%s:%d", flags.Host, flags.Port), "user", flags.Username, "database", flags.Database),
+	})
 	return nil
 }
