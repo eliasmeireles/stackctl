@@ -170,30 +170,19 @@ func runAsKubeconfig(client *envvault.Client, secretPath, field, resourceName st
 
 // runAsKubeconfigFunc is a function variable for merging kubeconfig from Vault.
 var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resourceName string) {
-	data, err := client.ReadSecret(secretPath)
-	if err != nil {
-		log.Errorf("❌ Failed to read secret: %v", err)
-	}
-
-	kubeconfigBase64, ok := data[field].(string)
-	if !ok {
-		log.Errorf("❌ Field %q not found or not a string in %s", field, secretPath)
-	}
-
 	kubeconfigPath := featureKubeconfig.GetPath()
 	name := resourceName
 	if name == "" {
 		name = deriveResourceName(secretPath)
 	}
 
-	svc := featureKubeconfig.NewVaultKubeconfigService(nil)
+	svc := featureKubeconfig.NewVaultKubeconfigService(client)
 	if err := svc.FetchKubeconfigFromVault(secretPath, kubeconfigPath, name); err != nil {
 		log.Errorf("❌ Failed to merge kubeconfig: %v", err)
 		return
 	}
 
 	log.Infof("✅ Kubeconfig from %s[%s] merged into %s", secretPath, field, kubeconfigPath)
-	_ = kubeconfigBase64 // Use the variable to avoid unused error if needed, although it is used above.
 }
 
 // deriveResourceName extracts the resource name from the secret path.
