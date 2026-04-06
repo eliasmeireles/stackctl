@@ -10,6 +10,20 @@ inside a CI/CD pipeline with no extra tooling.
 Whether you are a solo developer, a startup, or a small ops team, `stackctl` gives you the same security practices used
 at scale — without the complexity.
 
+**Install via curl (recommended):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eliasmeireles/stackctl/main/install.sh | bash
+```
+
+**Install a specific version:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eliasmeireles/stackctl/main/install.sh | bash -s v0.0.9
+```
+
+**Install from source (requires Go):**
+
 ```bash
 go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest
 ```
