@@ -1,0 +1,168 @@
+# =============================================================================
+# stackctl vault apply -f promogram-bootstrap.yaml
+#
+# Bootstraps Vault policies, roles and Kubernetes resources for the promogram
+# stack. Applies all resources idempotently (safe to re-run).
+#
+# Auth (in priority order):
+#   1. --addr / --token flags
+#   2. VAULT_ADDR / VAULT_TOKEN env vars
+#   3. ~/.vault-token written by 'vault login'
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Vault policies
+# ---------------------------------------------------------------------------
+policies:
+  add:
+    - name: promogram-backend
+      rules: |
+        path "secret/data/promogram/backend/config" { capabilities = ["read"] }
+        path "secret/metadata/promogram/backend/config" { capabilities = ["read"] }
+
+    - name: promogram-crawler
+      rules: |
+        path "secret/data/promogram/crawler/config" { capabilities = ["read"] }
+        path "secret/metadata/promogram/crawler/config" { capabilities = ["read"] }
+
+    - name: promogram-message-bridge
+      rules: |
+        path "secret/data/promogram/message-bridge/config" { capabilities = ["read"] }
+        path "secret/metadata/promogram/message-bridge/config" { capabilities = ["read"] }
+
+    - name: promogram-wuzapi
+      rules: |
+        path "secret/data/promogram/wuzapi/config" { capabilities = ["read"] }
+        path "secret/metadata/promogram/wuzapi/config" { capabilities = ["read"] }
+
+    - name: registry-reader
+      rules: |
+        path "secret/data/resources/github/ghcr" { capabilities = ["read"] }
+
+# ---------------------------------------------------------------------------
+# Vault roles (Kubernetes auth)
+# ---------------------------------------------------------------------------
+roles:
+  # ---- oracle-vps-01: promogram namespace ----
+  - auth_mount: auth/k8s-vps-01-oracle
+    name: api
+    action: add
+    bound_service_account_names: "api"
+    bound_service_account_namespaces: "promogram"
+    policies: "promogram-backend"
+    ttl: "24h"
+
+  - auth_mount: auth/k8s-vps-01-oracle
+    name: crawler
+    action: add
+    bound_service_account_names: "crawler"
+    bound_service_account_namespaces: "promogram"
+    policies: "promogram-crawler"
+    ttl: "24h"
+
+  # ---- oracle-vps-02: messaging namespace ----
+  - auth_mount: auth/k8s-vps-02-oracle
+    name: message-bridge
+    action: add
+    bound_service_account_names: "message-bridge"
+    bound_service_account_namespaces: "messaging"
+    policies: "promogram-message-bridge"
+    ttl: "24h"
+
+  - auth_mount: auth/k8s-vps-02-oracle
+    name: wuzapi
+    action: add
+    bound_service_account_names: "wuzapi"
+    bound_service_account_namespaces: "messaging"
+    policies: "promogram-wuzapi"
+    ttl: "24h"
+
+# ---------------------------------------------------------------------------
+# Kubernetes resources
+# The kubernetes section runs AFTER all Vault operations complete.
+# context: uses kubectl current context (override with: --context flag or set here)
+# ---------------------------------------------------------------------------
+kubernetes:
+  # context: homelab   # uncomment to override active kubectl context
+
+  namespaces:
+    - name: promogram
+      labels:
+        app.kubernetes.io/component: application
+        app.kubernetes.io/environment: prod
+
+    - name: messaging
+      labels:
+        app.kubernetes.io/component: messaging
+        app.kubernetes.io/environment: prod
+
+  # GHCR token is read from Vault and materialised as a dockerconfigjson Secret
+  # in every namespace that needs to pull private images.
+  registry_secrets:
+    - name: registry-credentials
+      namespaces:
+        - promogram
+        - messaging
+      registry: ghcr.io
+      vault:
+        path: secret/data/resources/github/ghcr
+        username_key: USERNAME
+        password_key: TOKEN
+
+  service_accounts:
+    - name: api
+      namespace: promogram
+      image_pull_secrets: [registry-credentials]
+      automount_token: true
+      labels:
+        app.kubernetes.io/name: api
+
+    - name: crawler
+      namespace: promogram
+      image_pull_secrets: [registry-credentials]
+      automount_token: true
+      labels:
+        app.kubernetes.io/name: crawler
+
+    - name: message-bridge
+      namespace: messaging
+      image_pull_secrets: [registry-credentials]
+      automount_token: true
+      labels:
+        app.kubernetes.io/name: message-bridge
+
+    - name: wuzapi
+      namespace: messaging
+      image_pull_secrets: [registry-credentials]
+      automount_token: true
+      labels:
+        app.kubernetes.io/name: wuzapi
+
+  config_maps:
+    - name: api-config
+      namespace: promogram
+      labels:
+        app.kubernetes.io/name: api
+      data:
+        MONGODB_HOST: "mongodb.solutionstk.com"
+        MONGODB_PORT: "27017"
+        MONGODB_DATABASE: "promogram"
+        MONGODB_DYNAMIC_DATABASE: "promogram_dynamic"
+        MONGODB_AUTH_SOURCE: "promogram"
+        RABBITMQ_HOST: "rabbitmq.message-broker.svc.cluster.local"
+        RABBITMQ_PORT: "5672"
+        RABBITMQ_VHOST: "notification"
+        RABBITMQ_QUEUE: "mailer-service"
+        MESSAGE_BRIDGE_URL: "https://app-message-bridge.solutionstk.com"
+        CRAWLER_BASE_URL: "http://crawler-service.promogram.svc.cluster.local:8080"
+        EMAIL_FROM: "no-reply@promogram.com.br"
+        BASE_URL: "https://promogram.com.br"
+        DEFAULT_TENANT_HOSTNAME: "promogram.com.br"
+        PORT: "8080"
+        GIN_MODE: "release"
+        TZ: "America/Sao_Paulo"
+        SITE_CONFIG_CACHE_TTL_MINUTES: "60"
+        GOOGLE_REDIRECT_URL: "https://promogram.com.br/api/auth/google/callback"
+        CORS_ALLOW_ORIGINS: >
+          https://promogram.com.br,https://admin.promogram.com.br,
+          http://localhost:3000,http://localhost:3001

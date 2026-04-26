@@ -98,6 +98,11 @@ func (a *Applier) Apply(cfg *ApplyConfig) error {
 			return fmt.Errorf("secrets: %w", err)
 		}
 	}
+	if cfg.Kubernetes != nil {
+		if err := a.applyKubernetes(cfg.Kubernetes); err != nil {
+			return fmt.Errorf("kubernetes: %w", err)
+		}
+	}
 	return nil
 }
 
