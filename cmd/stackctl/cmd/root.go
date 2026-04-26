@@ -23,6 +23,7 @@ import (
 var (
 	Version      = "dev"
 	showVersion  bool
+	doUpdate     bool
 	outputFormat string
 )
 
@@ -41,6 +42,10 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if showVersion {
 			fmt.Printf("stackctl version %s\n", Version)
+			return
+		}
+		if doUpdate {
+			runUpdate()
 			return
 		}
 		// If no command is provided, open the TUI
@@ -66,8 +71,8 @@ func init() {
 	// Further cleanup: use a custom formatter for zero prefix
 	log.SetFormatter(new(PlainFormatter))
 
-	// Add version flags
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
+	rootCmd.Flags().BoolVarP(&doUpdate, "update", "u", false, "Update stackctl to the latest release")
 
 	// Output format flag (global, inherited by all subcommands)
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "Output format: table, json, yaml")
