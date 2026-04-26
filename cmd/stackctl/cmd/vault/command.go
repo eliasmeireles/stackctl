@@ -8,13 +8,14 @@ import (
 )
 
 const (
-	CategoryFetch  = "Vault/Fetch Kubeconfig"
-	CategoryApply  = "Vault/Apply"
-	CategorySecret = "Vault/Secrets"
-	CategoryAuth   = "Vault/Admin/Auth"
-	CategoryPolicy = "Vault/Policies"
-	CategoryEngine = "Vault/Admin/Engines"
-	CategoryRole   = "Vault/Roles"
+	CategoryFetch    = "Vault/Fetch Kubeconfig"
+	CategoryApply    = "Vault/Apply"
+	CategorySecret   = "Vault/Secrets"
+	CategoryAuth     = "Vault/Admin/Auth"
+	CategoryPolicy   = "Vault/Policies"
+	CategoryEngine   = "Vault/Admin/Engines"
+	CategoryRole     = "Vault/Roles"
+	CategoryGenerate = "Vault/Generate"
 )
 
 func init() {
@@ -34,6 +35,8 @@ func init() {
 	cmd.Add(cmd.NewDefault(NewEngineDisableCmd(), CategoryEngine, "Disable Engine"))
 	cmd.Add(cmd.NewDefault(NewRoleCmd(), CategoryRole))
 	cmd.Add(cmd.NewDefault(NewApplyCmd(), CategoryApply))
+	cmd.Add(cmd.NewDefault(NewRevertCmd(), CategoryApply))
+	cmd.Add(cmd.NewDefault(NewGenerateManifestCmd(), CategoryGenerate))
 	cmd.Add(cmd.NewDefault(NewFetchCommand(), CategoryFetch))
 }
 
@@ -66,6 +69,8 @@ Subcommands:
 	cmd.AddCommand(NewEngineCmd())
 	cmd.AddCommand(NewRoleCmd())
 	cmd.AddCommand(NewApplyCmd())
+	cmd.AddCommand(NewRevertCmd())
+	cmd.AddCommand(NewGenerateManifestCmd())
 	cmd.AddCommand(NewFetchCommand())
 
 	flags.SharedFlags(cmd)

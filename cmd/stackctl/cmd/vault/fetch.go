@@ -78,14 +78,12 @@ Examples:
 			}
 
 			if vaultSecretPath == "" {
-				log.Error("❌ --secret-path or VAULT_SECRET_PATH is required")
-				return
+				log.Fatal("❌ --secret-path or VAULT_SECRET_PATH is required")
 			}
 
 			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				log.Errorf("❌ Failed to create Vault client: %v", err)
-				return
+				log.Fatalf("❌ Failed to create Vault client: %v", err)
 			}
 			vaultClient := evClient
 
@@ -124,8 +122,7 @@ var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEn
 
 	data, err := client.ReadSecret(secretPath)
 	if err != nil {
-		log.Errorf("❌ Failed to read secret from Vault: %v", err)
-		return
+		log.Fatalf("❌ Failed to read secret from Vault: %v", err)
 	}
 
 	for key, value := range data {
@@ -178,8 +175,7 @@ var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resou
 
 	svc := featureKubeconfig.NewVaultKubeconfigService(client)
 	if err := svc.FetchKubeconfigFromVault(secretPath, kubeconfigPath, name); err != nil {
-		log.Errorf("❌ Failed to merge kubeconfig: %v", err)
-		return
+		log.Fatalf("❌ Failed to merge kubeconfig: %v", err)
 	}
 
 	log.Infof("✅ Kubeconfig from %s[%s] merged into %s", secretPath, field, kubeconfigPath)

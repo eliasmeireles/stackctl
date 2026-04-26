@@ -1,7 +1,9 @@
 package vault
 
+import k8s "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/k8s"
+
 // ApplyConfig represents the full YAML configuration for declarative Vault operations.
-// Execution order: Engines -> Auth -> Policies -> Roles -> ServiceAccounts -> Users -> Secrets.
+// Execution order: Engines -> Auth -> Policies -> Roles -> ServiceAccounts -> Users -> Secrets -> Kubernetes.
 type ApplyConfig struct {
 	Secrets         *SecretsConfig         `yaml:"secrets"`
 	Policies        *PoliciesConfig        `yaml:"policies"`
@@ -10,6 +12,7 @@ type ApplyConfig struct {
 	Roles           []RoleConfig           `yaml:"roles"`
 	ServiceAccounts *ServiceAccountsConfig `yaml:"service_accounts"`
 	Users           *UsersConfig           `yaml:"users"`
+	Kubernetes      *KubernetesConfig      `yaml:"kubernetes"`
 }
 
 // SecretsConfig defines KV v2 secret operations.
@@ -138,3 +141,7 @@ type UserEntry struct {
 type UserDeleteEntry struct {
 	Username string `yaml:"username"`
 }
+
+// KubernetesConfig is an alias for the k8s package Config type.
+// All Kubernetes resource types are defined in the k8s package to keep this file Vault-focused.
+type KubernetesConfig = k8s.Config
