@@ -85,9 +85,10 @@ func TestApplyNamespaces(t *testing.T) {
 func TestApplyRegistrySecrets(t *testing.T) {
 	t.Run("given inline credentials then creates dockerconfigjson secret", func(t *testing.T) {
 		applier, cs := newTestApplier()
-		cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "promogram"}}, metav1.CreateOptions{})
+		_, err := cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "promogram"}}, metav1.CreateOptions{})
+		require.NoError(t, err)
 
-		err := applier.Apply(&Config{
+		err = applier.Apply(&Config{
 			RegistrySecrets: []RegistrySecretEntry{
 				{
 					Name:       "registry-credentials",
@@ -108,14 +109,15 @@ func TestApplyRegistrySecrets(t *testing.T) {
 
 	t.Run("given vault reference then resolves credentials from vault", func(t *testing.T) {
 		applier, cs := newTestApplier()
-		cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "messaging"}}, metav1.CreateOptions{})
+		_, err := cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "messaging"}}, metav1.CreateOptions{})
+		require.NoError(t, err)
 
 		resolver := staticVaultResolver(map[string]interface{}{
 			"USERNAME": "vaultuser",
 			"TOKEN":    "vaulttoken",
 		})
 
-		err := applier.Apply(&Config{
+		err = applier.Apply(&Config{
 			RegistrySecrets: []RegistrySecretEntry{
 				{
 					Name:       "registry-credentials",
@@ -140,7 +142,8 @@ func TestApplyRegistrySecrets(t *testing.T) {
 	t.Run("given multiple namespaces then creates secret in each", func(t *testing.T) {
 		applier, cs := newTestApplier()
 		for _, ns := range []string{"ns-a", "ns-b", "ns-c"} {
-			cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}, metav1.CreateOptions{})
+			_, err := cs.CoreV1().Namespaces().Create(ctx(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}, metav1.CreateOptions{})
+			require.NoError(t, err)
 		}
 
 		err := applier.Apply(&Config{

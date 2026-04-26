@@ -298,8 +298,8 @@ func buildManifest(sections []templateSection) string {
 	sb.WriteString("# Each section is optional — remove sections you do not need.\n\n")
 
 	for i, s := range sections {
-		sb.WriteString(fmt.Sprintf("# ==========  %s  ==========\n", strings.ToUpper(s.key)))
-		sb.WriteString(fmt.Sprintf("# %s\n", s.desc))
+		fmt.Fprintf(&sb, "# ==========  %s  ==========\n", strings.ToUpper(s.key))
+		fmt.Fprintf(&sb, "# %s\n", s.desc)
 		sb.WriteString(s.yaml)
 		if i < len(sections)-1 {
 			sb.WriteString("\n")
