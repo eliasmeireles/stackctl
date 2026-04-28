@@ -76,7 +76,7 @@ func TestApplyNamespaces(t *testing.T) {
 			Namespaces: []NamespaceEntry{{Name: ""}},
 		}, noopVaultResolver)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing name")
+		assert.Contains(t, err.Error(), "name is required")
 	})
 }
 
@@ -249,7 +249,7 @@ func TestApplyServiceAccounts(t *testing.T) {
 			ServiceAccounts: []K8sServiceAccountEntry{{Namespace: "ns"}},
 		}, noopVaultResolver)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing name")
+		assert.Contains(t, err.Error(), "name is required")
 	})
 
 	t.Run("given service account missing namespace then returns error", func(t *testing.T) {
@@ -258,7 +258,7 @@ func TestApplyServiceAccounts(t *testing.T) {
 			ServiceAccounts: []K8sServiceAccountEntry{{Name: "api"}},
 		}, noopVaultResolver)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing namespace")
+		assert.Contains(t, err.Error(), "namespace is required")
 	})
 }
 
@@ -311,7 +311,7 @@ func TestApplyConfigMaps(t *testing.T) {
 			ConfigMaps: []K8sConfigMapEntry{{Name: "cfg"}},
 		}, noopVaultResolver)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing namespace")
+		assert.Contains(t, err.Error(), "namespace is required")
 	})
 }
 

@@ -23,6 +23,7 @@ const (
 	CategoryRemoveContext         = "K8s Config/Remove Context"
 	CategoryAddConfiguration      = "K8s Config/Add Configuration"
 	CategoryAddFromVault          = "K8s Config/Add Configuration/From Vault"
+	CategoryFromServiceAccount    = "K8s Config/Generate from ServiceAccount"
 	CategorySaveToVault           = "K8s Config/Save to Vault"
 	CategoryClustersConfiguration = "K8s Config/Clusters configuration"
 )
@@ -38,6 +39,7 @@ func init() {
 	cmd.Add(cmd.NewDefault(NewAddFromVaultCmd(), CategoryAddFromVault))
 	cmd.Add(cmd.NewDefault(NewSaveToVaultCmd(), CategorySaveToVault))
 	cmd.Add(cmd.NewDefault(NewListRemoteCmd(), CategoryClustersConfiguration))
+	cmd.Add(cmd.NewDefault(NewFromSACmd(), CategoryFromServiceAccount))
 }
 
 // NewCommand creates the main config command and its subcommands.
@@ -54,6 +56,7 @@ func NewCommand() *cobra.Command {
 	configCmd.AddCommand(NewSetNamespaceCmd())
 	configCmd.AddCommand(NewAddCmd())
 	configCmd.AddCommand(NewRemoveCmd())
+	configCmd.AddCommand(NewFromSACmd())
 
 	// Add vault commands
 	configCmd.AddCommand(NewAddFromVaultCmd())

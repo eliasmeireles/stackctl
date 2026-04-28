@@ -174,6 +174,48 @@ var templateSections = []templateSection{
       data:
         PORT: "8080"
         LOG_LEVEL: "info"
+
+  # Create or update generic Secrets. Type defaults to Opaque.
+  # For service-account tokens use type: kubernetes.io/service-account-token
+  # and set the kubernetes.io/service-account.name annotation.
+  secrets:
+    - name: my-app-token
+      namespace: my-app
+      type: kubernetes.io/service-account-token
+      annotations:
+        kubernetes.io/service-account.name: my-app
+    # - name: app-config-secret
+    #   namespace: my-app
+    #   type: Opaque                # default
+    #   string_data:
+    #     API_KEY: "plain-text-here"
+    #   data:
+    #     EXTRA: "YWxyZWFkeS1iYXNlNjQ="   # already base64-encoded values
+
+  # Bind subjects (ServiceAccounts, Users, Groups) to a Role or ClusterRole
+  # in a specific namespace.
+  role_bindings:
+    - name: my-app-edit
+      namespace: my-app
+      role_ref:
+        kind: ClusterRole         # ClusterRole | Role (default: ClusterRole)
+        name: edit
+        # api_group defaults to rbac.authorization.k8s.io
+      subjects:
+        - kind: ServiceAccount    # ServiceAccount | User | Group
+          name: my-app
+          namespace: my-app
+
+  # Bind subjects to a ClusterRole cluster-wide.
+  cluster_role_bindings:
+    - name: my-app-cluster-reader
+      role_ref:
+        kind: ClusterRole
+        name: view
+      subjects:
+        - kind: ServiceAccount
+          name: my-app
+          namespace: my-app
 `,
 	},
 }

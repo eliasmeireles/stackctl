@@ -138,18 +138,19 @@ Automatically retries Vault authentication every 5 seconds if the token is not y
 
 ### Kubeconfig — `stackctl kubeconfig`
 
-| Subcommand                              | Description                         |
-| :-------------------------------------- | :---------------------------------- |
-| `list-contexts`                         | List all local contexts             |
-| `get-context <name> [--encode]`         | Print a context (optionally Base64) |
-| `set-context <name>`                    | Switch current context              |
-| `set-namespace <ns> [--context <name>]` | Set default namespace               |
-| `clean`                                 | Remove duplicate entries            |
-| `add`                                   | Import config (see flags below)     |
-| `remove <name>`                         | Remove a context                    |
-| `save-to-vault <name>`                  | Upload context to Vault             |
-| `add-from-vault <path>`                 | Download and merge from Vault       |
-| `contexts`                              | List kubeconfigs stored in Vault    |
+| Subcommand                              | Description                                       |
+| :-------------------------------------- | :------------------------------------------------ |
+| `list-contexts`                         | List all local contexts                           |
+| `get-context <name> [--encode]`         | Print a context (optionally Base64)               |
+| `set-context <name>`                    | Switch current context                            |
+| `set-namespace <ns> [--context <name>]` | Set default namespace                             |
+| `clean`                                 | Remove duplicate entries                          |
+| `add`                                   | Import config (see flags below)                   |
+| `remove <name>`                         | Remove a context                                  |
+| `save-to-vault <name>`                  | Upload context to Vault                           |
+| `add-from-vault <path>`                 | Download and merge from Vault                     |
+| `contexts`                              | List kubeconfigs stored in Vault                  |
+| `from-sa`                               | Build a kubeconfig from a ServiceAccount token    |
 
 **`add` flags:**
 
@@ -165,6 +166,32 @@ Automatically retries Vault authentication every 5 seconds if the token is not y
 stackctl kubeconfig add --k3s --host 192.168.1.10 --ssh-user root -r home-lab
 stackctl kubeconfig save-to-vault home-lab
 stackctl kubeconfig add-from-vault secret/data/kubeconfig/home-lab
+```
+
+**`from-sa` flags:**
+
+| Flag                    | Description                                                                     |
+| :---------------------- | :------------------------------------------------------------------------------ |
+| `--sa <name>`           | ServiceAccount name (required)                                                  |
+| `--namespace <ns>`      | Namespace where the SA/Secret lives (default `kube-system`)                     |
+| `--secret <name>`       | Token Secret name (default: `<sa>-token`)                                       |
+| `--cluster-name <name>` | Cluster name to embed (default: `kubernetes`)                                   |
+| `--context-name <name>` | Context name (default: `<sa>@<cluster-name>`)                                   |
+| `--default-namespace`   | Default namespace for the new context                                           |
+| `--server <url>`        | Override API server URL (default: read from active kubeconfig)                  |
+| `--kube-context <name>` | Kube context to read server/CA from (default: current)                          |
+| `--output-file <path>`  | Write kubeconfig to a file instead of merging into the active kubeconfig        |
+
+```bash
+# Merge a kubeconfig for the SA into the active kubeconfig
+stackctl kubeconfig from-sa \
+  --sa <sa-name> --secret <token-secret> \
+  --cluster-name <cluster-name> \
+  --default-namespace <default-ns>
+
+# Or write to a separate file (useful for handing the kubeconfig to a teammate)
+stackctl kubeconfig from-sa --sa <sa-name> --secret <token-secret> \
+  --output-file ./<sa-name>.kubeconfig
 ```
 
 ---
@@ -222,10 +249,26 @@ stackctl vault role delete <auth-mount> <name>
 #### Declarative apply
 
 ```bash
-stackctl vault apply -f vault-config.yaml
+stackctl vault apply   -f config.yaml      # validates first; aborts on any error
+stackctl vault revert  -f config.yaml      # undo what was applied
+stackctl vault generate-manifest --all     # scaffold a fully commented template
 ```
 
-Applies engines → auth → policies → roles → secrets in order. See `example/vault-config.yaml`.
+Applies engines → auth → policies → roles → service_accounts → users → secrets → kubernetes in order. Validation runs before any change is made — every schema problem in the manifest is reported at once so it can be fixed in one pass.
+
+The `kubernetes:` block can declaratively manage:
+
+| Resource              | Notes                                                                                  |
+| :-------------------- | :------------------------------------------------------------------------------------- |
+| `namespaces`          | Create/update with labels/annotations                                                  |
+| `registry_secrets`    | `dockerconfigjson` Secrets, credentials inline or pulled from a Vault KV path          |
+| `service_accounts`    | Kubernetes ServiceAccounts with image pull secrets and automount control               |
+| `secrets`             | Generic Secrets (`Opaque` default) — supports `kubernetes.io/service-account-token`    |
+| `config_maps`         | ConfigMaps with arbitrary `data`                                                       |
+| `role_bindings`       | Namespaced RoleBinding to a Role or ClusterRole, multiple subjects                     |
+| `cluster_role_bindings` | Cluster-scoped binding to a ClusterRole                                              |
+
+See `example/vault-config.yaml` and `example/homelab-rbac.yaml` for working references.
 
 #### Fetch (CI/CD)
 
