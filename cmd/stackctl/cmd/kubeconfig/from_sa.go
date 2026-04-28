@@ -50,16 +50,19 @@ merges a new cluster/user/context into the local kubeconfig.
 Equivalent to the legacy gen-kubeconfig.sh helper.
 
 Examples:
-  # Generate kubeconfig for the dev-user SA in kube-system, default ns homelab-dev
+  # Merge a new context into the active kubeconfig (replace the placeholders)
   stackctl kubeconfig from-sa \
-    --sa dev-user --namespace kube-system \
-    --secret dev-user-token \
-    --cluster-name homelab \
-    --context-name dev-user@homelab \
-    --default-namespace homelab-dev
+    --sa <sa-name> --namespace <sa-namespace> \
+    --secret <token-secret> \
+    --cluster-name <cluster-name> \
+    --context-name <user>@<cluster-name> \
+    --default-namespace <default-ns>
 
-  # Use a specific kube context for cluster server/CA discovery
-  stackctl kubeconfig from-sa --sa dev-user --secret dev-user-token --kube-context homelab`,
+  # Read cluster server/CA from a specific kube context
+  stackctl kubeconfig from-sa --sa <sa-name> --secret <token-secret> --kube-context <kube-context>
+
+  # Write to a separate file instead of merging
+  stackctl kubeconfig from-sa --sa <sa-name> --secret <token-secret> --output-file ./<sa-name>.kubeconfig`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if saName == "" {
