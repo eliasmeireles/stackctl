@@ -103,6 +103,15 @@ multipass-test:
 	@echo "🧪 Running stackctl validation tests inside Multipass instance..."
 	@multipass exec stackctl -- bash /home/ubuntu/workdir/test-stackctl.sh
 
+multipass-test-homelab-rbac: binary
+	@echo "🧪 Running homelab-rbac end-to-end test inside Multipass..."
+	@cp .dev/multipass/test-homelab-rbac.sh .dev/multipass/.volumes/test-homelab-rbac.sh
+	@chmod +x .dev/multipass/.volumes/test-homelab-rbac.sh
+	@cp example/homelab-rbac.yaml .dev/multipass/.volumes/homelab-rbac.yaml
+	@multipass exec stackctl -- sudo cp /home/ubuntu/workdir/stackctl /usr/local/bin/stackctl
+	@multipass exec stackctl -- sudo chmod +x /usr/local/bin/stackctl
+	@multipass exec stackctl -- bash /home/ubuntu/workdir/test-homelab-rbac.sh
+
 # Multi-arch build variables
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 

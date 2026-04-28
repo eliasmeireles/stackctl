@@ -1,0 +1,49 @@
+# Reproduz o conteúdo de developer-utilities/k8s/homelab-rbac via stackctl.
+#
+# Aplicar tudo:    stackctl vault apply  -f homelab-rbac.yaml
+# Reverter tudo:   stackctl vault revert -f homelab-rbac.yaml
+#
+# Depois de aplicar, gera o kubeconfig do dev-user:
+#   stackctl kubeconfig from-sa \
+#     --sa dev-user --namespace kube-system \
+#     --secret dev-user-token \
+#     --cluster-name homelab \
+#     --context-name dev-user@homelab \
+#     --default-namespace homelab-dev
+
+kubernetes:
+  namespaces:
+    - name: homelab-dev
+    - name: homelab-staging
+
+  service_accounts:
+    - name: dev-user
+      namespace: kube-system
+
+  secrets:
+    - name: dev-user-token
+      namespace: kube-system
+      type: kubernetes.io/service-account-token
+      annotations:
+        kubernetes.io/service-account.name: dev-user
+
+  role_bindings:
+    - name: dev-user-edit
+      namespace: homelab-dev
+      role_ref:
+        kind: ClusterRole
+        name: edit
+      subjects:
+        - kind: ServiceAccount
+          name: dev-user
+          namespace: kube-system
+
+    - name: dev-user-edit
+      namespace: homelab-staging
+      role_ref:
+        kind: ClusterRole
+        name: edit
+      subjects:
+        - kind: ServiceAccount
+          name: dev-user
+          namespace: kube-system

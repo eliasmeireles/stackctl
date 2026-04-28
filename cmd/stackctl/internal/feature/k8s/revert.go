@@ -11,12 +11,31 @@ import (
 )
 
 // Revert deletes all Kubernetes resources declared in cfg.
-// Execution order (reverse of apply): config_maps → service_accounts → registry_secrets → namespaces.
+// Execution order (reverse of apply): cluster_role_bindings → role_bindings → config_maps →
+// secrets → service_accounts → registry_secrets → namespaces.
 // Non-existent resources are silently skipped.
 func (a *Applier) Revert(cfg *Config) error {
+	if len(cfg.ClusterRoleBindings) > 0 {
+		if err := revertClusterRoleBindings(a.cs, cfg.ClusterRoleBindings); err != nil {
+			return fmt.Errorf("cluster_role_bindings: %w", err)
+		}
+	}
+
+	if len(cfg.RoleBindings) > 0 {
+		if err := revertRoleBindings(a.cs, cfg.RoleBindings); err != nil {
+			return fmt.Errorf("role_bindings: %w", err)
+		}
+	}
+
 	if len(cfg.ConfigMaps) > 0 {
 		if err := revertConfigMaps(a.cs, cfg.ConfigMaps); err != nil {
 			return fmt.Errorf("config_maps: %w", err)
+		}
+	}
+
+	if len(cfg.Secrets) > 0 {
+		if err := revertSecrets(a.cs, cfg.Secrets); err != nil {
+			return fmt.Errorf("secrets: %w", err)
 		}
 	}
 

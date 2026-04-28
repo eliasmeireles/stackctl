@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# End-to-end validation of the homelab-rbac flow inside the Multipass VM.
+#
+# Verifies:
+#   - stackctl vault apply -f homelab-rbac.yaml creates namespaces, SA,
+#     service-account-token Secret and RoleBindings (validation included)
+#   - stackctl kubeconfig from-sa generates a working kubeconfig that the
+#     SA can use to access its bound namespaces
+#   - stackctl vault revert -f homelab-rbac.yaml cleans everything up
+#
+# The script port-forwards to the in-cluster vault Service so it does not
+# depend on any host-level ingress hostname being reachable.
+#
+# Run inside the VM:
+#   bash /home/ubuntu/workdir/test-homelab-rbac.sh
+
+set -uo pipefail
+
+export PATH=$PATH:/snap/bin:/home/ubuntu/go/bin:/root/go/bin
+export KUBECONFIG=/home/ubuntu/workdir/kube/config
+
+WORKDIR=/home/ubuntu/workdir
+MANIFEST="${WORKDIR}/homelab-rbac.yaml"
+TMP_KUBECONFIG="${WORKDIR}/dev-user.kubeconfig"
+PF_LOG=/tmp/vault-port-forward.log
+VAULT_PF_PORT=18200
+
+PASS=0
+FAIL=0
+
+result() {
+  local name="$1" rc="$2"
+  if [ "$rc" -eq 0 ]; then
+    echo "  ✓ PASS: $name"
+    PASS=$((PASS+1))
+  else
+    echo "  ✗ FAIL: $name"
+    FAIL=$((FAIL+1))
+  fi
+}
+
+cleanup() {
+  if [ -n "${PF_PID:-}" ] && kill -0 "${PF_PID}" 2>/dev/null; then
+    kill "${PF_PID}" 2>/dev/null || true
+    wait "${PF_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+echo "=========================================="
+echo " stackctl homelab-rbac end-to-end test"
+echo " Started at: $(date)"
+echo "=========================================="
+
+if ! command -v stackctl >/dev/null 2>&1; then
+  echo "✗ stackctl not in PATH; aborting." ; exit 1
+fi
+if [ ! -f "${MANIFEST}" ]; then
+  echo "✗ Manifest not found at ${MANIFEST}; aborting." ; exit 1
+fi
+if [ ! -f /home/ubuntu/workdir/vault/keys/root-token ]; then
+  echo "✗ Vault root token not found; aborting." ; exit 1
+fi
+
+echo
+echo "[setup] Port-forwarding vault Service to localhost:${VAULT_PF_PORT}..."
+kubectl -n vault port-forward svc/vault "${VAULT_PF_PORT}:8200" >"${PF_LOG}" 2>&1 &
+PF_PID=$!
+for i in $(seq 1 20); do
+  if curl -sf "http://127.0.0.1:${VAULT_PF_PORT}/v1/sys/health" >/dev/null 2>&1 \
+     || curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${VAULT_PF_PORT}/v1/sys/health" 2>/dev/null | grep -qE '^(200|429|473|501|503)$'; then
+    break
+  fi
+  sleep 0.5
+done
+
+export VAULT_ADDR="http://127.0.0.1:${VAULT_PF_PORT}"
+export VAULT_TOKEN
+VAULT_TOKEN=$(cat /home/ubuntu/workdir/vault/keys/root-token)
+export VAULT_SKIP_VERIFY=true
+
+if ! curl -s -o /dev/null -w '%{http_code}' "${VAULT_ADDR}/v1/sys/health" 2>/dev/null | grep -qE '^(200|429|473|501|503)$'; then
+  echo "✗ Vault is not reachable on ${VAULT_ADDR}; aborting." ; exit 1
+fi
+
+# Make sure no leftover from a previous run will create false positives.
+kubectl delete rolebinding -n homelab-dev     dev-user-edit --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete rolebinding -n homelab-staging dev-user-edit --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete secret      -n kube-system     dev-user-token --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete sa          -n kube-system     dev-user --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete ns homelab-dev     --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete ns homelab-staging --ignore-not-found >/dev/null 2>&1 || true
+
+echo
+echo "[1/6] Validation: invalid manifest must fail before touching the cluster..."
+cat >/tmp/bad-rbac.yaml <<'YAML'
+kubernetes:
+  role_bindings:
+    - name: ""
+      namespace: ""
+      role_ref: {name: ""}
+      subjects: []
+YAML
+if stackctl vault apply -f /tmp/bad-rbac.yaml >/tmp/bad.out 2>&1; then
+  result "bad manifest is rejected by Validate" 1
+else
+  if grep -q "kubernetes config has" /tmp/bad.out; then
+    result "bad manifest is rejected by Validate" 0
+  else
+    result "bad manifest is rejected by Validate" 1
+    cat /tmp/bad.out
+  fi
+fi
+
+echo
+echo "[2/6] Applying homelab-rbac manifest..."
+stackctl vault apply -f "${MANIFEST}"
+result "stackctl vault apply" $?
+
+echo
+echo "[3/6] Checking resources exist in cluster..."
+kubectl get ns homelab-dev      >/dev/null 2>&1 && result "ns/homelab-dev"        0 || result "ns/homelab-dev"        1
+kubectl get ns homelab-staging  >/dev/null 2>&1 && result "ns/homelab-staging"    0 || result "ns/homelab-staging"    1
+kubectl -n kube-system get sa dev-user             >/dev/null 2>&1 && result "sa/dev-user (kube-system)" 0 || result "sa/dev-user (kube-system)" 1
+kubectl -n kube-system get secret dev-user-token   >/dev/null 2>&1 && result "secret/dev-user-token"     0 || result "secret/dev-user-token"     1
+
+SECRET_TYPE=$(kubectl -n kube-system get secret dev-user-token -o jsonpath='{.type}' 2>/dev/null)
+[ "${SECRET_TYPE}" = "kubernetes.io/service-account-token" ] && result "secret type is service-account-token" 0 || result "secret type is service-account-token" 1
+
+kubectl -n homelab-dev     get rolebinding dev-user-edit >/dev/null 2>&1 && result "rb/dev-user-edit (homelab-dev)"     0 || result "rb/dev-user-edit (homelab-dev)"     1
+kubectl -n homelab-staging get rolebinding dev-user-edit >/dev/null 2>&1 && result "rb/dev-user-edit (homelab-staging)" 0 || result "rb/dev-user-edit (homelab-staging)" 1
+
+echo
+echo "[4/6] Generating kubeconfig from ServiceAccount..."
+sleep 2  # let the controller populate the token
+rm -f "${TMP_KUBECONFIG}"
+stackctl kubeconfig from-sa \
+  --sa dev-user --namespace kube-system \
+  --secret dev-user-token \
+  --cluster-name homelab \
+  --context-name dev-user@homelab \
+  --default-namespace homelab-dev \
+  --output-file "${TMP_KUBECONFIG}"
+result "stackctl kubeconfig from-sa" $?
+
+[ -s "${TMP_KUBECONFIG}" ] && result "generated kubeconfig is non-empty" 0 || result "generated kubeconfig is non-empty" 1
+
+echo
+echo "[5/6] Validating dev-user kubeconfig grants edit in bound namespaces..."
+KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i create deployments -n homelab-dev     >/dev/null 2>&1 && result "dev-user can create deployments in homelab-dev"     0 || result "dev-user can create deployments in homelab-dev"     1
+KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i create deployments -n homelab-staging >/dev/null 2>&1 && result "dev-user can create deployments in homelab-staging" 0 || result "dev-user can create deployments in homelab-staging" 1
+KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i list nodes >/dev/null 2>&1 \
+  && result "dev-user CANNOT list nodes (cluster-scoped denied)" 1 \
+  || result "dev-user CANNOT list nodes (cluster-scoped denied)" 0
+
+echo
+echo "[6/6] Reverting manifest and verifying cleanup..."
+stackctl vault revert -f "${MANIFEST}"
+result "stackctl vault revert" $?
+
+# Namespace deletion is async — give it a moment
+sleep 3
+kubectl -n homelab-dev     get rolebinding dev-user-edit >/dev/null 2>&1 \
+  && result "rb/dev-user-edit removed (homelab-dev)" 1 \
+  || result "rb/dev-user-edit removed (homelab-dev)" 0
+kubectl -n homelab-staging get rolebinding dev-user-edit >/dev/null 2>&1 \
+  && result "rb/dev-user-edit removed (homelab-staging)" 1 \
+  || result "rb/dev-user-edit removed (homelab-staging)" 0
+kubectl -n kube-system get secret dev-user-token >/dev/null 2>&1 \
+  && result "secret/dev-user-token removed" 1 \
+  || result "secret/dev-user-token removed" 0
+kubectl -n kube-system get sa dev-user >/dev/null 2>&1 \
+  && result "sa/dev-user removed" 1 \
+  || result "sa/dev-user removed" 0
+
+rm -f "${TMP_KUBECONFIG}" /tmp/bad-rbac.yaml /tmp/bad.out
+
+echo
+echo "=========================================="
+echo "Tests passed: ${PASS}"
+echo "Tests failed: ${FAIL}"
+echo "Total:        $((PASS+FAIL))"
+echo "Finished at:  $(date)"
+echo "=========================================="
+[ "${FAIL}" -eq 0 ] && exit 0 || exit 1
