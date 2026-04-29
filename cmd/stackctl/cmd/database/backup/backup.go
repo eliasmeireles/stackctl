@@ -9,6 +9,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/dbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type BackupFlags struct {
@@ -92,7 +93,11 @@ func runBackup(flags *BackupFlags) error {
 	}
 }
 
-func printBackupSuccess(output string) {
+func printBackupSuccess(path string) {
+	if output.IsStructured() {
+		output.PrintRecord("", output.NewItem("path", path, "status", "completed"))
+		return
+	}
 	fmt.Printf("✅ Backup completed successfully!\n")
-	fmt.Printf("   Saved to: %s\n", output)
+	fmt.Printf("   Saved to: %s\n", path)
 }
