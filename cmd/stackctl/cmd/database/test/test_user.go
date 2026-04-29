@@ -9,6 +9,7 @@ import (
 	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/spf13/cobra"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/dbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
@@ -89,17 +90,8 @@ func runTestUser(flags *TestUserFlags) error {
 		return fmt.Errorf("password is required (use --password or --vault-path)")
 	}
 
-	if flags.Port == 0 {
-		switch flags.DBType {
-		case "postgres":
-			flags.Port = 5432
-		case "mysql":
-			flags.Port = 3306
-		case "mongodb":
-			flags.Port = 27017
-		default:
-			return fmt.Errorf("unsupported database type: %s", flags.DBType)
-		}
+	if err := dbtype.ApplyDefaultPort(flags.DBType, &flags.Port); err != nil {
+		return err
 	}
 
 	switch flags.DBType {
