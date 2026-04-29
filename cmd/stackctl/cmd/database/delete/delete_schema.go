@@ -10,6 +10,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type DeleteSchemaFlags struct {
@@ -113,7 +114,7 @@ func deletePostgresSchema(flags *DeleteSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
@@ -125,12 +126,12 @@ func deletePostgresSchema(flags *DeleteSchemaFlags) error {
 	}
 	defer func() { _ = pgClient.Close() }()
 
-	fmt.Printf("🗑️  Deleting schema '%s' from database '%s'...\n", flags.Schema, flags.Database)
+	output.Progress("🗑️  Deleting schema '%s' from database '%s'...\n", flags.Schema, flags.Database)
 	if err := pgClient.DeleteSchema(ctx, flags.Schema, flags.Cascade); err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
 
-	fmt.Printf("✅ Schema '%s' deleted successfully from PostgreSQL.\n", flags.Schema)
+	output.Progress("✅ Schema '%s' deleted successfully from PostgreSQL.\n", flags.Schema)
 	return nil
 }
 
@@ -138,8 +139,8 @@ func deleteMySQLSchema(flags *DeleteSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
-	fmt.Println("ℹ️  In MySQL, schema = database. Dropping the database.")
+	output.Progress("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("ℹ️  In MySQL, schema = database. Dropping the database.")
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MySQL client: %w", err)
@@ -151,12 +152,12 @@ func deleteMySQLSchema(flags *DeleteSchemaFlags) error {
 	}
 	defer func() { _ = mysqlClient.Close() }()
 
-	fmt.Printf("🗑️  Deleting schema '%s'...\n", flags.Schema)
+	output.Progress("🗑️  Deleting schema '%s'...\n", flags.Schema)
 	if err := mysqlClient.DeleteSchema(ctx, flags.Schema); err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
 
-	fmt.Printf("✅ Schema '%s' deleted successfully from MySQL.\n", flags.Schema)
+	output.Progress("✅ Schema '%s' deleted successfully from MySQL.\n", flags.Schema)
 	return nil
 }
 
@@ -164,8 +165,8 @@ func deleteMongoSchema(flags *DeleteSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d (database: %s)...\n", flags.Host, flags.Port, flags.Database)
-	fmt.Println("ℹ️  In MongoDB, schema = collection. Dropping the collection.")
+	output.Progress("📡 Connecting to MongoDB at %s:%d (database: %s)...\n", flags.Host, flags.Port, flags.Database)
+	output.Progress("ℹ️  In MongoDB, schema = collection. Dropping the collection.")
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -177,11 +178,11 @@ func deleteMongoSchema(flags *DeleteSchemaFlags) error {
 	}
 	defer func() { _ = mongoClient.Close() }()
 
-	fmt.Printf("🗑️  Dropping collection '%s' from database '%s'...\n", flags.Schema, flags.Database)
+	output.Progress("🗑️  Dropping collection '%s' from database '%s'...\n", flags.Schema, flags.Database)
 	if err := mongoClient.DeleteSchema(ctx, flags.Schema); err != nil {
 		return fmt.Errorf("failed to delete collection: %w", err)
 	}
 
-	fmt.Printf("✅ Collection '%s' deleted successfully from MongoDB database '%s'.\n", flags.Schema, flags.Database)
+	output.Progress("✅ Collection '%s' deleted successfully from MongoDB database '%s'.\n", flags.Schema, flags.Database)
 	return nil
 }

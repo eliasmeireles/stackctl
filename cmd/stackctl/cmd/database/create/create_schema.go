@@ -10,6 +10,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type CreateSchemaFlags struct {
@@ -93,7 +94,7 @@ func createPostgresSchema(flags *CreateSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
@@ -105,12 +106,12 @@ func createPostgresSchema(flags *CreateSchemaFlags) error {
 	}
 	defer func() { _ = pgClient.Close() }()
 
-	fmt.Printf("📐 Creating schema '%s' in database '%s'...\n", flags.Schema, flags.Database)
+	output.Progress("📐 Creating schema '%s' in database '%s'...\n", flags.Schema, flags.Database)
 	if err := pgClient.CreateSchema(ctx, flags.Schema); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	fmt.Printf("✅ Schema '%s' created successfully in PostgreSQL database '%s'.\n", flags.Schema, flags.Database)
+	output.Progress("✅ Schema '%s' created successfully in PostgreSQL database '%s'.\n", flags.Schema, flags.Database)
 	return nil
 }
 
@@ -118,8 +119,8 @@ func createMySQLSchema(flags *CreateSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
-	fmt.Println("ℹ️  In MySQL, schema = database. Creating a new database.")
+	output.Progress("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("ℹ️  In MySQL, schema = database. Creating a new database.")
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MySQL client: %w", err)
@@ -131,12 +132,12 @@ func createMySQLSchema(flags *CreateSchemaFlags) error {
 	}
 	defer func() { _ = mysqlClient.Close() }()
 
-	fmt.Printf("📐 Creating schema '%s'...\n", flags.Schema)
+	output.Progress("📐 Creating schema '%s'...\n", flags.Schema)
 	if err := mysqlClient.CreateSchema(ctx, flags.Schema); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	fmt.Printf("✅ Schema '%s' created successfully in MySQL.\n", flags.Schema)
+	output.Progress("✅ Schema '%s' created successfully in MySQL.\n", flags.Schema)
 	return nil
 }
 
@@ -144,8 +145,8 @@ func createMongoSchema(flags *CreateSchemaFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
-	fmt.Println("ℹ️  In MongoDB, schema = collection. Creating a new collection.")
+	output.Progress("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("ℹ️  In MongoDB, schema = collection. Creating a new collection.")
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -157,11 +158,11 @@ func createMongoSchema(flags *CreateSchemaFlags) error {
 	}
 	defer func() { _ = mongoClient.Close() }()
 
-	fmt.Printf("📐 Creating collection '%s' in database '%s'...\n", flags.Schema, flags.Database)
+	output.Progress("📐 Creating collection '%s' in database '%s'...\n", flags.Schema, flags.Database)
 	if err := mongoClient.CreateSchema(ctx, flags.Schema); err != nil {
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
-	fmt.Printf("✅ Collection '%s' created successfully in MongoDB database '%s'.\n", flags.Schema, flags.Database)
+	output.Progress("✅ Collection '%s' created successfully in MongoDB database '%s'.\n", flags.Schema, flags.Database)
 	return nil
 }
