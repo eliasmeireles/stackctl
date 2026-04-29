@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -42,7 +41,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if showVersion {
-			fmt.Printf("stackctl version %s\n", Version)
+			printVersion()
 			return
 		}
 		// If no command is provided, open the TUI
@@ -89,6 +88,7 @@ func init() {
 	rootCmd.AddCommand(database.NewDatabaseCommand())
 	rootCmd.AddCommand(messagebroker.NewMessageBrokerCommand())
 	rootCmd.AddCommand(selfupdate.NewCommand())
+	rootCmd.AddCommand(versionCmd)
 }
 
 type PlainFormatter struct{}

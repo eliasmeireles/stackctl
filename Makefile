@@ -5,7 +5,12 @@ BUILD_DIR=bin
 GO=go
 GOFLAGS=-v
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS=-ldflags "-s -w -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Version=$(VERSION)"
+BUILD_DATE=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LDFLAGS=-ldflags "-s -w \
+	-X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Version=$(VERSION) \
+	-X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.BuildDate=$(BUILD_DATE) \
+	-X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Commit=$(COMMIT)"
 
 GH_USER = ?
 GH_REPO = stackctl
@@ -28,6 +33,7 @@ binary:
 	@mkdir -p .dev/multipass/.volumes
 	@cp $(BUILD_DIR)/$(BINARY_NAME) .dev/multipass/.volumes/
 	@echo "✅ Binary built and copied to .dev/multipass/.volumes/"
+	./.dev/multipass/.volumes/stackctl -v
 
 clean:
 	@echo "Cleaning..."
