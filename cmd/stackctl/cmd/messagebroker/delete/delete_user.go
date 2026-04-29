@@ -10,6 +10,7 @@ import (
 	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/mbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
@@ -89,8 +90,8 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 	if flags.BrokerType != "rabbitmq" {
 		return fmt.Errorf("unsupported message broker type: %s (only 'rabbitmq' is supported)", flags.BrokerType)
 	}
-	if flags.Port == 0 {
-		flags.Port = 5672
+	if err := mbtype.ApplyDefaultPort(flags.BrokerType, &flags.Port); err != nil {
+		return err
 	}
 
 	ctx := context.Background()
