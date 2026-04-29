@@ -12,10 +12,19 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database/test"
 )
 
+// dbTypeAliases maps the canonical database type to its convenience aliases.
+// They make `stackctl db pg list` work the same as `stackctl database postgres list`.
+var dbTypeAliases = map[string][]string{
+	"postgres": {"postgresql", "pg"},
+	"mysql":    {"mariadb"},
+	"mongodb":  {"mongo"},
+}
+
 func NewDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "database",
-		Short: "Manage PostgreSQL, MySQL, and MongoDB users, schemas, backups, and connections",
+		Use:     "database",
+		Aliases: []string{"db"},
+		Short:   "Manage PostgreSQL, MySQL, and MongoDB users, schemas, backups, and connections",
 		Long: `Create and remove users and databases, run connection tests, and trigger
 backups for PostgreSQL, MySQL, and MongoDB.
 
@@ -39,8 +48,9 @@ Examples:
 
 func newDBTypeCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   dbType,
-		Short: fmt.Sprintf("Manage %s databases (list/create/delete/backup/test-user)", dbType),
+		Use:     dbType,
+		Aliases: dbTypeAliases[dbType],
+		Short:   fmt.Sprintf("Manage %s databases (list/create/delete/backup/test-user)", dbType),
 		Long: fmt.Sprintf(`Manage %s — list databases and users, create/delete users and schemas,
 trigger backups, and run connection tests.
 
