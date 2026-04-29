@@ -5,6 +5,8 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 // BuildDate is injected at build time via -ldflags.
@@ -24,12 +26,29 @@ var versionCmd = &cobra.Command{
 			fmt.Println(Version)
 			return
 		}
+		if output.IsStructured() {
+			output.PrintRecord("", versionRecord())
+			return
+		}
 		printVersion()
 	},
 }
 
 func init() {
 	versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version string (script-friendly)")
+}
+
+// versionRecord returns the version metadata as an output.ListItem so the
+// global json/yaml printers can render it consistently with other commands.
+func versionRecord() output.ListItem {
+	return output.NewItem(
+		"version", Version,
+		"commit", Commit,
+		"built", BuildDate,
+		"goVersion", runtime.Version(),
+		"os", runtime.GOOS,
+		"arch", runtime.GOARCH,
+	)
 }
 
 func printVersion() {

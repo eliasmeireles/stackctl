@@ -256,6 +256,17 @@ SHORT_OUT=$(stackctl version --short)
   && result "version --short prints a single-line version" 0 \
   || result "version --short prints a single-line version" 1
 
+# version --output json/yaml emits structured records.
+JSON_OUT=$(stackctl version --output json)
+echo "${JSON_OUT}" | grep -q '"version"' && echo "${JSON_OUT}" | grep -q '"goVersion"' \
+  && result "version --output json includes structured fields" 0 \
+  || result "version --output json includes structured fields" 1
+
+YAML_OUT=$(stackctl version --output yaml)
+echo "${YAML_OUT}" | grep -q "^version:" && echo "${YAML_OUT}" | grep -q "^goVersion:" \
+  && result "version --output yaml includes structured fields" 0 \
+  || result "version --output yaml includes structured fields" 1
+
 # kubeconfig list alias works.
 stackctl kubeconfig list >/dev/null 2>&1 \
   && result "kubeconfig list alias works" 0 \
