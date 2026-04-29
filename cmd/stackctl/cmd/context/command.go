@@ -84,7 +84,13 @@ func newInitCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Create a .stackctl.yaml in the current directory",
 		Long: `Interactively create a .stackctl.yaml configuration file in the current
-directory with default connection settings for your databases and message brokers.`,
+directory with default connection settings for your databases and message brokers.
+
+Refuses to overwrite an existing file unless --force is set.
+
+Examples:
+  stackctl context init
+  stackctl context init --force    # overwrite an existing .stackctl.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInit(force)
 		},
