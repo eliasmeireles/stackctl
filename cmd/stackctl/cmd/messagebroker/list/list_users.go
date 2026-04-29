@@ -24,7 +24,7 @@ type ListUsersFlags struct {
 func NewListCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List message broker resources",
+		Short: "List users (and other resources) on the message broker",
 	}
 
 	cmd.AddCommand(newListUsersCommand(brokerType))
