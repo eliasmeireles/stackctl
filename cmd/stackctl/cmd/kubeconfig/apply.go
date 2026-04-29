@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -182,6 +183,14 @@ func validateManifestFile(path string) error {
 		return fmt.Errorf("unsupported kind %q (supported: %s)", m.Kind, strings.Join(SupportedKinds, ", "))
 	}
 
+	if output.IsStructured() {
+		output.PrintRecord("", output.NewItem(
+			"kind", m.Kind,
+			"path", path,
+			"status", "valid",
+		))
+		return nil
+	}
 	fmt.Printf("✓ %s manifest %q is valid\n", m.Kind, path)
 	return nil
 }
