@@ -54,6 +54,21 @@ func IsStructured() bool {
 	return global.format != FormatTable
 }
 
+// Progress writes a single progress/status line to stdout in non-structured
+// mode, and is a no-op under --output json|yaml. It always appends a newline.
+//
+// Use this for "📡 Connecting...", "🗑️ Deleting...", "✅ Done" type messages
+// that decorate human-facing runs but would corrupt machine output.
+func Progress(format string, args ...any) {
+	if IsStructured() {
+		return
+	}
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+	_, _ = fmt.Fprintf(global.w, format, args...)
+}
+
 // ParseFormat converts a string to a Format, returning an error for unknown values.
 func ParseFormat(s string) (Format, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
