@@ -37,7 +37,11 @@ func newListUsersCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "List all users in the message broker",
-		Long:  "List all users available on the specified message broker",
+		Long: fmt.Sprintf(`List all users available on the %s broker.
+
+Examples:
+  stackctl messagebroker %[1]s list user --vault-login secret/messagebrokers/%[1]s/admin
+  stackctl messagebroker %[1]s list user --host localhost --admin-user admin --admin-password '...'`, brokerType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch brokerType {
 			case "rabbitmq":
@@ -52,7 +56,8 @@ func newListUsersCommand(brokerType string) *cobra.Command {
 	cmd.Flags().IntVar(&flags.Port, "port", 5672, "Broker AMQP port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/messagebrokers/%s/admin)", brokerType))
 
 	return cmd
 }

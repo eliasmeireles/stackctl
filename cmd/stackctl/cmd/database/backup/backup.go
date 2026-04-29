@@ -27,14 +27,19 @@ func NewBackupCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "backup",
 		Short: "Generate a database backup",
-		Long: `Generate a backup of a database directly via the database driver — no external tools required.
+		Long: fmt.Sprintf(`Generate a backup of a %s database directly via the database driver — no
+external tools required.
 
-Supported databases:
-  - postgres: exports schema (tables, indexes) + data as SQL
-  - mysql:    exports schema (CREATE TABLE) + data as SQL
-  - mongodb:  exports each collection as a JSON file
+  postgres: exports schema (tables, indexes) + data as SQL
+  mysql:    exports schema (CREATE TABLE) + data as SQL
+  mongodb:  exports each collection as a JSON file
 
-The backup is saved to --output-dir with a timestamp-based filename.`,
+The backup is saved to --output-dir with a timestamp-based filename.
+
+Examples:
+  stackctl database %[1]s backup --vault-login secret/databases/%[1]s/admin --database mydb
+  stackctl database %[1]s backup --vault-login secret/databases/%[1]s/admin --database mydb --output-dir ./backups
+  stackctl database %[1]s backup --host localhost --admin-user admin --admin-password '...' --database mydb`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runBackup(flags)
 		},
@@ -46,7 +51,8 @@ The backup is saved to --output-dir with a timestamp-based filename.`,
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to backup")
 	cmd.Flags().StringVar(&flags.OutputDir, "output-dir", ".", "Directory to save the backup file")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	_ = cmd.MarkFlagRequired("database")
 
