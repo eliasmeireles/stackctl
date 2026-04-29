@@ -41,6 +41,11 @@ It bundles:
 
 Run with no arguments to open the interactive TUI, or use a subcommand
 directly. See "stackctl <command> --help" for details.`,
+	// SilenceUsage prevents cobra from dumping the full usage block when a
+	// PersistentPreRunE error happens (e.g. invalid --output value). The error
+	// itself is still printed; we just spare the user a 40-line usage wall
+	// after a one-line typo.
+	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		f, err := output.ParseFormat(outputFormat)
 		if err != nil {
