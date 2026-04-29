@@ -222,8 +222,8 @@ var vaultGet = func(dataPath string) {
 	name := deriveResourceName(dataPath)
 
 	if err := svc.FetchKubeconfigFromVault(dataPath, kubeconfigPath, name); err != nil {
-		log.Errorf("❌ Failed to vaultFetch kubeconfig from Vault: %v", err)
-		fmt.Printf("❌ Failed to vaultFetch kubeconfig from Vault: %v\n", err)
+		log.Errorf("❌ Failed to fetch kubeconfig from Vault: %v", err)
+		fmt.Printf("❌ Failed to fetch kubeconfig from Vault: %v\n", err)
 		return
 	}
 
