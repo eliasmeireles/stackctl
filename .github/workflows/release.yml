@@ -30,9 +30,14 @@ jobs:
       - name: Build binaries
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          LDFLAGS="-s -w -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Version=${VERSION}"
-          GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-linux-amd64 ./cmd/stackctl
-          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-linux-arm64 ./cmd/stackctl
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          COMMIT=$(git rev-parse --short HEAD)
+          LDFLAGS="-s -w \
+            -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Version=${VERSION} \
+            -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.BuildDate=${BUILD_DATE} \
+            -X github.com/eliasmeireles/stackctl/cmd/stackctl/cmd.Commit=${COMMIT}"
+          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-linux-amd64  ./cmd/stackctl
+          GOOS=linux  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-linux-arm64  ./cmd/stackctl
           GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-darwin-amd64 ./cmd/stackctl
           GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/stackctl-darwin-arm64 ./cmd/stackctl
 
@@ -52,5 +57,8 @@ jobs:
             bin/stackctl-darwin-arm64
             bin/checksums.txt
           draft: false
-          prerelease: false
+          # Any tag containing a hyphen (e.g. v0.1.0-rc-1, v0.1.0-beta) is
+          # marked as a pre-release so `stackctl self-update` (which only
+          # considers ^v\d+\.\d+\.\d+$) skips it by default.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
