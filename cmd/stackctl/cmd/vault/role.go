@@ -226,7 +226,7 @@ Examples:
 				return fmt.Errorf("❌ %v", err)
 			}
 
-			log.Infof("✅ Role deleted successfully")
+			log.Infof("✅ Role %q deleted from %q", args[1], args[0])
 			return nil
 		},
 	}
