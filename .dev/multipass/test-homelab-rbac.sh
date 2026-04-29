@@ -291,6 +291,16 @@ YAML
 stackctl kubeconfig apply -f /tmp/dry-kc.yaml --dry-run >/dev/null 2>&1 \
   && result "kubeconfig apply --dry-run accepts valid manifest" 0 \
   || result "kubeconfig apply --dry-run accepts valid manifest" 1
+
+# Symmetric: kubeconfig revert --dry-run validates the same manifest.
+stackctl kubeconfig revert -f /tmp/dry-kc.yaml --dry-run >/dev/null 2>&1 \
+  && result "kubeconfig revert --dry-run accepts valid manifest" 0 \
+  || result "kubeconfig revert --dry-run accepts valid manifest" 1
+
+# Symmetric: vault revert --dry-run validates without touching cluster.
+stackctl vault revert -f "${MANIFEST}" --dry-run >/dev/null 2>&1 \
+  && result "vault revert --dry-run accepts valid manifest" 0 \
+  || result "vault revert --dry-run accepts valid manifest" 1
 rm -f /tmp/dry-kc.yaml
 
 echo

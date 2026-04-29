@@ -17,7 +17,10 @@ func NewRevertCmd() *cobra.Command {
 }
 
 var NewRevertCmdFunc = func() *cobra.Command {
-	var revertFile string
+	var (
+		revertFile string
+		dryRun     bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "revert -f <config.yml>",
@@ -31,7 +34,8 @@ Only resources declared in the manifest are removed. Non-existent resources are 
 
 Examples:
   stackctl vault revert -f vault-config.yml
-  stackctl vault revert -f promogram-bootstrap.yaml --vault-addr http://vault:8200`,
+  stackctl vault revert -f promogram-bootstrap.yaml --vault-addr http://vault:8200
+  stackctl vault revert -f vault-config.yml --dry-run    # parse + validate without contacting Vault or k8s`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if revertFile == "" {
@@ -46,6 +50,16 @@ Examples:
 			var cfg vaultpkg.ApplyConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
 				return fmt.Errorf("failed to parse YAML: %v", err)
+			}
+
+			if dryRun {
+				if cfg.Kubernetes != nil {
+					if err := cfg.Kubernetes.Validate(); err != nil {
+						return fmt.Errorf("validation failed: %w", err)
+					}
+				}
+				log.Infof("✅ Manifest %q is valid (dry-run, no Vault or cluster contact)", revertFile)
+				return nil
 			}
 
 			flags.Resolve()
@@ -74,6 +88,7 @@ Examples:
 		&revertFile, "file", "f", "",
 		"Path to YAML manifest file (same file used with 'apply')",
 	)
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate the manifest without contacting Vault or any Kubernetes cluster")
 
 	return cmd
 }

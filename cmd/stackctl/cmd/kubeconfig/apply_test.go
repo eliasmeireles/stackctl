@@ -173,6 +173,13 @@ func TestApplyDryRunFlagExists(t *testing.T) {
 	})
 }
 
+func TestRevertDryRunFlagExists(t *testing.T) {
+	t.Run("revert must declare --dry-run (symmetric with apply)", func(t *testing.T) {
+		cmd := NewRevertCmd()
+		require.NotNil(t, cmd.Flags().Lookup("dry-run"))
+	})
+}
+
 func TestSupportedKindsContainsKubeconfigFromSA(t *testing.T) {
 	t.Run("KubeconfigFromSA must be listed", func(t *testing.T) {
 		require.Contains(t, SupportedKinds, "KubeconfigFromSA")
