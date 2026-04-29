@@ -146,7 +146,7 @@ result "stackctl kubeconfig from-sa" $?
 [ -s "${TMP_KUBECONFIG}" ] && result "generated kubeconfig is non-empty" 0 || result "generated kubeconfig is non-empty" 1
 
 echo
-echo "[5/6] Validating dev-user kubeconfig grants edit in bound namespaces..."
+echo "[5/8] Validating dev-user kubeconfig grants edit in bound namespaces..."
 KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i create deployments -n homelab-dev     >/dev/null 2>&1 && result "dev-user can create deployments in homelab-dev"     0 || result "dev-user can create deployments in homelab-dev"     1
 KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i create deployments -n homelab-staging >/dev/null 2>&1 && result "dev-user can create deployments in homelab-staging" 0 || result "dev-user can create deployments in homelab-staging" 1
 KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i list nodes >/dev/null 2>&1 \
@@ -154,7 +154,104 @@ KUBECONFIG="${TMP_KUBECONFIG}" kubectl auth can-i list nodes >/dev/null 2>&1 \
   || result "dev-user CANNOT list nodes (cluster-scoped denied)" 0
 
 echo
-echo "[6/6] Reverting manifest and verifying cleanup..."
+echo "[6/8] Manifest-driven kubeconfig apply/revert (kind: KubeconfigFromSA)..."
+KUBECONFIG_MANIFEST=/tmp/kubeconfig-from-sa.yaml
+APPLY_OUT=/tmp/kubeconfig-from-sa.kubeconfig
+rm -f "${APPLY_OUT}"
+cat >"${KUBECONFIG_MANIFEST}" <<YAML
+apiVersion: stackctl/v1
+kind: KubeconfigFromSA
+spec:
+  serviceAccount: dev-user
+  namespace: kube-system
+  secret: dev-user-token
+  clusterName: homelab
+  contextName: dev-user@homelab-manifest
+  defaultNamespace: homelab-staging
+  outputFile: ${APPLY_OUT}
+YAML
+
+stackctl kubeconfig apply -f "${KUBECONFIG_MANIFEST}"
+result "stackctl kubeconfig apply -f (outputFile)" $?
+[ -s "${APPLY_OUT}" ] && result "outputFile created and non-empty" 0 || result "outputFile created and non-empty" 1
+KUBECONFIG="${APPLY_OUT}" kubectl auth can-i create deployments -n homelab-staging >/dev/null 2>&1 \
+  && result "manifest-generated kubeconfig grants edit in homelab-staging" 0 \
+  || result "manifest-generated kubeconfig grants edit in homelab-staging" 1
+
+stackctl kubeconfig revert -f "${KUBECONFIG_MANIFEST}"
+result "stackctl kubeconfig revert -f (outputFile)" $?
+[ ! -e "${APPLY_OUT}" ] && result "outputFile deleted by revert" 0 || result "outputFile deleted by revert" 1
+
+# Idempotent revert — second run must succeed without error.
+stackctl kubeconfig revert -f "${KUBECONFIG_MANIFEST}"
+result "revert is idempotent (file already absent)" $?
+
+# Bad manifest must be rejected before any side effect.
+cat >/tmp/bad-kubeconfig.yaml <<'YAML'
+kind: KubeconfigFromSA
+spec:
+  namespace: kube-system
+YAML
+if stackctl kubeconfig apply -f /tmp/bad-kubeconfig.yaml >/tmp/bad-kc.out 2>&1; then
+  result "kubeconfig apply rejects manifest with missing serviceAccount" 1
+else
+  grep -q "serviceAccount is required" /tmp/bad-kc.out \
+    && result "kubeconfig apply rejects manifest with missing serviceAccount" 0 \
+    || { result "kubeconfig apply rejects manifest with missing serviceAccount" 1 ; cat /tmp/bad-kc.out ; }
+fi
+
+# Unknown kind must be rejected with a clear message.
+cat >/tmp/unknown-kind.yaml <<'YAML'
+kind: TotallyMadeUp
+spec:
+  foo: bar
+YAML
+if stackctl kubeconfig apply -f /tmp/unknown-kind.yaml >/tmp/unknown-kc.out 2>&1; then
+  result "kubeconfig apply rejects unknown kind" 1
+else
+  grep -q "unsupported kind" /tmp/unknown-kc.out \
+    && result "kubeconfig apply rejects unknown kind" 0 \
+    || { result "kubeconfig apply rejects unknown kind" 1 ; cat /tmp/unknown-kc.out ; }
+fi
+
+# Active-kubeconfig merge path: empty outputFile → merge into KUBECONFIG.
+MERGE_KUBECONFIG=/tmp/active-kubeconfig.yaml
+cp "${KUBECONFIG}" "${MERGE_KUBECONFIG}"
+KUBECONFIG_MANIFEST_MERGE=/tmp/kubeconfig-from-sa-merge.yaml
+cat >"${KUBECONFIG_MANIFEST_MERGE}" <<YAML
+apiVersion: stackctl/v1
+kind: KubeconfigFromSA
+spec:
+  serviceAccount: dev-user
+  namespace: kube-system
+  secret: dev-user-token
+  clusterName: homelab
+  contextName: dev-user@homelab-merge
+  defaultNamespace: homelab-dev
+YAML
+
+KUBECONFIG="${MERGE_KUBECONFIG}" stackctl kubeconfig apply -f "${KUBECONFIG_MANIFEST_MERGE}"
+result "kubeconfig apply -f merges into active kubeconfig when outputFile empty" $?
+KUBECONFIG="${MERGE_KUBECONFIG}" kubectl config get-contexts dev-user@homelab-merge >/dev/null 2>&1 \
+  && result "merged context dev-user@homelab-merge present" 0 \
+  || result "merged context dev-user@homelab-merge present" 1
+
+KUBECONFIG="${MERGE_KUBECONFIG}" stackctl kubeconfig revert -f "${KUBECONFIG_MANIFEST_MERGE}"
+result "kubeconfig revert -f removes merged context" $?
+KUBECONFIG="${MERGE_KUBECONFIG}" kubectl config get-contexts dev-user@homelab-merge >/dev/null 2>&1 \
+  && result "merged context removed by revert" 1 \
+  || result "merged context removed by revert" 0
+
+echo
+echo "[7/8] stackctl version emits build metadata..."
+VERSION_OUT=$(stackctl version)
+echo "${VERSION_OUT}" | grep -q "Version:"    && result "version output has Version field"    0 || result "version output has Version field"    1
+echo "${VERSION_OUT}" | grep -q "Built:"      && result "version output has Built field"      0 || result "version output has Built field"      1
+echo "${VERSION_OUT}" | grep -q "Commit:"     && result "version output has Commit field"     0 || result "version output has Commit field"     1
+echo "${VERSION_OUT}" | grep -q "Go version:" && result "version output has Go version field" 0 || result "version output has Go version field" 1
+
+echo
+echo "[8/8] Reverting homelab-rbac manifest and verifying cleanup..."
 stackctl vault revert -f "${MANIFEST}"
 result "stackctl vault revert" $?
 
@@ -173,7 +270,10 @@ kubectl -n kube-system get sa dev-user >/dev/null 2>&1 \
   && result "sa/dev-user removed" 1 \
   || result "sa/dev-user removed" 0
 
-rm -f "${TMP_KUBECONFIG}" /tmp/bad-rbac.yaml /tmp/bad.out
+rm -f "${TMP_KUBECONFIG}" /tmp/bad-rbac.yaml /tmp/bad.out \
+      "${KUBECONFIG_MANIFEST}" "${KUBECONFIG_MANIFEST_MERGE}" "${MERGE_KUBECONFIG}" \
+      /tmp/bad-kubeconfig.yaml /tmp/bad-kc.out \
+      /tmp/unknown-kind.yaml /tmp/unknown-kc.out
 
 echo
 echo "=========================================="
