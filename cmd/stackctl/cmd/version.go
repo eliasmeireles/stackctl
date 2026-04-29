@@ -13,13 +13,23 @@ var BuildDate = "unknown"
 // Commit is the short git SHA injected at build time via -ldflags.
 var Commit = "unknown"
 
+var versionShort bool
+
 var versionCmd = &cobra.Command{
 	Use:          "version",
 	Short:        "Show stackctl version, build date, and Go version",
 	SilenceUsage: true,
 	Run: func(_ *cobra.Command, _ []string) {
+		if versionShort {
+			fmt.Println(Version)
+			return
+		}
 		printVersion()
 	},
+}
+
+func init() {
+	versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version string (script-friendly)")
 }
 
 func printVersion() {

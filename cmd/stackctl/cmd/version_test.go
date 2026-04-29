@@ -52,6 +52,24 @@ func TestVersionCmdMetadata(t *testing.T) {
 		require.Equal(t, "version", versionCmd.Use)
 		require.True(t, strings.Contains(versionCmd.Short, "version"))
 	})
+
+	t.Run("must declare --short flag", func(t *testing.T) {
+		require.NotNil(t, versionCmd.Flags().Lookup("short"))
+	})
+}
+
+func TestVersionShort(t *testing.T) {
+	t.Run("when --short is set then prints only the version string", func(t *testing.T) {
+		origVersion, origShort := Version, versionShort
+		t.Cleanup(func() {
+			Version, versionShort = origVersion, origShort
+		})
+		Version = "v1.2.3"
+		versionShort = true
+
+		out := captureStdout(func() { versionCmd.Run(versionCmd, nil) })
+		require.Equal(t, "v1.2.3\n", out)
+	})
 }
 
 func captureStdout(fn func()) string {

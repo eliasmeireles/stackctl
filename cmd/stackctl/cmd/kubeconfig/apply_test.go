@@ -132,6 +132,47 @@ func TestNewApplyCmdMetadata(t *testing.T) {
 	})
 }
 
+func TestValidateManifestFile(t *testing.T) {
+	t.Run("when manifest is valid then no error", func(t *testing.T) {
+		path := writeManifest(t, `kind: KubeconfigFromSA
+spec:
+  serviceAccount: dev-user
+`)
+		require.NoError(t, validateManifestFile(path))
+	})
+
+	t.Run("when kind unknown then error", func(t *testing.T) {
+		path := writeManifest(t, `kind: NopeKind
+spec: {x: y}
+`)
+		err := validateManifestFile(path)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported kind")
+	})
+
+	t.Run("when serviceAccount missing then error", func(t *testing.T) {
+		path := writeManifest(t, `kind: KubeconfigFromSA
+spec:
+  namespace: kube-system
+`)
+		err := validateManifestFile(path)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "serviceAccount is required")
+	})
+
+	t.Run("when file does not exist then error", func(t *testing.T) {
+		err := validateManifestFile("/no/such/manifest.yaml")
+		require.Error(t, err)
+	})
+}
+
+func TestApplyDryRunFlagExists(t *testing.T) {
+	t.Run("apply must declare --dry-run", func(t *testing.T) {
+		cmd := NewApplyCmd()
+		require.NotNil(t, cmd.Flags().Lookup("dry-run"))
+	})
+}
+
 func TestSupportedKindsContainsKubeconfigFromSA(t *testing.T) {
 	t.Run("KubeconfigFromSA must be listed", func(t *testing.T) {
 		require.Contains(t, SupportedKinds, "KubeconfigFromSA")
