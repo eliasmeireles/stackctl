@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/dbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
@@ -81,17 +82,8 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 	if flags.Host == "" {
 		flags.Host = "localhost"
 	}
-	if flags.Port == 0 {
-		switch flags.DBType {
-		case "postgres":
-			flags.Port = 5432
-		case "mysql":
-			flags.Port = 3306
-		case "mongodb":
-			flags.Port = 27017
-		default:
-			return fmt.Errorf("unsupported database type: %s", flags.DBType)
-		}
+	if err := dbtype.ApplyDefaultPort(flags.DBType, &flags.Port); err != nil {
+		return err
 	}
 
 	switch flags.DBType {
