@@ -16,7 +16,13 @@ func NewEngineCmd() *cobra.Command {
 var NewEngineCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "engine",
-		Short: "Manage Vault secrets engines",
+		Short: "List, enable, and disable Vault secrets engines",
+		Long: `Manage Vault secrets engines (kv-v2, transit, pki, database, ...).
+
+Examples:
+  stackctl vault engine list
+  stackctl vault engine enable kv-v2 --path secret --description "App secrets"
+  stackctl vault engine disable secret`,
 	}
 
 	cmd.AddCommand(NewEngineListCmd())

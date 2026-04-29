@@ -14,7 +14,13 @@ func NewAuthCmd() *cobra.Command {
 var NewAuthCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Manage Vault auth methods",
+		Short: "List, enable, and disable Vault auth methods",
+		Long: `Manage Vault auth methods (kubernetes, approle, userpass, etc).
+
+Examples:
+  stackctl vault auth list
+  stackctl vault auth enable kubernetes --path k8s-prod --description "Production cluster"
+  stackctl vault auth disable k8s-prod`,
 	}
 
 	cmd.AddCommand(NewAuthListCmd())

@@ -30,7 +30,20 @@ const (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate a password or username and copy to clipboard",
+		Short: "Generate a random password or username (clipboard or stdout)",
+		Long: `Generate cryptographically random credentials. By default the value is
+copied to the clipboard so it never appears in the terminal; in CI/CD or
+when no clipboard is available it falls back to writing to ~/.stackctl/pass.
+
+Use --output json/yaml on a child command to print the value to stdout
+(useful in scripts).
+
+Examples:
+  stackctl generate password                    # default 24-char password to clipboard
+  stackctl generate password --length 32        # longer password
+  stackctl generate password --output json      # print as JSON for scripting
+  stackctl generate username                    # default 18-char username
+  stackctl generate username --length 12`,
 	}
 	cmd.AddCommand(newPasswordCommand())
 	cmd.AddCommand(newUsernameCommand())
