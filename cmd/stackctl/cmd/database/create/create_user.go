@@ -47,12 +47,29 @@ func newCreateUserCommand(dbType string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "user",
-		Short: "Create a database user with specified permissions",
-		Long: `Create a new database user with the specified permissions and optionally store credentials in Vault.
-This command:
-- Creates the user in the database
-- Grants the specified permissions
-- Stores credentials in Vault (if --vault-path is provided)`,
+		Short: "Create a database user with optional Vault credential storage",
+		Long: fmt.Sprintf(`Create a new %s user with the specified permissions and optionally store
+credentials in Vault.
+
+When --password is omitted, "auto", or "auto:<size>", a random password is
+generated. With --vault-path the credentials are written back to Vault so they
+never need to be copy/pasted out of the terminal.
+
+Examples:
+  # Auto-generated password, stored in Vault
+  stackctl database %[1]s create user \
+    --vault-login secret/databases/%[1]s/admin \
+    --username myapp_user --vault-path secret/databases/%[1]s/myapp_user
+
+  # Specific password and database
+  stackctl database %[1]s create user \
+    --vault-login secret/databases/%[1]s/admin \
+    --username myapp_user --password '...' --database myapp_db
+
+  # Inline admin credentials (no Vault)
+  stackctl database %[1]s create user \
+    --host localhost --admin-user admin --admin-password '...' \
+    --username myapp_user`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreateUser(flags)
 		},
@@ -63,11 +80,12 @@ This command:
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to create")
-	cmd.Flags().StringVar(&flags.Password, "password", "", "Password for new user")
+	cmd.Flags().StringVar(&flags.Password, "password", "", "Password for new user (omit or set to 'auto'/'auto:<size>' to auto-generate)")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name")
 	cmd.Flags().StringVar(&flags.Privileges, "privileges", "", "Privileges to grant (e.g., 'SELECT,INSERT,UPDATE,DELETE' or 'readWrite')")
-	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store the new user's credentials")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	_ = cmd.MarkFlagRequired("username")
 	// password is not required; if omitted or set to "auto[:<size>]" it will be auto-generated

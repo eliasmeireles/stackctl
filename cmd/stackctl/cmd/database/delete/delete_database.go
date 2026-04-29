@@ -43,7 +43,15 @@ func newDeleteDatabaseCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "database",
 		Short: "Delete a database",
-		Long:  "Delete a database from the specified server. Requires confirmation unless --force is used.",
+		Long: fmt.Sprintf(`Delete a database from the specified %s server.
+
+Omit --database to pick from a numbered list. Requires y/yes confirmation
+unless --force is set.
+
+Examples:
+  stackctl database %[1]s delete database --vault-login secret/databases/%[1]s/admin --database old_db
+  stackctl database %[1]s delete database --vault-login secret/databases/%[1]s/admin            # interactive list
+  stackctl database %[1]s delete database --host localhost --admin-user admin --admin-password '...' --database old_db --force`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeleteDatabase(flags)
 		},
@@ -55,7 +63,8 @@ func newDeleteDatabaseCommand(dbType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name to delete (omit to select from list)")
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	return cmd
 }
