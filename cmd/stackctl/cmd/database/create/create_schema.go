@@ -27,12 +27,16 @@ func newCreateSchemaCommand(dbType string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "schema",
-		Short: "Create a schema in a database",
-		Long: `Create a schema in the specified database.
+		Short: "Create a schema (namespace/collection) in a database",
+		Long: fmt.Sprintf(`Create a schema in the specified database.
 
   postgres: creates a PostgreSQL schema (namespace within a database)
   mysql:    creates a schema (equivalent to a database in MySQL)
-  mongodb:  creates a collection (MongoDB's equivalent of a schema)`,
+  mongodb:  creates a collection (MongoDB's equivalent of a schema)
+
+Examples:
+  stackctl database %[1]s create schema --vault-login secret/databases/%[1]s/admin --database mydb --schema reporting
+  stackctl database %[1]s create schema --host localhost --admin-user admin --admin-password '...' --database mydb --schema reporting`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreateSchema(flags)
 		},
@@ -44,7 +48,8 @@ func newCreateSchemaCommand(dbType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for postgres and mongodb)")
 	cmd.Flags().StringVar(&flags.Schema, "schema", "", "Schema name to create")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	_ = cmd.MarkFlagRequired("schema")
 

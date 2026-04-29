@@ -30,12 +30,14 @@ func NewTestUserCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "test-user",
 		Short: "Test database user credentials and permissions",
-		Long: `Test if a database user can connect and has the expected permissions.
-This command validates:
-- Connection to the database
-- User authentication
-- Basic permissions (SELECT, INSERT, etc.)
-- Optionally retrieves credentials from Vault`,
+		Long: fmt.Sprintf(`Validate that a %s user can connect and exercise its privileges.
+
+Examples:
+  # Inline credentials
+  stackctl database %[1]s test-user --host localhost --username myapp --password '...' --database myapp_db
+
+  # Or pull credentials from Vault
+  stackctl database %[1]s test-user --vault-path secret/databases/%[1]s/myapp --database myapp_db`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTestUser(flags)
 		},

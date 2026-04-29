@@ -42,8 +42,21 @@ func newCreateUserCommand(brokerType string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "user",
-		Short: "Create a message broker user",
-		Long:  "Create a user in a message broker (RabbitMQ) with specified credentials and permissions",
+		Short: "Create a message broker user (with optional Vault credential storage)",
+		Long: fmt.Sprintf(`Create a user on the %s broker. With --vault-path the generated credentials
+are written back to Vault.
+
+Common RabbitMQ tags: administrator, management, policymaker, monitoring.
+
+Examples:
+  stackctl messagebroker %[1]s create user \
+    --vault-login secret/messagebrokers/%[1]s/admin \
+    --username myapp_user --password '...' --tags monitoring \
+    --vault-path secret/messagebrokers/%[1]s/myapp_user
+
+  stackctl messagebroker %[1]s create user \
+    --host localhost --admin-user admin --admin-password '...' \
+    --username myapp_user --password '...' --tags "administrator,management"`, brokerType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreateUser(flags)
 		},
@@ -56,8 +69,9 @@ func newCreateUserCommand(brokerType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to create")
 	cmd.Flags().StringVar(&flags.Password, "password", "", "Password for the user")
 	cmd.Flags().StringVar(&flags.Tags, "tags", "", "User tags (e.g., 'administrator,management')")
-	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store credentials")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultPath, "vault-path", "", "Vault path to store the new user's credentials")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/messagebrokers/%s/admin)", brokerType))
 
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")

@@ -29,12 +29,18 @@ func newDeleteSchemaCommand(dbType string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "schema",
-		Short: "Delete a schema from a database",
-		Long: `Delete a schema from the specified database.
+		Short: "Delete a schema (namespace/collection) from a database",
+		Long: fmt.Sprintf(`Delete a schema from the specified database.
 
   postgres: drops a PostgreSQL schema (use --cascade to drop all objects inside)
   mysql:    drops a schema (equivalent to dropping a database in MySQL)
-  mongodb:  drops a collection within a database`,
+  mongodb:  drops a collection within a database
+
+Requires y/yes confirmation unless --force is set.
+
+Examples:
+  stackctl database %[1]s delete schema --vault-login secret/databases/%[1]s/admin --database mydb --schema reporting
+  stackctl database %[1]s delete schema --vault-login secret/databases/%[1]s/admin --database mydb --schema reporting --cascade --force`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeleteSchema(flags)
 		},
@@ -48,7 +54,8 @@ func newDeleteSchemaCommand(dbType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.Schema, "schema", "", "Schema name to delete")
 	cmd.Flags().BoolVar(&flags.Cascade, "cascade", false, "Drop all objects within the schema (PostgreSQL only)")
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	_ = cmd.MarkFlagRequired("schema")
 
