@@ -14,8 +14,9 @@ import (
 func NewMessageBrokerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "messagebroker",
-		Short: "Message broker management commands",
-		Long:  "Commands for managing message broker users, credentials, and testing connections",
+		Short: "Manage message brokers (RabbitMQ): users, credentials, connection tests",
+		Long: `Create users, list and delete users, store credentials in Vault, and run
+connection tests against message brokers (currently RabbitMQ).`,
 	}
 
 	for _, brokerType := range []string{"rabbitmq"} {

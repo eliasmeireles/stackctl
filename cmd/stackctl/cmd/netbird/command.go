@@ -39,7 +39,10 @@ func NewCommand() *cobra.Command {
 var NewCommandFunc = func() *cobra.Command {
 	netbirdCmd := &cobra.Command{
 		Use:   "netbird",
-		Short: "NetBird integration commands",
+		Short: "Install, connect, and inspect the NetBird VPN client",
+		Long: `Install the NetBird agent, bring up a connection with a setup key, and
+check the connection status. Useful for CI/CD pipelines that need to reach
+private clusters before running other stackctl commands.`,
 	}
 
 	netbirdCmd.AddCommand(NewInstallCmd())

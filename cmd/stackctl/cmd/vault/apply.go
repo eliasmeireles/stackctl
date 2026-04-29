@@ -17,20 +17,26 @@ func NewApplyCmd() *cobra.Command {
 }
 
 var NewApplyCmdFunc = func() *cobra.Command {
-	var vaultApplyFile string
+	var (
+		vaultApplyFile string
+		dryRun         bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "apply -f <config.yml>",
 		Short: "Apply Vault configuration from a YAML file",
 		Long: `Read a YAML configuration file and apply all Vault operations declaratively.
 
-Supports: secrets, policies, auth methods, secrets engines, and roles.
-Execution order: engines -> auth -> policies -> roles -> secrets.
+Supports: secrets, policies, auth methods, secrets engines, roles, and
+kubernetes resources. Execution order: engines → auth → policies → roles →
+service_accounts → users → secrets → kubernetes.
+
 See example/vault-config.yaml for the full reference of all supported fields.
 
 Examples:
   stackctl vault apply -f vault-config.yml
-  stackctl vault apply -f vault-config.yml --vault-addr http://vault:8200`,
+  stackctl vault apply -f vault-config.yml --vault-addr http://vault:8200
+  stackctl vault apply -f vault-config.yml --dry-run    # parse + validate without contacting Vault or k8s`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if vaultApplyFile == "" {
@@ -45,6 +51,16 @@ Examples:
 			var cfg vaultpkg.ApplyConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
 				return fmt.Errorf("❌ Failed to parse YAML: %v", err)
+			}
+
+			if dryRun {
+				if cfg.Kubernetes != nil {
+					if err := cfg.Kubernetes.Validate(); err != nil {
+						return fmt.Errorf("❌ Validation failed: %w", err)
+					}
+				}
+				log.Infof("✅ Manifest %q is valid (dry-run, no Vault or cluster contact)", vaultApplyFile)
+				return nil
 			}
 
 			flags.Resolve()
@@ -75,6 +91,7 @@ Examples:
 		&vaultApplyFile, "file", "f", "",
 		"Path to YAML configuration file",
 	)
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate the manifest without contacting Vault or any Kubernetes cluster")
 
 	return cmd
 }

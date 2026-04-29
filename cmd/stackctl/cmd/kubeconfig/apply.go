@@ -89,7 +89,10 @@ Examples:
 }
 
 var newApplyCmdFunc = func() *cobra.Command {
-	var manifestPath string
+	var (
+		manifestPath string
+		dryRun       bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "apply",
@@ -117,23 +120,62 @@ Manifest format:
 
 Examples:
   stackctl kubeconfig apply -f kubeconfig-from-sa.yaml
-  stackctl kubeconfig apply --file ./manifests/dev-user.yaml`,
+  stackctl kubeconfig apply --file ./manifests/dev-user.yaml
+  stackctl kubeconfig apply -f kubeconfig-from-sa.yaml --dry-run    # validate only`,
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if manifestPath == "" {
 				return fmt.Errorf("-f/--file is required")
+			}
+			if dryRun {
+				return validateManifestFile(manifestPath)
 			}
 			return runApply(manifestPath)
 		},
 	}
 
 	cmd.Flags().StringVarP(&manifestPath, "file", "f", "", "Path to the YAML manifest (required)")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate the manifest schema without contacting any cluster")
 
 	return cmd
 }
 
 func runApply(path string) error {
 	return runManifest(path, actionApply)
+}
+
+// validateManifestFile parses and validates the manifest without executing the
+// flow — used by --dry-run. Returns nil when the manifest would be accepted by
+// runApply (kind known, spec present, spec required fields populated).
+func validateManifestFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read manifest %q: %w", path, err)
+	}
+	var m Manifest
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("parse YAML in %q: %w", path, err)
+	}
+	if err := validateManifest(&m); err != nil {
+		return err
+	}
+
+	switch m.Kind {
+	case "KubeconfigFromSA":
+		var spec kubeconfigFromSASpec
+		if err := m.Spec.Decode(&spec); err != nil {
+			return fmt.Errorf("parse KubeconfigFromSA spec: %w", err)
+		}
+		opts := FromSAOptions{ServiceAccount: spec.ServiceAccount}
+		if err := opts.Validate(); err != nil {
+			return fmt.Errorf("KubeconfigFromSA: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported kind %q (supported: %s)", m.Kind, strings.Join(SupportedKinds, ", "))
+	}
+
+	fmt.Printf("✓ %s manifest %q is valid\n", m.Kind, path)
+	return nil
 }
 
 func runRevert(path string) error {

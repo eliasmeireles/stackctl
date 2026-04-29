@@ -46,7 +46,13 @@ func init() {
 func NewCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "kubeconfig",
-		Short: "Manage kubeconfig operations",
+		Short: "Manage local kubeconfig contexts and Vault-backed clusters",
+		Long: `Add, remove and switch kubeconfig contexts; back them up to Vault for
+sharing across a team; and bootstrap a kubeconfig from a Kubernetes
+ServiceAccount token.
+
+Manifest-driven flows are also supported (see "kubeconfig apply --help"),
+with a paired "revert" that undoes them using the same file.`,
 	}
 
 	configCmd.AddCommand(NewListContextsCmd())
@@ -76,7 +82,8 @@ func NewListContextsCmd() *cobra.Command {
 var newListContextsCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
 		Use:          "list-contexts",
-		Short:        "List available contexts",
+		Aliases:      []string{"list", "ls"},
+		Short:        "List available contexts in the local kubeconfig",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfigPath := kubeconfig.GetPath()
@@ -393,7 +400,8 @@ func NewRemoveCmd() *cobra.Command {
 var newRemoveCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
 		Use:          "remove [context-name]",
-		Short:        "Remove a context and its associated data from kubeconfig",
+		Aliases:      []string{"delete", "rm"},
+		Short:        "Remove a context (and orphan cluster/user) from kubeconfig",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -442,7 +450,7 @@ func NewSaveToVaultCmd() *cobra.Command {
 var newSaveToVaultCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "save-to-vault [context-name]",
-		Short:        "LocalContext local context to Vault",
+		Short:        "Upload a local kubeconfig context to Vault",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {

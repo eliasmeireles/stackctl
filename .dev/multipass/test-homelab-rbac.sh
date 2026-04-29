@@ -250,6 +250,49 @@ echo "${VERSION_OUT}" | grep -q "Built:"      && result "version output has Buil
 echo "${VERSION_OUT}" | grep -q "Commit:"     && result "version output has Commit field"     0 || result "version output has Commit field"     1
 echo "${VERSION_OUT}" | grep -q "Go version:" && result "version output has Go version field" 0 || result "version output has Go version field" 1
 
+# version --short prints just the version string (script-friendly).
+SHORT_OUT=$(stackctl version --short)
+[ -n "${SHORT_OUT}" ] && [ "$(echo "${SHORT_OUT}" | wc -l)" = "1" ] \
+  && result "version --short prints a single-line version" 0 \
+  || result "version --short prints a single-line version" 1
+
+# kubeconfig list alias works.
+stackctl kubeconfig list >/dev/null 2>&1 \
+  && result "kubeconfig list alias works" 0 \
+  || result "kubeconfig list alias works" 1
+
+# Dry-run: bad manifest is rejected with exit 1.
+cat >/tmp/bad-dry.yaml <<'YAML'
+kubernetes:
+  service_accounts:
+    - name: ""
+      namespace: ""
+YAML
+if stackctl vault apply -f /tmp/bad-dry.yaml --dry-run >/tmp/bad-dry.out 2>&1; then
+  result "vault apply --dry-run rejects bad manifest" 1
+else
+  grep -q "Validation failed" /tmp/bad-dry.out \
+    && result "vault apply --dry-run rejects bad manifest" 0 \
+    || { result "vault apply --dry-run rejects bad manifest" 1 ; cat /tmp/bad-dry.out ; }
+fi
+rm -f /tmp/bad-dry.yaml /tmp/bad-dry.out
+
+# Dry-run: valid manifest succeeds without contacting cluster (no real-cluster prereq).
+stackctl vault apply -f "${MANIFEST}" --dry-run >/dev/null 2>&1 \
+  && result "vault apply --dry-run accepts valid manifest" 0 \
+  || result "vault apply --dry-run accepts valid manifest" 1
+
+# kubeconfig apply --dry-run also validates.
+cat >/tmp/dry-kc.yaml <<'YAML'
+kind: KubeconfigFromSA
+spec:
+  serviceAccount: dev-user
+YAML
+stackctl kubeconfig apply -f /tmp/dry-kc.yaml --dry-run >/dev/null 2>&1 \
+  && result "kubeconfig apply --dry-run accepts valid manifest" 0 \
+  || result "kubeconfig apply --dry-run accepts valid manifest" 1
+rm -f /tmp/dry-kc.yaml
+
 echo
 echo "[8/8] Reverting homelab-rbac manifest and verifying cleanup..."
 stackctl vault revert -f "${MANIFEST}"

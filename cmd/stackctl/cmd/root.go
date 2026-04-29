@@ -29,8 +29,18 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "stackctl",
-	Short: "OAuth API CLI tool",
-	Long:  `A CLI tool for managing OAuth API resources, kubeconfigs, and NetBird integration.`,
+	Short: "Unified CLI for Kubernetes, HashiCorp Vault, NetBird, databases, and message brokers",
+	Long: `stackctl is a unified CLI for small teams and indie projects.
+
+It bundles:
+  • Kubernetes config management (kubeconfig + apply/revert manifests)
+  • HashiCorp Vault (secrets, policies, auth, engines, roles)
+  • NetBird VPN setup
+  • Databases (PostgreSQL, MySQL, MongoDB) — users, schemas, tests
+  • Message brokers (RabbitMQ) — users, tests
+
+Run with no arguments to open the interactive TUI, or use a subcommand
+directly. See "stackctl <command> --help" for details.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		f, err := output.ParseFormat(outputFormat)
 		if err != nil {
