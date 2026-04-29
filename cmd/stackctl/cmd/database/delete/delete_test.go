@@ -3,6 +3,7 @@ package delete
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,23 +47,44 @@ func TestDeleteDatabaseSubcommand(t *testing.T) {
 }
 
 func TestDeleteUserSubcommand(t *testing.T) {
-	cmd := NewDeleteCommand("mysql")
+	t.Run("mysql/postgres delete user must NOT expose --database (server-scoped users)", func(t *testing.T) {
+		for _, dbType := range []string{"mysql", "postgres"} {
+			cmd := NewDeleteCommand(dbType)
+			var userCmd *cobra.Command
+			for _, c := range cmd.Commands() {
+				if c.Name() == "user" {
+					userCmd = c
+					break
+				}
+			}
+			require.NotNil(t, userCmd, "user subcommand must exist for %s", dbType)
 
-	var found bool
-	for _, c := range cmd.Commands() {
-		if c.Name() != "user" {
-			continue
+			for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "force", "vault-login"} {
+				assert.NotNilf(t, userCmd.Flags().Lookup(flag), "[%s] flag --%s should exist", dbType, flag)
+			}
+			assert.Nilf(t, userCmd.Flags().Lookup("database"),
+				"[%s] flag --database must NOT exist (only meaningful for mongodb)", dbType)
 		}
-		found = true
+	})
+
+	t.Run("mongodb delete user must expose --database (auth db)", func(t *testing.T) {
+		cmd := NewDeleteCommand("mongodb")
+		var userCmd *cobra.Command
+		for _, c := range cmd.Commands() {
+			if c.Name() == "user" {
+				userCmd = c
+				break
+			}
+		}
+		require.NotNil(t, userCmd, "user subcommand must exist for mongodb")
 
 		for _, flag := range []string{"host", "port", "admin-user", "admin-password", "username", "database", "force", "vault-login"} {
-			assert.NotNilf(t, c.Flags().Lookup(flag), "flag --%s should exist", flag)
+			assert.NotNilf(t, userCmd.Flags().Lookup(flag), "flag --%s should exist", flag)
 		}
-
-		require.NotNil(t, c.Flags().Lookup("username"), "flag --username must exist")
-	}
-
-	assert.True(t, found, "user subcommand must exist")
+		dbFlag := userCmd.Flags().Lookup("database")
+		require.NotNil(t, dbFlag)
+		assert.Equal(t, "admin", dbFlag.DefValue, "mongodb default auth db should be 'admin'")
+	})
 }
 
 func TestDeleteSchemaSubcommand(t *testing.T) {

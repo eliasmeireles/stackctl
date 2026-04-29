@@ -32,7 +32,15 @@ func newDeleteUserCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "Delete a database user",
-		Long:  "Delete a user from the specified database server. Requires confirmation unless --force is used.",
+		Long: fmt.Sprintf(`Delete a user from the specified %s server.
+
+Omit --username to pick from a numbered list. Requires y/yes confirmation
+unless --force is set.
+
+Examples:
+  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin --username old_user
+  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin            # interactive list
+  stackctl database %[1]s delete user --host localhost --admin-user admin --admin-password '...' --username old_user --force`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeleteUser(flags)
 		},
@@ -43,9 +51,17 @@ func newDeleteUserCommand(dbType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to delete (omit to select from list)")
-	cmd.Flags().StringVar(&flags.Database, "database", "admin", "Database context (required for MongoDB)")
+
+	// --database is only meaningful for MongoDB. On postgres/mysql the user lives
+	// at server scope, so the flag is ignored — keep it hidden there to avoid
+	// confusing default values in the help.
+	if dbType == "mongodb" {
+		cmd.Flags().StringVar(&flags.Database, "database", "admin", "MongoDB authentication database (where the user lives)")
+	}
+
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. database/mongo/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 
 	return cmd
 }
