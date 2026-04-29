@@ -27,7 +27,14 @@ type DeleteDatabaseFlags struct {
 func NewDeleteCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete a database, user or schema",
+		Short: "Delete a database, user, or schema",
+		Long: fmt.Sprintf(`Remove resources from the %s server. Each leaf command requires y/yes
+confirmation unless --force is set; omit the resource name flag to pick from
+an interactive list.
+
+See "stackctl database %[1]s delete database --help",
+"stackctl database %[1]s delete user --help", and
+"stackctl database %[1]s delete schema --help".`, dbType),
 	}
 
 	cmd.AddCommand(newDeleteDatabaseCommand(dbType))

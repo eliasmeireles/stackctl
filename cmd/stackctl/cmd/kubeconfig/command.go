@@ -102,8 +102,13 @@ func NewCleanCmd() *cobra.Command {
 
 var newCleanCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "clean",
-		Short:        "Clean duplicate entries from kubeconfig",
+		Use:   "clean",
+		Short: "Remove duplicate cluster/context/user entries from the local kubeconfig",
+		Long: `Walk the local kubeconfig and drop duplicate cluster, context, and user
+entries (keeping the first occurrence of each name).
+
+Examples:
+  stackctl kubeconfig clean`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfigPath := kubeconfig.GetPath()
@@ -444,8 +449,14 @@ func NewAddFromVaultCmd() *cobra.Command {
 
 var newAddFromVaultCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "add-from-vault [path]",
-		Short:        "Add kubeconfig from Vault",
+		Use:   "add-from-vault [path]",
+		Short: "Download a kubeconfig from Vault and merge it into the local kubeconfig",
+		Long: `Read a kubeconfig stored in Vault (KV v2) and merge it into the local
+kubeconfig. The default storage convention is secret/data/resources/kubeconfig/<name>.
+
+Examples:
+  stackctl kubeconfig add-from-vault secret/data/resources/kubeconfig/home-lab
+  stackctl kubeconfig add-from-vault secret/data/ci/kubeconfig/prod`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -467,8 +478,14 @@ func NewSaveToVaultCmd() *cobra.Command {
 
 var newSaveToVaultCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "save-to-vault [context-name]",
-		Short:        "Upload a local kubeconfig context to Vault",
+		Use:   "save-to-vault [context-name]",
+		Short: "Upload a local kubeconfig context to Vault",
+		Long: `Encode a local kubeconfig context as base64 and store it in Vault under
+secret/data/resources/kubeconfig/<context-name>.
+
+Examples:
+  stackctl kubeconfig save-to-vault home-lab
+  stackctl kubeconfig save-to-vault dev-user@homelab`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -490,8 +507,12 @@ func NewListRemoteCmd() *cobra.Command {
 
 var newListRemoteCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "contexts",
-		Short:        "List kubeconfig contexts stored in Vault",
+		Use:   "contexts",
+		Short: "List kubeconfig contexts stored in Vault",
+		Long: `List every kubeconfig stored under secret/metadata/resources/kubeconfig.
+
+Examples:
+  stackctl kubeconfig contexts`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			items, err := VaultContexts()
