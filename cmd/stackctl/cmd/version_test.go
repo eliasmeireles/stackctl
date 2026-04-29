@@ -72,6 +72,28 @@ func TestVersionShort(t *testing.T) {
 	})
 }
 
+func TestVersionRecord(t *testing.T) {
+	t.Run("must include version, commit, built, goVersion, os, arch keys", func(t *testing.T) {
+		origVersion, origDate, origCommit := Version, BuildDate, Commit
+		t.Cleanup(func() {
+			Version, BuildDate, Commit = origVersion, origDate, origCommit
+		})
+		Version, BuildDate, Commit = "v1.2.3", "2026-04-29", "abc1234"
+
+		item := versionRecord()
+		keys := make(map[string]string, len(item.Pairs))
+		for _, p := range item.Pairs {
+			keys[p.Key] = p.Value
+		}
+		require.Equal(t, "v1.2.3", keys["version"])
+		require.Equal(t, "abc1234", keys["commit"])
+		require.Equal(t, "2026-04-29", keys["built"])
+		require.NotEmpty(t, keys["goVersion"])
+		require.NotEmpty(t, keys["os"])
+		require.NotEmpty(t, keys["arch"])
+	})
+}
+
 func captureStdout(fn func()) string {
 	orig := os.Stdout
 	r, w, _ := os.Pipe()
