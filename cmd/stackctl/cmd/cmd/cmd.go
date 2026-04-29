@@ -107,7 +107,7 @@ type Default struct {
 //   - cmd.NewDefault(cmd, "Vault", "Secrets", "Delete") -> "Vault/Secrets/Delete"
 func NewDefault(cmd *cobra.Command, categories ...string) Command {
 	if len(categories) == 0 {
-		_ = fmt.Errorf("❌ error: at least one category is required")
+		_ = fmt.Errorf("error: at least one category is required")
 		return nil
 	}
 

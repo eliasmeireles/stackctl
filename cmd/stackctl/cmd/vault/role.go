@@ -60,7 +60,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			roles, err := RoleClient.List(args[0])
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			items := make([]output.ListItem, len(roles))
@@ -93,7 +93,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			data, err := RoleClient.Get(args[0], args[1])
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			output.PrintSecretMap(args[1], data)
@@ -180,7 +180,7 @@ For AppRole auth:
 			log.Infof("📝 Writing role %q at %q", roleName, authMount)
 
 			if err := RoleClient.Put(authMount, roleName, data); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Role %q written successfully", roleName)
@@ -223,7 +223,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := RoleClient.Delete(args[0], args[1]); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Role %q deleted from %q", args[1], args[0])

@@ -47,7 +47,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			auths, err := AuthMethodClient.List()
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			for path, auth := range auths {
@@ -82,7 +82,7 @@ Examples:
 			authType := args[0]
 
 			if err := AuthMethodClient.Enable(authType, authPath, authDescription); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			mountPath := authPath
@@ -117,7 +117,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := AuthMethodClient.Disable(args[0]); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Auth method at %q disabled", args[0])

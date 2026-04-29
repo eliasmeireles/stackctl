@@ -64,7 +64,7 @@ registers a system service.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := netbird.Install(); err != nil {
-				return fmt.Errorf("❌ Failed to install NetBird: %v", err)
+				return fmt.Errorf("Failed to install NetBird: %v", err)
 			}
 			return nil
 		},
@@ -109,7 +109,7 @@ Examples:
 			}
 
 			if err := netbird.Up(key, args); err != nil {
-				return fmt.Errorf("❌ Failed to start NetBird: %v", err)
+				return fmt.Errorf("Failed to start NetBird: %v", err)
 			}
 
 			if netbird.DNSResolution {
@@ -118,7 +118,7 @@ Examples:
 					host = defaultHost // fallback
 				}
 				if err := netbird.WaitForDNS(host); err != nil {
-					return fmt.Errorf("❌ error: %v", err)
+					return fmt.Errorf("error: %v", err)
 				}
 			}
 

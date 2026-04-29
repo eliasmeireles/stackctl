@@ -88,7 +88,7 @@ var newListContextsCmdFunc = func() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfigPath := kubeconfig.GetPath()
 			if err := kubeconfig.ListContexts(kubeconfigPath); err != nil {
-				return fmt.Errorf("❌ Failed to list contexts: %v", err)
+				return fmt.Errorf("Failed to list contexts: %v", err)
 			}
 			return nil
 		},
@@ -113,7 +113,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfigPath := kubeconfig.GetPath()
 			if err := kubeconfig.CleanDuplicates(kubeconfigPath); err != nil {
-				return fmt.Errorf("❌ Failed to clean kubeconfig: %v", err)
+				return fmt.Errorf("Failed to clean kubeconfig: %v", err)
 			}
 			return nil
 		},
@@ -141,12 +141,12 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: context-name is required")
+				return fmt.Errorf("Error: context-name is required")
 			}
 			contextName := args[0]
 			kubeconfigPath := kubeconfig.GetPath()
 			if err := kubeconfig.GetContextConfig(kubeconfigPath, contextName, encodeFlag); err != nil {
-				return fmt.Errorf("❌ Failed to get context config: %v", err)
+				return fmt.Errorf("Failed to get context config: %v", err)
 			}
 			return nil
 		},
@@ -183,12 +183,12 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: context-name is required")
+				return fmt.Errorf("Error: context-name is required")
 			}
 			contextName := args[0]
 			kubeconfigPath := kubeconfig.GetPath()
 			if err := kubeconfig.SetCurrentContext(kubeconfigPath, contextName); err != nil {
-				return fmt.Errorf("❌ Failed to set context: %v", err)
+				return fmt.Errorf("Failed to set context: %v", err)
 			}
 			return nil
 		},
@@ -226,7 +226,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: namespace is required")
+				return fmt.Errorf("Error: namespace is required")
 			}
 			namespace := args[0]
 			kubeconfigPath := kubeconfig.GetPath()
@@ -237,7 +237,7 @@ Examples:
 			}
 
 			if err := kubeconfig.SetNamespace(kubeconfigPath, contextName, namespace); err != nil {
-				return fmt.Errorf("❌ Failed to set namespace: %v", err)
+				return fmt.Errorf("Failed to set namespace: %v", err)
 			}
 			return nil
 		},
@@ -302,7 +302,7 @@ Examples:
 
 			if isK3s || remoteFile != "" {
 				if sshHost == "" {
-					return fmt.Errorf("❌ Error: --host is required for remote fetching")
+					return fmt.Errorf("Error: --host is required for remote fetching")
 				}
 
 				targetPath := remoteFile
@@ -323,20 +323,20 @@ Examples:
 
 				content, err := sshCmd.Output()
 				if err != nil {
-					return fmt.Errorf("❌ SSH command failed: %v", err)
+					return fmt.Errorf("SSH command failed: %v", err)
 				}
 				configStr = base64.StdEncoding.EncodeToString(content)
 			} else if importFile != "" {
 				log.Infof("📂 Reading config from file: %s", importFile)
 				content, err := os.ReadFile(importFile)
 				if err != nil {
-					return fmt.Errorf("❌ Failed to read file: %v", err)
+					return fmt.Errorf("Failed to read file: %v", err)
 				}
 				configStr = base64.StdEncoding.EncodeToString(content)
 			} else {
 				if len(args) == 0 {
 					_ = cmd.Help()
-					return fmt.Errorf("❌ Error: Valid base64 config argument, --file or --scp flag required")
+					return fmt.Errorf("Error: Valid base64 config argument, --file or --scp flag required")
 				}
 				configStr = args[0]
 			}
@@ -349,7 +349,7 @@ Examples:
 				log.Infof("Processing add with resource name: %s", name)
 			}
 			if err := kubeconfig.ProcessConfig(configStr, name); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 			return nil
 		},
@@ -429,12 +429,12 @@ var newRemoveCmdFunc = func() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: context-name is required")
+				return fmt.Errorf("Error: context-name is required")
 			}
 			contextName := args[0]
 			kubeconfigPath := kubeconfig.GetPath()
 			if err := kubeconfig.RemoveConfig(kubeconfigPath, contextName); err != nil {
-				return fmt.Errorf("❌ Failed to remove config: %v", err)
+				return fmt.Errorf("Failed to remove config: %v", err)
 			}
 			log.Infof("✅ Successfully removed '%s' from kubeconfig", contextName)
 			return nil
@@ -460,7 +460,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: vault path is required")
+				return fmt.Errorf("Error: vault path is required")
 			}
 			dataPath := args[0]
 			VaultGet(dataPath)
@@ -489,7 +489,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return fmt.Errorf("❌ Error: context name is required")
+				return fmt.Errorf("Error: context name is required")
 			}
 			contextName := args[0]
 			SaveToVault(contextName)

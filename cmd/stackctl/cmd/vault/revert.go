@@ -35,34 +35,34 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if revertFile == "" {
-				return fmt.Errorf("❌ -f <config.yml> is required")
+				return fmt.Errorf("-f <config.yml> is required")
 			}
 
 			data, err := os.ReadFile(revertFile)
 			if err != nil {
-				return fmt.Errorf("❌ Failed to read file %q: %v", revertFile, err)
+				return fmt.Errorf("Failed to read file %q: %v", revertFile, err)
 			}
 
 			var cfg vaultpkg.ApplyConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
-				return fmt.Errorf("❌ Failed to parse YAML: %v", err)
+				return fmt.Errorf("Failed to parse YAML: %v", err)
 			}
 
 			flags.Resolve()
 
 			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			apiClient, err := vaultpkg.ApiClient.Client()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to get Vault API client: %v", err)
+				return fmt.Errorf("Failed to get Vault API client: %v", err)
 			}
 
 			applier := vaultpkg.NewApplier(apiClient, evClient)
 			if err := applier.Revert(&cfg); err != nil {
-				return fmt.Errorf("❌ Revert failed: %v", err)
+				return fmt.Errorf("Revert failed: %v", err)
 			}
 
 			log.Info("✅ All resources reverted")

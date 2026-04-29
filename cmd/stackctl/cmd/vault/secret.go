@@ -50,7 +50,7 @@ Examples:
 			flags.Resolve()
 			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+				return fmt.Errorf("Failed to create Vault client: %v", err)
 			}
 
 			listPath := defaultListPath
@@ -64,7 +64,7 @@ Examples:
 
 			keys, err := client.ListSecrets(listPath)
 			if err != nil {
-				return fmt.Errorf("❌ Failed to list secrets: %v", err)
+				return fmt.Errorf("Failed to list secrets: %v", err)
 			}
 
 			items := make([]output.ListItem, len(keys))
@@ -102,7 +102,7 @@ Examples:
 			flags.Resolve()
 			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+				return fmt.Errorf("Failed to create Vault client: %v", err)
 			}
 
 			path := args[0]
@@ -112,7 +112,7 @@ Examples:
 
 			data, err := client.ReadSecret(path)
 			if err != nil {
-				return fmt.Errorf("❌ Failed to read secret: %v", err)
+				return fmt.Errorf("Failed to read secret: %v", err)
 			}
 
 			output.PrintSecretMap(path, data)
@@ -166,7 +166,7 @@ Examples:
 			flags.Resolve()
 			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+				return fmt.Errorf("Failed to create Vault client: %v", err)
 			}
 
 			path := args[0]
@@ -175,7 +175,7 @@ Examples:
 			for _, kv := range args[1:] {
 				parts := strings.SplitN(kv, "=", 2)
 				if len(parts) != 2 {
-					return fmt.Errorf("❌ Invalid key=value pair: %s", kv)
+					return fmt.Errorf("Invalid key=value pair: %s", kv)
 				}
 				data[parts[0]] = parts[1]
 			}
@@ -183,7 +183,7 @@ Examples:
 			log.Infof("📝 Writing secret to: %s (%d fields)", path, len(data))
 
 			if err := client.WriteSecret(path, data); err != nil {
-				return fmt.Errorf("❌ Failed to write secret: %v", err)
+				return fmt.Errorf("Failed to write secret: %v", err)
 			}
 
 			log.Info("✅ Secret written successfully")
@@ -212,14 +212,14 @@ Examples:
 			flags.Resolve()
 			client, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				return fmt.Errorf("❌ Failed to create Vault client: %v", err)
+				return fmt.Errorf("Failed to create Vault client: %v", err)
 			}
 
 			path := args[0]
 			log.Info("🗑️  Deleting secret")
 
 			if err := client.DeleteSecret(path); err != nil {
-				return fmt.Errorf("❌ Failed to delete secret: %v", err)
+				return fmt.Errorf("Failed to delete secret: %v", err)
 			}
 
 			log.Info("✅ Secret deleted successfully")
