@@ -65,11 +65,13 @@ func TestFetchInternalFunctions(t *testing.T) {
 
 		called := make(map[string]bool)
 
-		runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEnv bool) {
+		runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEnv bool) error {
 			called["export"] = true
+			return nil
 		}
-		runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resourceName string) {
+		runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resourceName string) error {
 			called["asKubeconfig"] = true
+			return nil
 		}
 		deriveResourceNameFunc = func(path string) string {
 			called["derive"] = true
@@ -82,8 +84,8 @@ func TestFetchInternalFunctions(t *testing.T) {
 			deriveResourceNameFunc = origDerive
 		}()
 
-		runExportEnv(nil, "path", false)
-		runAsKubeconfig(nil, "path", "field", "name")
+		_ = runExportEnv(nil, "path", false)
+		_ = runAsKubeconfig(nil, "path", "field", "name")
 		deriveResourceName("path/name")
 
 		assert.True(t, called["export"])
