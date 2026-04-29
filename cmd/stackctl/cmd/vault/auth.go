@@ -5,6 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -50,9 +52,11 @@ Examples:
 				return fmt.Errorf("%v", err)
 			}
 
+			items := make([]output.ListItem, 0, len(auths))
 			for path, auth := range auths {
-				fmt.Printf("%-30s type=%-12s description=%s\n", path, auth.Type, auth.Description)
+				items = append(items, output.NewItem("path", path, "type", auth.Type, "description", auth.Description))
 			}
+			output.PrintList("", []string{"PATH", "TYPE", "DESCRIPTION"}, items)
 			return nil
 		},
 	}
