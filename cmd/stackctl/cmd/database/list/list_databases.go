@@ -35,17 +35,18 @@ func NewListCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List databases, users and/or schemas",
-		Long: `List databases, users and/or schemas on the specified database server.
+		Long: fmt.Sprintf(`List databases, users and/or schemas on the %s server.
 
 When no target flag is provided, databases and users are listed by default.
 For MongoDB and MySQL, schemas/collections are shown inline under each database when --dbs is used.
 For PostgreSQL, use --schemas with --database to list schemas in a specific database.
 
 Examples:
-  stackctl database mongodb list                             # databases (with collections) + users
-  stackctl database mongodb list --dbs                       # databases with collections only
-  stackctl database postgres list --users                    # users only
-  stackctl database postgres list --schemas --database mydb  # schemas in mydb`,
+  stackctl database %[1]s list                             # databases + users (default)
+  stackctl database %[1]s list --vault-login secret/databases/%[1]s/admin
+  stackctl database %[1]s list --dbs                       # databases only
+  stackctl database %[1]s list --users                     # users only
+  stackctl database %[1]s list --schemas --database mydb   # schemas in mydb (postgres)`, dbType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !flags.ListDbs && !flags.ListUsers && !flags.ListSchemas {
 				flags.ListDbs = true
