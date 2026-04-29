@@ -29,7 +29,12 @@ connection tests against message brokers (currently RabbitMQ).`,
 func newBrokerTypeCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   brokerType,
-		Short: fmt.Sprintf("Manage %s message broker", brokerType),
+		Short: fmt.Sprintf("Manage %s users and credentials (list/create/delete/test)", brokerType),
+		Long: fmt.Sprintf(`Create, list and delete %s users; test user credentials; and store
+generated passwords back to Vault.
+
+Pass admin credentials with --host/--admin-user/--admin-password or fetch
+them from Vault with --vault-login secret/messagebrokers/%s/admin.`, brokerType, brokerType),
 	}
 
 	cmd.AddCommand(create.NewCreateCommand(brokerType))
