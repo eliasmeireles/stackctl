@@ -279,9 +279,9 @@ var newAddCmdFunc = func() *cobra.Command {
 Sources:
   1. Base64 string: Pass the encoded content as the first argument.
   2. File: Use the --file flag to specify a local path.
-  3. SSH Cat: Use --remote-file with --host to vaultFetch from a remote VPS.
+  3. SSH Cat: Use --remote-file with --host to fetch from a remote VPS.
   4. Separate SSH: Use --host and --ssh-user (optional) along with --remote-file or --k3s.
-  5. k3s: Use --k3s and --host to automatically vaultFetch /etc/rancher/k3s/k3s.yaml from a remote VPS.
+  5. k3s: Use --k3s and --host to automatically fetch /etc/rancher/k3s/k3s.yaml from a remote VPS.
 
 Examples:
   # Add via SSH with specific path
