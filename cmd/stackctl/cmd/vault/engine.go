@@ -38,8 +38,13 @@ func NewEngineListCmd() *cobra.Command {
 
 var NewEngineListCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "list",
-		Short:        "List enabled secrets engines",
+		Use:   "list",
+		Short: "List enabled secrets engines",
+		Long: `List every secrets engine mounted on the Vault server, with its mount
+path, type, and description.
+
+Examples:
+  stackctl vault engine list`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mounts, err := EngineClient.List()

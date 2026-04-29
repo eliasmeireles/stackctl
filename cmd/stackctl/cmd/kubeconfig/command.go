@@ -123,8 +123,15 @@ func NewGetContextCmd() *cobra.Command {
 var newGetContextCmdFunc = func() *cobra.Command {
 	var encodeFlag bool
 	cmd := &cobra.Command{
-		Use:          "get-context [context-name]",
-		Short:        "Get configuration for a specific context",
+		Use:   "get-context [context-name]",
+		Short: "Print the kubeconfig entries for a specific context",
+		Long: `Print the cluster, user, and context entries for a single context as YAML.
+Use --encode to emit a Base64 blob suitable for "stackctl kubeconfig add" or
+storing in Vault.
+
+Examples:
+  stackctl kubeconfig get-context home-lab
+  stackctl kubeconfig get-context home-lab --encode > home-lab.b64`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -160,8 +167,13 @@ func NewSetContextCmd() *cobra.Command {
 
 var newSetContextCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set-context [context-name]",
-		Short:        "Set current context",
+		Use:   "set-context [context-name]",
+		Short: "Switch the active kubeconfig context",
+		Long: `Set current-context in the local kubeconfig.
+
+Examples:
+  stackctl kubeconfig set-context home-lab
+  stackctl kubeconfig set-context dev-user@homelab`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -197,8 +209,14 @@ func NewSetNamespaceCmd() *cobra.Command {
 var newSetNamespaceCmdFunc = func() *cobra.Command {
 	var setCtx string
 	cmd := &cobra.Command{
-		Use:          "set-namespace [namespace]",
-		Short:        "Set namespace for current or specified context",
+		Use:   "set-namespace [namespace]",
+		Short: "Set the default namespace on a kubeconfig context",
+		Long: `Set the default namespace on the current kubeconfig context, or on a
+specific context with --context.
+
+Examples:
+  stackctl kubeconfig set-namespace homelab-dev                    # current context
+  stackctl kubeconfig set-namespace homelab-dev --context home-lab # named context`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

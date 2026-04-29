@@ -42,8 +42,12 @@ func NewPolicyListCmd() *cobra.Command {
 
 var NewPolicyListCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "list",
-		Short:        "List all policies",
+		Use:   "list",
+		Short: "List all policies",
+		Long: `List the names of every policy on the Vault server.
+
+Examples:
+  stackctl vault policy list`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			policies, err := PolicyClient.List()
@@ -67,8 +71,13 @@ func NewPolicyGetCmd() *cobra.Command {
 
 var NewPolicyGetCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "get <name>",
-		Short:        "Read a policy",
+		Use:   "get <name>",
+		Short: "Read a policy",
+		Long: `Print the HCL of a single Vault policy.
+
+Examples:
+  stackctl vault policy get my-app-read
+  stackctl vault policy get my-app-read --output json`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -144,8 +153,12 @@ func NewPolicyDeleteCmd() *cobra.Command {
 
 var NewPolicyDeleteCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "delete <name>",
-		Short:        "Delete a policy",
+		Use:   "delete <name>",
+		Short: "Delete a policy",
+		Long: `Remove a policy from Vault.
+
+Examples:
+  stackctl vault policy delete my-app-read`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

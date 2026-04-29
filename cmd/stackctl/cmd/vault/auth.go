@@ -36,8 +36,13 @@ func NewAuthListCmd() *cobra.Command {
 
 var NewAuthListCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "list",
-		Short:        "List enabled auth methods",
+		Use:   "list",
+		Short: "List enabled auth methods",
+		Long: `List every auth method currently mounted on the Vault server, with its
+mount path, type, and description.
+
+Examples:
+  stackctl vault auth list`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			auths, err := AuthMethodClient.List()
