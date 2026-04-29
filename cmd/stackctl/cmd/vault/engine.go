@@ -49,7 +49,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mounts, err := EngineClient.List()
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			items := make([]output.ListItem, 0, len(mounts))
@@ -88,7 +88,7 @@ Examples:
 			engType := args[0]
 
 			if err := EngineClient.Enable(engType, enginePath, engineDescription, engineVersion); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			mountPath := enginePath
@@ -124,7 +124,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := EngineClient.Disable(args[0]); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Secrets engine at %q disabled", args[0])

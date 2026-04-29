@@ -52,7 +52,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			policies, err := PolicyClient.List()
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			items := make([]output.ListItem, len(policies))
@@ -83,7 +83,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			policy, err := PolicyClient.Get(args[0])
 			if err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			output.PrintRecord("", output.NewItem("name", args[0], "policy", policy))
@@ -134,11 +134,11 @@ Examples:
 			name := args[0]
 			content, err := os.ReadFile(args[1])
 			if err != nil {
-				return fmt.Errorf("❌ Failed to read file %q: %v", args[1], err)
+				return fmt.Errorf("failed to read file %q: %v", args[1], err)
 			}
 
 			if err := PolicyClient.Put(name, string(content)); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Policy %q written successfully", name)
@@ -163,7 +163,7 @@ Examples:
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := PolicyClient.Delete(args[0]); err != nil {
-				return fmt.Errorf("❌ %v", err)
+				return fmt.Errorf("%v", err)
 			}
 
 			log.Infof("✅ Policy %q deleted successfully", args[0])

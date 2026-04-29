@@ -168,7 +168,7 @@ func validateManifestFile(path string) error {
 		}
 		opts := FromSAOptions{ServiceAccount: spec.ServiceAccount}
 		if err := opts.Validate(); err != nil {
-			return fmt.Errorf("KubeconfigFromSA: %w", err)
+			return fmt.Errorf("kubeconfigFromSA: %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported kind %q (supported: %s)", m.Kind, strings.Join(SupportedKinds, ", "))
@@ -234,7 +234,7 @@ func runKubeconfigFromSAManifest(m *Manifest, action flowAction) error {
 	}
 
 	if err := opts.Validate(); err != nil {
-		return fmt.Errorf("KubeconfigFromSA: %w", err)
+		return fmt.Errorf("kubeconfigFromSA: %w", err)
 	}
 
 	switch action {

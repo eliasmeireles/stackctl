@@ -238,7 +238,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 			mount := strings.SplitN(flags.VaultPath, "/", 2)[0]
 			fmt.Printf("  ⚙️  KV engine %q not found, creating it...\n", mount)
 			if mountErr := enableKVEngine(vc, mount); mountErr != nil {
-				return fmt.Errorf("KV engine %q not found and could not be created (check admin permissions): %w", mount, mountErr)
+				return fmt.Errorf("kV engine %q not found and could not be created (check admin permissions): %w", mount, mountErr)
 			}
 			fmt.Printf("  ✓ KV engine %q created\n", mount)
 			if err := vc.WriteSecret(targetPath, data); err != nil {

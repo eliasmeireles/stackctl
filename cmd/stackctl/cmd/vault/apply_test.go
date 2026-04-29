@@ -36,7 +36,7 @@ func TestApplyDryRunFlag(t *testing.T) {
 
 		err := cmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Validation failed")
+		require.Contains(t, err.Error(), "validation failed")
 		require.Contains(t, err.Error(), "role_bindings[0]")
 	})
 

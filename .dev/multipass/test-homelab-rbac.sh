@@ -271,7 +271,7 @@ YAML
 if stackctl vault apply -f /tmp/bad-dry.yaml --dry-run >/tmp/bad-dry.out 2>&1; then
   result "vault apply --dry-run rejects bad manifest" 1
 else
-  grep -q "Validation failed" /tmp/bad-dry.out \
+  grep -qi "validation failed" /tmp/bad-dry.out \
     && result "vault apply --dry-run rejects bad manifest" 0 \
     || { result "vault apply --dry-run rejects bad manifest" 1 ; cat /tmp/bad-dry.out ; }
 fi

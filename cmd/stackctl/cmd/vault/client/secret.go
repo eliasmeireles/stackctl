@@ -40,7 +40,7 @@ func (c *secret) List() ([]list.Item, error) {
 
 	mounts, err := vaultApi.Sys().ListMounts()
 	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to list engines: %v", err)
+		return nil, fmt.Errorf("failed to list engines: %v", err)
 	}
 
 	var items []list.Item
@@ -85,7 +85,7 @@ func (c *secret) PathProvider(metadataPath string) ([]list.Item, error) {
 
 	secret, err := vaultApi.Logical().List(metadataPath)
 	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to list %s: %v", metadataPath, err)
+		return nil, fmt.Errorf("failed to list %s: %v", metadataPath, err)
 	}
 
 	if secret == nil || secret.Data == nil {
@@ -200,7 +200,7 @@ func (c *secret) Delete() ([]list.Item, error) {
 	mounts, err := vaultApi.Sys().ListMounts()
 
 	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to list engines: %v", err)
+		return nil, fmt.Errorf("failed to list engines: %v", err)
 	}
 
 	var items []list.Item
