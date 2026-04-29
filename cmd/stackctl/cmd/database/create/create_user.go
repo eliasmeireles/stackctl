@@ -33,7 +33,12 @@ type CreateUserFlags struct {
 func NewCreateCommand(dbType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a user or schema",
+		Short: "Create a database user or schema",
+		Long: fmt.Sprintf(`Create resources on the %s server: a user (with optional Vault credential
+storage) or a schema/namespace/collection.
+
+See "stackctl database %[1]s create user --help" and
+"stackctl database %[1]s create schema --help" for the per-resource flags.`, dbType),
 	}
 
 	cmd.AddCommand(newCreateUserCommand(dbType))

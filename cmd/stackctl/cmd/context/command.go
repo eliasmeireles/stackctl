@@ -40,6 +40,13 @@ func newShowCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
 		Short: "Show the active .stackctl.yaml configuration",
+		Long: `Walk up from the current directory to the home directory and print the
+first .stackctl.yaml found, plus its full path. Prints "No .stackctl.yaml
+found..." when no config is reachable.
+
+Examples:
+  stackctl context show
+  stackctl context show --output yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := stackctlctx.LoadFromCWD()
 			if err != nil {
