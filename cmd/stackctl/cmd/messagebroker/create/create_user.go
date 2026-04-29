@@ -11,6 +11,7 @@ import (
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/mbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 )
 
@@ -96,8 +97,8 @@ func runCreateUser(flags *CreateUserFlags) error {
 		return fmt.Errorf("unsupported message broker type: %s (only 'rabbitmq' is supported)", flags.BrokerType)
 	}
 
-	if flags.Port == 0 {
-		flags.Port = 5672
+	if err := mbtype.ApplyDefaultPort(flags.BrokerType, &flags.Port); err != nil {
+		return err
 	}
 
 	fmt.Printf("🐰 Creating RabbitMQ user...\n")
