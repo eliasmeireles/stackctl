@@ -20,12 +20,6 @@ const (
 	CategoryStatus  = "Status"
 )
 
-var (
-	ensureNetbird bool
-	netbirdKey    string
-	apiHostFlag   string
-)
-
 func init() {
 	cmd.Add(cmd.NewDefault(NewInstallCmd(), CategoryNetbird, CategoryInstall))
 	cmd.Add(cmd.NewDefault(NewUpCmd(), CategoryNetbird, CategoryUp))
@@ -58,8 +52,15 @@ func NewInstallCmd() *cobra.Command {
 
 var NewInstallCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "install",
-		Short:        "Install NetBird binary",
+		Use:   "install",
+		Short: "Install the NetBird binary on this host",
+		Long: `Download and install the NetBird agent for the current OS/arch.
+
+Examples:
+  sudo stackctl netbird install
+
+Requires sudo on Linux because the agent is installed to /usr/local/bin and
+registers a system service.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := netbird.Install(); err != nil {
@@ -81,8 +82,17 @@ var NewUpCmdFunc = func() *cobra.Command {
 		args     string
 	)
 	cmd := &cobra.Command{
-		Use:          "up",
-		Short:        "Connect to NetBird VPN",
+		Use:   "up",
+		Short: "Bring up the NetBird VPN connection",
+		Long: `Start the NetBird agent and join the network using a setup key.
+
+The setup key can be passed with --netbird-key or via the
+` + KeyEnvVar + ` environment variable.
+
+Examples:
+  stackctl netbird up --netbird-key <KEY>
+  STACK_CLT_NETBIRD_KEY=<KEY> stackctl netbird up
+  stackctl netbird up --netbird-key <KEY> --api-host api.netbird.io --wait-dns`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, argsArr []string) error {
 			key := setupKey
@@ -117,31 +127,12 @@ var NewUpCmdFunc = func() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&setupKey, "netbird-key", "", "NetBird setup key")
+	cmd.Flags().StringVar(&setupKey, "netbird-key", "", "NetBird setup key (env: "+KeyEnvVar+")")
 	cmd.Flags().StringVar(&apiHost, "api-host", "", "NetBird management API host")
-	cmd.Flags().StringVar(&args, "args", "", "Arguments for netbird up command")
-	cmd.PersistentFlags().BoolVar(&ensureNetbird, "with-netbird", false, "Ensure NetBird connection")
-
-	cmd.PersistentFlags().StringVar(
-		&netbirdKey, "netbird-key", "",
-		"NetBird setup/access key (can also be set via NETBIRD_ACCESS_KEY env var)",
-	)
-	cmd.PersistentFlags().StringVar(
-		&apiHostFlag, "api-host", "",
-		"API host URL (can also be set via API_HOST env var)",
-	)
-	cmd.PersistentFlags().BoolVar(
-		&netbird.DNSResolution, "wait-dns", false,
-		"Wait for DNS resolution for NetBird based on API host",
-	)
-	cmd.PersistentFlags().IntVar(
-		&netbird.MaxRetries, "wait-dns-max-retries", 10,
-		"Max retries for DNS resolution",
-	)
-	cmd.PersistentFlags().IntVar(
-		&netbird.SleepTime, "wait-dns-sleep-time", 2,
-		"Sleep time between DNS resolution retries",
-	)
+	cmd.Flags().StringVar(&args, "args", "", "Extra arguments forwarded to `netbird up`")
+	cmd.Flags().BoolVar(&netbird.DNSResolution, "wait-dns", false, "Wait for DNS resolution for the API host before returning")
+	cmd.Flags().IntVar(&netbird.MaxRetries, "wait-dns-max-retries", 10, "Max retries for DNS resolution")
+	cmd.Flags().IntVar(&netbird.SleepTime, "wait-dns-sleep-time", 2, "Sleep time (seconds) between DNS resolution retries")
 	return cmd
 }
 
@@ -151,8 +142,13 @@ func NewStatusCmd() *cobra.Command {
 
 var NewStatusCmdFunc = func() *cobra.Command {
 	return &cobra.Command{
-		Use:          "status",
-		Short:        "Check NetBird connection status",
+		Use:   "status",
+		Short: "Show the current NetBird connection status",
+		Long: `Print the NetBird agent status (peer counts, NAT type, current peer info).
+Equivalent to running ` + "`netbird status`" + ` directly.
+
+Examples:
+  stackctl netbird status`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			netbird.CheckStatus()

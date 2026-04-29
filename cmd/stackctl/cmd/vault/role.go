@@ -18,7 +18,17 @@ func NewRoleCmd() *cobra.Command {
 var NewRoleCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "role",
-		Short: "Manage Vault auth roles (K8s, AppRole)",
+		Short: "List, read, write, and delete Vault auth roles (K8s, AppRole)",
+		Long: `Manage Vault auth roles. Roles bind a Kubernetes ServiceAccount or
+an AppRole identity to a set of policies and a TTL.
+
+Examples:
+  stackctl vault role list   auth/k8s-prod
+  stackctl vault role get    auth/k8s-prod my-app
+  stackctl vault role put    auth/k8s-prod my-app \
+      --bound-sa-names my-app --bound-sa-namespaces prod \
+      --policies my-app-read --ttl 24h
+  stackctl vault role delete auth/k8s-prod my-app`,
 	}
 
 	cmd.AddCommand(NewRoleListCmd())

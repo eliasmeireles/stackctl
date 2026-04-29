@@ -17,7 +17,15 @@ func NewPolicyCmd() *cobra.Command {
 var NewPolicyCmdFunc = func() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: "Manage Vault policies",
+		Short: "List, read, write, and delete Vault HCL policies",
+		Long: `Manage Vault policies. Policies are HCL files that grant capabilities
+(read/write/list/...) over specific paths.
+
+Examples:
+  stackctl vault policy list
+  stackctl vault policy get my-app-read
+  stackctl vault policy put my-app-read ./policies/my-app-read.hcl
+  stackctl vault policy delete my-app-read`,
 	}
 
 	cmd.AddCommand(NewPolicyListCmd())
