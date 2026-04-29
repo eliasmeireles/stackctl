@@ -13,6 +13,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/mbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 )
 
 type CreateUserFlags struct {
@@ -101,11 +102,13 @@ func runCreateUser(flags *CreateUserFlags) error {
 		return err
 	}
 
-	fmt.Printf("🐰 Creating RabbitMQ user...\n")
-	fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
-	fmt.Printf("  Username: %s\n", flags.Username)
-	if flags.Tags != "" {
-		fmt.Printf("  Tags: %s\n", flags.Tags)
+	if !output.IsStructured() {
+		fmt.Printf("🐰 Creating RabbitMQ user...\n")
+		fmt.Printf("  Host: %s:%d\n", flags.Host, flags.Port)
+		fmt.Printf("  Username: %s\n", flags.Username)
+		if flags.Tags != "" {
+			fmt.Printf("  Tags: %s\n", flags.Tags)
+		}
 	}
 
 	ctx := context.Background()
@@ -125,7 +128,9 @@ func runCreateUser(flags *CreateUserFlags) error {
 		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
 	}
 
-	fmt.Println("\n📡 Connecting to RabbitMQ...")
+	if !output.IsStructured() {
+		fmt.Println("\n📡 Connecting to RabbitMQ...")
+	}
 	if err := rabbitClient.Connect(ctx, adminCreds); err != nil {
 		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
@@ -139,7 +144,9 @@ func runCreateUser(flags *CreateUserFlags) error {
 	}
 
 	if exists {
-		fmt.Printf("\n⚠️  User '%s' already exists in RabbitMQ.\n", flags.Username)
+		if !output.IsStructured() {
+			fmt.Printf("\n⚠️  User '%s' already exists in RabbitMQ.\n", flags.Username)
+		}
 		return askAndStoreInVault(flags)
 	}
 
@@ -148,13 +155,17 @@ func runCreateUser(flags *CreateUserFlags) error {
 		Password: flags.Password,
 	}
 
-	fmt.Println("👤 Creating user...")
+	if !output.IsStructured() {
+		fmt.Println("👤 Creating user...")
+	}
 	if err := rabbitClient.CreateUser(ctx, userCreds); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
 	if flags.Tags != "" {
-		fmt.Println("🏷️  Setting user tags...")
+		if !output.IsStructured() {
+			fmt.Println("🏷️  Setting user tags...")
+		}
 		tags := strings.Split(flags.Tags, ",")
 		for i := range tags {
 			tags[i] = strings.TrimSpace(tags[i])
@@ -164,13 +175,27 @@ func runCreateUser(flags *CreateUserFlags) error {
 		}
 	}
 
-	fmt.Printf("\n✅ User '%s' created successfully!\n", flags.Username)
+	if !output.IsStructured() {
+		fmt.Printf("\n✅ User '%s' created successfully!\n", flags.Username)
+	}
 
 	if flags.VaultPath != "" {
 		if err := storeCredentialsInVault(flags); err != nil {
 			return fmt.Errorf("user created but failed to store in Vault: %w", err)
 		}
-		fmt.Println("✅ Credentials stored in Vault successfully!")
+		if !output.IsStructured() {
+			fmt.Println("✅ Credentials stored in Vault successfully!")
+		}
+	}
+
+	if output.IsStructured() {
+		output.PrintRecord("", output.NewItem(
+			"username", flags.Username,
+			"host", fmt.Sprintf("%s:%d", flags.Host, flags.Port),
+			"tags", flags.Tags,
+			"vaultPath", flags.VaultPath,
+			"status", "created",
+		))
 	}
 
 	return nil
