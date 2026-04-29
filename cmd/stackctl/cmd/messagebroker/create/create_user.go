@@ -30,7 +30,10 @@ type CreateUserFlags struct {
 func NewCreateCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a user",
+		Short: "Create a message broker user",
+		Long: fmt.Sprintf(`Create a user on the %s broker, with optional Vault credential storage.
+
+See "stackctl messagebroker %[1]s create user --help" for the full flag set.`, brokerType),
 	}
 
 	cmd.AddCommand(newCreateUserCommand(brokerType))
@@ -186,7 +189,7 @@ func askAndStoreInVault(flags *CreateUserFlags) error {
 	}
 
 	if flags.VaultPath == "" {
-		fmt.Print("Enter Vault path (e.g. secret/messagebroker/rabbitmq/myuser): ")
+		fmt.Print("Enter Vault path (e.g. secret/messagebrokers/rabbitmq/myuser): ")
 		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
 			return fmt.Errorf("failed to read Vault path: %w", err)
 		}
@@ -202,7 +205,7 @@ func storeCredentialsInVault(flags *CreateUserFlags) error {
 			break
 		}
 		fmt.Printf("\n❌ Invalid vault path %q\n", flags.VaultPath)
-		fmt.Println("  Expected format: <engine>/<path>  (e.g. secret/messagebroker/rabbitmq/credentials)")
+		fmt.Println("  Expected format: <engine>/<path>  (e.g. secret/messagebrokers/rabbitmq/credentials)")
 		fmt.Print("  Enter a valid vault path: ")
 		if _, err := fmt.Scanln(&flags.VaultPath); err != nil {
 			return fmt.Errorf("failed to read vault path: %w", err)

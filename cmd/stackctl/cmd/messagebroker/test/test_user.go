@@ -27,7 +27,14 @@ func NewTestUserCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "test-user",
 		Short: "Test message broker user credentials",
-		Long:  "Test user credentials and permissions in a message broker (RabbitMQ)",
+		Long: fmt.Sprintf(`Validate that a %s user can authenticate with the broker.
+
+Examples:
+  # Inline credentials
+  stackctl messagebroker %[1]s test-user --host localhost --username myapp --password '...'
+
+  # Or pull credentials from Vault
+  stackctl messagebroker %[1]s test-user --vault-path secret/messagebrokers/%[1]s/myapp`, brokerType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTestUser(flags)
 		},
