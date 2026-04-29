@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +12,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/selfupdate"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/add"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/delete"
@@ -41,7 +41,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if showVersion {
-			fmt.Printf("stackctl version %s\n", Version)
+			printVersion()
 			return
 		}
 		// If no command is provided, open the TUI
@@ -87,6 +87,8 @@ func init() {
 	rootCmd.AddCommand(kubeconfig.NewCommand())
 	rootCmd.AddCommand(database.NewDatabaseCommand())
 	rootCmd.AddCommand(messagebroker.NewMessageBrokerCommand())
+	rootCmd.AddCommand(selfupdate.NewCommand())
+	rootCmd.AddCommand(versionCmd)
 }
 
 type PlainFormatter struct{}

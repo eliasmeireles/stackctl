@@ -28,6 +28,19 @@ curl -fsSL https://raw.githubusercontent.com/eliasmeireles/stackctl/main/install
 go install github.com/eliasmeireles/stackctl/cmd/stackctl@latest
 ```
 
+**Update an existing install:**
+
+```bash
+# Latest stable release (skips pre-releases by default)
+sudo stackctl self-update
+
+# Pin a specific version
+sudo stackctl self-update --version v0.0.9
+
+# Opt in to a release candidate
+sudo stackctl self-update --version v0.1.0-rc-05
+```
+
 Run `stackctl` with no arguments to open the interactive TUI.
 
 ---
@@ -484,6 +497,26 @@ stackctl messagebroker rabbitmq test-user \
 **Common RabbitMQ tags:** `administrator` · `management` · `policymaker` · `monitoring`
 
 See [MESSAGEBROKER_COMMANDS.md](docs/MESSAGEBROKER_COMMANDS.md) for the full command reference.
+
+---
+
+### Self-update — `stackctl self-update`
+
+Replace the running stackctl binary with the latest GitHub Release. Pre-release tags are skipped by default; use `--version` to pin or to opt in to a release candidate.
+
+| Flag             | Default                  | Description                                                  |
+| :--------------- | :----------------------- | :----------------------------------------------------------- |
+| `--version`      | _(latest stable)_        | Specific tag to install. Bypasses the stable-only filter.    |
+| `--install-path` | `/usr/local/bin/stackctl` | Path to replace (set this if stackctl lives somewhere else). |
+
+```bash
+sudo stackctl self-update                          # latest stable
+sudo stackctl self-update --version v0.0.9         # pin a stable version
+sudo stackctl self-update --version v0.1.0-rc-05   # opt-in to RC
+stackctl self-update --install-path "$HOME/bin/stackctl"
+```
+
+The download lands in a temp file alongside the install dir whenever possible (for atomic rename), with a cross-filesystem (EXDEV) fallback that copies the binary safely.
 
 ---
 
