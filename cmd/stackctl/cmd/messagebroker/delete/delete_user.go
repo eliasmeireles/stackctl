@@ -12,6 +12,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/messagebroker/mbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -97,7 +98,9 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Host: flags.Host, Port: flags.Port}
 
-	fmt.Printf("📡 Connecting to RabbitMQ at %s:%d...\n", flags.Host, flags.Port)
+	if !output.IsStructured() {
+		fmt.Printf("📡 Connecting to RabbitMQ at %s:%d...\n", flags.Host, flags.Port)
+	}
 	rabbitClient, err := client.NewRabbitMQClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create RabbitMQ client: %w", err)
@@ -135,12 +138,22 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 		return fmt.Errorf("user '%s' does not exist in RabbitMQ", flags.Username)
 	}
 
-	fmt.Printf("🗑️  Deleting user '%s'...\n", flags.Username)
+	if !output.IsStructured() {
+		fmt.Printf("🗑️  Deleting user '%s'...\n", flags.Username)
+	}
 	if err := rabbitClient.RemoveUser(ctx, flags.Username); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	fmt.Printf("✅ User '%s' deleted successfully from RabbitMQ.\n", flags.Username)
+	if output.IsStructured() {
+		output.PrintRecord("", output.NewItem(
+			"username", flags.Username,
+			"host", fmt.Sprintf("%s:%d", flags.Host, flags.Port),
+			"status", "deleted",
+		))
+	} else {
+		fmt.Printf("✅ User '%s' deleted successfully from RabbitMQ.\n", flags.Username)
+	}
 	return nil
 }
 
