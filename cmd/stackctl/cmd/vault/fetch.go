@@ -64,7 +64,8 @@ Examples:
   stackctl vault fetch --export-env --github-env \
     --addr http://vault:8200 --token s.xxx \
     --secret-path secret/data/ci/app-config`,
-		Run: func(cmd *cobra.Command, args []string) {
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			flags.Resolve()
 
 			if vaultSecretPath == "" {
@@ -78,12 +79,12 @@ Examples:
 			}
 
 			if vaultSecretPath == "" {
-				log.Fatal("❌ --secret-path or VAULT_SECRET_PATH is required")
+				return fmt.Errorf("--secret-path or VAULT_SECRET_PATH is required")
 			}
 
 			evClient, err := vaultpkg.ApiClient.EnvVaultClient()
 			if err != nil {
-				log.Fatalf("❌ Failed to create Vault client: %v", err)
+				return fmt.Errorf("failed to create Vault client: %w", err)
 			}
 			vaultClient := evClient
 
@@ -92,12 +93,17 @@ Examples:
 			}
 
 			if vaultExportEnv {
-				runExportEnv(vaultClient, vaultSecretPath, vaultGitHubEnv)
+				if err := runExportEnv(vaultClient, vaultSecretPath, vaultGitHubEnv); err != nil {
+					return err
+				}
 			}
 
 			if vaultAsKubeconfig {
-				runAsKubeconfig(vaultClient, vaultSecretPath, vaultSecretField, resourceName)
+				if err := runAsKubeconfig(vaultClient, vaultSecretPath, vaultSecretField, resourceName); err != nil {
+					return err
+				}
 			}
+			return nil
 		},
 	}
 
@@ -112,17 +118,17 @@ Examples:
 }
 
 // runExportEnv reads all fields from the Vault secret and exports them as env vars.
-func runExportEnv(client *envvault.Client, secretPath string, githubEnv bool) {
-	runExportEnvFunc(client, secretPath, githubEnv)
+func runExportEnv(client *envvault.Client, secretPath string, githubEnv bool) error {
+	return runExportEnvFunc(client, secretPath, githubEnv)
 }
 
 // runExportEnvFunc is a function variable for exporting environment variables from Vault.
-var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEnv bool) {
+var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEnv bool) error {
 	log.Infof("🔍 Reading secret from Vault: %s", secretPath)
 
 	data, err := client.ReadSecret(secretPath)
 	if err != nil {
-		log.Fatalf("❌ Failed to read secret from Vault: %v", err)
+		return fmt.Errorf("failed to read secret from Vault: %w", err)
 	}
 
 	for key, value := range data {
@@ -133,6 +139,7 @@ var runExportEnvFunc = func(client *envvault.Client, secretPath string, githubEn
 		}
 		log.Infof("✅ Exported %s", key)
 	}
+	return nil
 }
 
 // writeGitHubEnv writes environment variables to GITHUB_ENV file.
@@ -161,12 +168,12 @@ var writeGitHubEnvFunc = func(name, value string) {
 }
 
 // runAsKubeconfig reads a kubeconfig from Vault and merges it into the local config.
-func runAsKubeconfig(client *envvault.Client, secretPath, field, resourceName string) {
-	runAsKubeconfigFunc(client, secretPath, field, resourceName)
+func runAsKubeconfig(client *envvault.Client, secretPath, field, resourceName string) error {
+	return runAsKubeconfigFunc(client, secretPath, field, resourceName)
 }
 
 // runAsKubeconfigFunc is a function variable for merging kubeconfig from Vault.
-var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resourceName string) {
+var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resourceName string) error {
 	kubeconfigPath := featureKubeconfig.GetPath()
 	name := resourceName
 	if name == "" {
@@ -175,10 +182,11 @@ var runAsKubeconfigFunc = func(client *envvault.Client, secretPath, field, resou
 
 	svc := featureKubeconfig.NewVaultKubeconfigService(client)
 	if err := svc.FetchKubeconfigFromVault(secretPath, kubeconfigPath, name); err != nil {
-		log.Fatalf("❌ Failed to merge kubeconfig: %v", err)
+		return fmt.Errorf("failed to merge kubeconfig: %w", err)
 	}
 
 	log.Infof("✅ Kubeconfig from %s[%s] merged into %s", secretPath, field, kubeconfigPath)
+	return nil
 }
 
 // deriveResourceName extracts the resource name from the secret path.
