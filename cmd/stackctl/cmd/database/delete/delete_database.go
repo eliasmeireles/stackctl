@@ -11,6 +11,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -96,23 +97,33 @@ func runDeleteDatabase(flags *DeleteDatabaseFlags) error {
 		return err
 	}
 
+	var dispatchErr error
 	switch flags.DBType {
 	case "postgres":
-		return deletePostgresDatabase(flags)
+		dispatchErr = deletePostgresDatabase(flags)
 	case "mysql":
-		return deleteMySQLDatabase(flags)
+		dispatchErr = deleteMySQLDatabase(flags)
 	case "mongodb":
-		return deleteMongoDatabase(flags)
+		dispatchErr = deleteMongoDatabase(flags)
 	default:
 		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
 	}
+	if dispatchErr == nil && output.IsStructured() {
+		output.PrintRecord("", output.NewItem(
+			"database", flags.Database,
+			"dbType", flags.DBType,
+			"host", fmt.Sprintf("%s:%d", flags.Host, flags.Port),
+			"status", "deleted",
+		))
+	}
+	return dispatchErr
 }
 
 func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
 
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
@@ -150,12 +161,12 @@ func deletePostgresDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("database '%s' does not exist in PostgreSQL", flags.Database)
 	}
 
-	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
+	output.Progress("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := pgClient.DeleteDatabase(ctx, flags.Database); err != nil {
 		return fmt.Errorf("failed to delete database: %w", err)
 	}
 
-	fmt.Printf("✅ Database '%s' deleted successfully from PostgreSQL.\n", flags.Database)
+	output.Progress("✅ Database '%s' deleted successfully from PostgreSQL.\n", flags.Database)
 	return nil
 }
 
@@ -163,7 +174,7 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MySQL client: %w", err)
@@ -201,12 +212,12 @@ func deleteMySQLDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("database '%s' does not exist in MySQL", flags.Database)
 	}
 
-	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
+	output.Progress("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := mysqlClient.DeleteDatabase(ctx, flags.Database); err != nil {
 		return fmt.Errorf("failed to delete database: %w", err)
 	}
 
-	fmt.Printf("✅ Database '%s' deleted successfully from MySQL.\n", flags.Database)
+	output.Progress("✅ Database '%s' deleted successfully from MySQL.\n", flags.Database)
 	return nil
 }
 
@@ -214,7 +225,7 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: "admin"}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -252,11 +263,11 @@ func deleteMongoDatabase(flags *DeleteDatabaseFlags) error {
 		return fmt.Errorf("database '%s' does not exist in MongoDB", flags.Database)
 	}
 
-	fmt.Printf("🗑️  Deleting database '%s'...\n", flags.Database)
+	output.Progress("🗑️  Deleting database '%s'...\n", flags.Database)
 	if err := mongoClient.DeleteDatabase(ctx, flags.Database); err != nil {
 		return fmt.Errorf("failed to delete database: %w", err)
 	}
 
-	fmt.Printf("✅ Database '%s' deleted successfully from MongoDB.\n", flags.Database)
+	output.Progress("✅ Database '%s' deleted successfully from MongoDB.\n", flags.Database)
 	return nil
 }

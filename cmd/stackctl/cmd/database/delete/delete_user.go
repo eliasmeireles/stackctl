@@ -12,6 +12,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
@@ -86,23 +87,33 @@ func runDeleteUser(flags *DeleteUserFlags) error {
 		return err
 	}
 
+	var dispatchErr error
 	switch flags.DBType {
 	case "postgres":
-		return deletePostgresUser(flags)
+		dispatchErr = deletePostgresUser(flags)
 	case "mysql":
-		return deleteMySQLUser(flags)
+		dispatchErr = deleteMySQLUser(flags)
 	case "mongodb":
-		return deleteMongoUser(flags)
+		dispatchErr = deleteMongoUser(flags)
 	default:
 		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
 	}
+	if dispatchErr == nil && output.IsStructured() {
+		output.PrintRecord("", output.NewItem(
+			"username", flags.Username,
+			"dbType", flags.DBType,
+			"host", fmt.Sprintf("%s:%d", flags.Host, flags.Port),
+			"status", "deleted",
+		))
+	}
+	return dispatchErr
 }
 
 func deletePostgresUser(flags *DeleteUserFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
 
-	fmt.Printf("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
 	pgClient, err := client.NewPostgresClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
@@ -140,12 +151,12 @@ func deletePostgresUser(flags *DeleteUserFlags) error {
 		return fmt.Errorf("user '%s' does not exist in PostgreSQL", flags.Username)
 	}
 
-	fmt.Printf("🗑️  Deleting user '%s'...\n", flags.Username)
+	output.Progress("🗑️  Deleting user '%s'...\n", flags.Username)
 	if err := pgClient.RemoveUser(ctx, flags.Username); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	fmt.Printf("✅ User '%s' deleted successfully from PostgreSQL.\n", flags.Username)
+	output.Progress("✅ User '%s' deleted successfully from PostgreSQL.\n", flags.Username)
 	return nil
 }
 
@@ -153,7 +164,7 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 	ctx := context.Background()
 	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
 
-	fmt.Printf("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
 	mysqlClient, err := client.NewMySQLClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MySQL client: %w", err)
@@ -191,12 +202,12 @@ func deleteMySQLUser(flags *DeleteUserFlags) error {
 		return fmt.Errorf("user '%s' does not exist in MySQL", flags.Username)
 	}
 
-	fmt.Printf("🗑️  Deleting user '%s'...\n", flags.Username)
+	output.Progress("🗑️  Deleting user '%s'...\n", flags.Username)
 	if err := mysqlClient.RemoveUser(ctx, flags.Username); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	fmt.Printf("✅ User '%s' deleted successfully from MySQL.\n", flags.Username)
+	output.Progress("✅ User '%s' deleted successfully from MySQL.\n", flags.Username)
 	return nil
 }
 
@@ -205,7 +216,7 @@ func deleteMongoUser(flags *DeleteUserFlags) error {
 	// Connect to admin DB first for listing users
 	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
 
-	fmt.Printf("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
+	output.Progress("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
 	mongoClient, err := client.NewMongoDBClient(config)
 	if err != nil {
 		return fmt.Errorf("failed to create MongoDB client: %w", err)
@@ -263,12 +274,12 @@ func deleteMongoUser(flags *DeleteUserFlags) error {
 		return fmt.Errorf("user '%s' does not exist in MongoDB database '%s'", actualUsername, actualDB)
 	}
 
-	fmt.Printf("🗑️  Deleting user '%s' from database '%s'...\n", actualUsername, actualDB)
+	output.Progress("🗑️  Deleting user '%s' from database '%s'...\n", actualUsername, actualDB)
 	if err := mongoClient.RemoveUser(ctx, actualUsername); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	fmt.Printf("✅ User '%s' deleted successfully from MongoDB (database: %s).\n", actualUsername, actualDB)
+	output.Progress("✅ User '%s' deleted successfully from MongoDB (database: %s).\n", actualUsername, actualDB)
 	return nil
 }
 
