@@ -35,7 +35,7 @@ func initMenu() {
 				"New Username",
 				"New Password",
 				"Tags (e.g. administrator,management) (optional)",
-				"Vault Path to store credentials (e.g. secret/messagebroker/rabbitmq/myuser) (optional)",
+				"Vault Path to store credentials (e.g. secret/messagebrokers/rabbitmq/myuser) (optional)",
 			},
 			mbCreateUserAction("rabbitmq"),
 		),
@@ -64,7 +64,7 @@ func initMenu() {
 // vaultLoginSubMenu wraps an operation in a sub-menu offering both vault-path
 // browsing and manual path entry.
 func vaultLoginSubMenu(title, desc string, extraPrompts []string, action func(args []string) tea.Cmd) list.Item {
-	const vaultPrompt = "Vault Login Path (e.g. secret/messagebroker/rabbitmq/admin)"
+	const vaultPrompt = "Vault Login Path (e.g. secret/messagebrokers/rabbitmq/admin)"
 	allManualPrompts := append([]string{vaultPrompt}, extraPrompts...)
 
 	const vaultNote = "Select the Vault path that holds the admin credentials to authenticate with RabbitMQ."

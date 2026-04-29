@@ -28,7 +28,11 @@ type DeleteUserFlags struct {
 func NewDeleteCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete a user",
+		Short: "Delete a message broker user",
+		Long: fmt.Sprintf(`Remove a user from the %s broker. Requires y/yes confirmation unless
+--force is set; omit --username to pick from an interactive list.
+
+See "stackctl messagebroker %[1]s delete user --help" for the full flag set.`, brokerType),
 	}
 
 	cmd.AddCommand(newDeleteUserCommand(brokerType))
@@ -41,7 +45,15 @@ func newDeleteUserCommand(brokerType string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "Delete a message broker user",
-		Long:  "Delete a user from a message broker (RabbitMQ). Requires confirmation unless --force is used.",
+		Long: fmt.Sprintf(`Delete a user from the %s broker.
+
+Omit --username to pick from a numbered list. Requires y/yes confirmation
+unless --force is set.
+
+Examples:
+  stackctl messagebroker %[1]s delete user --vault-login secret/messagebrokers/%[1]s/admin --username old_user
+  stackctl messagebroker %[1]s delete user --vault-login secret/messagebrokers/%[1]s/admin            # interactive list
+  stackctl messagebroker %[1]s delete user --host localhost --admin-user admin --admin-password '...' --username old_user --force`, brokerType),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDeleteUser(flags)
 		},
@@ -53,7 +65,8 @@ func newDeleteUserCommand(brokerType string) *cobra.Command {
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to delete (omit to select from list)")
 	cmd.Flags().BoolVar(&flags.Force, "force", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. messagebroker/rabbitmq/admin)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/messagebrokers/%s/admin)", brokerType))
 
 	return cmd
 }
