@@ -164,6 +164,8 @@ Automatically retries Vault authentication every 5 seconds if the token is not y
 | `add-from-vault <path>`                 | Download and merge from Vault                     |
 | `contexts`                              | List kubeconfigs stored in Vault                  |
 | `from-sa`                               | Build a kubeconfig from a ServiceAccount token    |
+| `apply -f <manifest>`                   | Run a flow described by a YAML manifest           |
+| `revert -f <manifest>`                  | Undo what `apply` did, using the same manifest    |
 
 **`add` flags:**
 
@@ -206,6 +208,41 @@ stackctl kubeconfig from-sa \
 stackctl kubeconfig from-sa --sa <sa-name> --secret <token-secret> \
   --output-file ./<sa-name>.kubeconfig
 ```
+
+**`apply` — manifest-driven kubeconfig flows**
+
+The `kind` discriminator picks the flow. Currently supported:
+
+| Kind               | Equivalent CLI command            |
+| :----------------- | :-------------------------------- |
+| `KubeconfigFromSA` | `stackctl kubeconfig from-sa ...` |
+
+The manifest is validated before any cluster call — missing `kind`, missing `spec`, or a missing required spec field aborts with a clear error.
+
+```yaml
+# kubeconfig-from-sa.yaml
+apiVersion: stackctl/v1
+kind: KubeconfigFromSA
+spec:
+  serviceAccount: dev-user           # required
+  namespace: kube-system             # default: kube-system
+  secret: dev-user-token             # default: <serviceAccount>-token
+  clusterName: homelab               # default: kubernetes
+  contextName: dev-user@homelab      # default: <sa>@<clusterName>
+  defaultNamespace: homelab-dev      # default: default
+  # server: https://10.0.0.1:6443    # optional override
+  # kubeContext: my-cluster          # optional, defaults to current
+  # outputFile: ./dev-user.kubeconfig  # optional; merges into active kubeconfig when empty
+```
+
+```bash
+stackctl kubeconfig apply  -f kubeconfig-from-sa.yaml   # forward
+stackctl kubeconfig revert -f kubeconfig-from-sa.yaml   # undo using the same file
+```
+
+`revert` uses the same kind switch as `apply`. For `KubeconfigFromSA` it removes the generated context (and orphaned cluster/user entries) from the active kubeconfig, or deletes the file pointed to by `spec.outputFile` when set. The operation is idempotent — a missing file or context produces a warning rather than an error.
+
+A working example lives at [`example/kubeconfig-from-sa.yaml`](example/kubeconfig-from-sa.yaml). New kinds will be added here as they ship.
 
 ---
 

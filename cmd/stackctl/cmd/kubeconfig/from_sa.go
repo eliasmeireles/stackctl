@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -20,23 +21,167 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
 )
 
+// FromSAOptions configures a single from-sa run. Empty fields fall back to
+// sensible defaults: ServiceAccountNamespace=kube-system, SecretName=<sa>-token,
+// ClusterName=kubernetes, ContextName=<sa>@<cluster>, DefaultNamespace=default.
+type FromSAOptions struct {
+	ServiceAccount          string
+	ServiceAccountNamespace string
+	SecretName              string
+	ClusterName             string
+	ContextName             string
+	DefaultNamespace        string
+	ServerOverride          string
+	KubeContext             string
+	OutputFile              string
+}
+
+// Validate returns a single error aggregating every problem in the options.
+func (o FromSAOptions) Validate() error {
+	if o.ServiceAccount == "" {
+		return fmt.Errorf("serviceAccount is required")
+	}
+	return nil
+}
+
+// RunFromSA executes the from-sa flow. Used by both the `from-sa` command and
+// the manifest-driven `apply` command (kind: KubeconfigFromSA).
+func RunFromSA(opts FromSAOptions) error {
+	if err := opts.Validate(); err != nil {
+		return err
+	}
+
+	saNamespace := opts.ServiceAccountNamespace
+	if saNamespace == "" {
+		saNamespace = "kube-system"
+	}
+	secretName := opts.SecretName
+	if secretName == "" {
+		secretName = opts.ServiceAccount + "-token"
+	}
+	clusterName := opts.ClusterName
+	if clusterName == "" {
+		clusterName = "kubernetes"
+	}
+	contextName := opts.ContextName
+	if contextName == "" {
+		contextName = fmt.Sprintf("%s@%s", opts.ServiceAccount, clusterName)
+	}
+	defaultNS := opts.DefaultNamespace
+	if defaultNS == "" {
+		defaultNS = "default"
+	}
+
+	cs, err := k8s.NewClientset(opts.KubeContext)
+	if err != nil {
+		return fmt.Errorf("build k8s client: %w", err)
+	}
+
+	token, ca, err := readSAToken(cs, saNamespace, secretName)
+	if err != nil {
+		return err
+	}
+
+	server := opts.ServerOverride
+	discoveredCA := ""
+	if server == "" || ca == "" {
+		discoveredServer, discoveredFromKube, err := discoverClusterFromKubeconfig(opts.KubeContext)
+		if err != nil {
+			return fmt.Errorf("discover cluster details: %w", err)
+		}
+		if server == "" {
+			server = discoveredServer
+		}
+		discoveredCA = discoveredFromKube
+	}
+	if ca == "" {
+		ca = discoveredCA
+	}
+	if server == "" {
+		return fmt.Errorf("unable to resolve cluster server (set server)")
+	}
+	if ca == "" {
+		return fmt.Errorf("unable to resolve cluster CA (set a kube-context that has it)")
+	}
+
+	generated := buildSAKubeconfig(opts.ServiceAccount, clusterName, contextName, defaultNS, server, ca, token)
+
+	data, err := yaml.Marshal(generated)
+	if err != nil {
+		return fmt.Errorf("encode kubeconfig: %w", err)
+	}
+
+	if opts.OutputFile != "" {
+		if err := os.WriteFile(opts.OutputFile, data, 0600); err != nil {
+			return fmt.Errorf("write %q: %w", opts.OutputFile, err)
+		}
+		log.Infof("✅ Kubeconfig written to %q (context %q, default namespace %q)", opts.OutputFile, contextName, defaultNS)
+		return nil
+	}
+
+	b64 := base64.StdEncoding.EncodeToString(data)
+	if err := kubeconfig.ProcessConfig(b64, ""); err != nil {
+		return err
+	}
+
+	log.Infof("✅ Context %q added to kubeconfig (default namespace: %q)", contextName, defaultNS)
+	return nil
+}
+
+// RevertFromSA undoes a previous RunFromSA. When OutputFile is set, the file
+// is removed; otherwise the context (and orphaned cluster/user entries) is
+// removed from the active kubeconfig. Idempotent: missing file or context
+// produces a warning, not an error.
+func RevertFromSA(opts FromSAOptions) error {
+	if err := opts.Validate(); err != nil {
+		return err
+	}
+
+	clusterName := opts.ClusterName
+	if clusterName == "" {
+		clusterName = "kubernetes"
+	}
+	contextName := opts.ContextName
+	if contextName == "" {
+		contextName = fmt.Sprintf("%s@%s", opts.ServiceAccount, clusterName)
+	}
+
+	if opts.OutputFile != "" {
+		if err := os.Remove(opts.OutputFile); err != nil {
+			if os.IsNotExist(err) {
+				log.Warnf("⚠️  %q already absent — nothing to revert", opts.OutputFile)
+				return nil
+			}
+			return fmt.Errorf("remove %q: %w", opts.OutputFile, err)
+		}
+		log.Infof("🗑️  Kubeconfig %q removed", opts.OutputFile)
+		return nil
+	}
+
+	path := kubeconfig.GetPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Warnf("⚠️  Kubeconfig %q does not exist — nothing to revert", path)
+		return nil
+	}
+
+	if err := kubeconfig.RemoveConfig(path, contextName); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			log.Warnf("⚠️  Context %q not present in %q — nothing to revert", contextName, path)
+			return nil
+		}
+		return err
+	}
+	log.Infof("✅ Context %q removed from %q", contextName, path)
+	return nil
+}
+
 // NewFromSACmd creates the kubeconfig from-sa subcommand.
 func NewFromSACmd() *cobra.Command {
 	return newFromSACmdFunc()
 }
 
 var newFromSACmdFunc = func() *cobra.Command {
-	var (
-		saName         string
-		saNamespace    string
-		secretName     string
-		clusterName    string
-		contextName    string
-		defaultNS      string
-		serverOverride string
-		kubeContext    string
-		outputFile     string
-	)
+	var opts FromSAOptions
 
 	cmd := &cobra.Command{
 		Use:   "from-sa",
@@ -64,87 +209,20 @@ Examples:
   # Write to a separate file instead of merging
   stackctl kubeconfig from-sa --sa <sa-name> --secret <token-secret> --output-file ./<sa-name>.kubeconfig`,
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if saName == "" {
-				return fmt.Errorf("❌ --sa is required")
-			}
-			if secretName == "" {
-				secretName = saName + "-token"
-			}
-
-			cs, err := k8s.NewClientset(kubeContext)
-			if err != nil {
-				return fmt.Errorf("❌ build k8s client: %w", err)
-			}
-
-			token, ca, err := readSAToken(cs, saNamespace, secretName)
-			if err != nil {
-				return fmt.Errorf("❌ %w", err)
-			}
-
-			server := serverOverride
-			discoveredCA := ""
-			if server == "" || ca == "" {
-				discoveredServer, discoveredFromKube, err := discoverClusterFromKubeconfig(kubeContext)
-				if err != nil {
-					return fmt.Errorf("❌ discover cluster details: %w", err)
-				}
-				if server == "" {
-					server = discoveredServer
-				}
-				discoveredCA = discoveredFromKube
-			}
-			if ca == "" {
-				ca = discoveredCA
-			}
-			if server == "" {
-				return fmt.Errorf("❌ unable to resolve cluster server (set --server)")
-			}
-			if ca == "" {
-				return fmt.Errorf("❌ unable to resolve cluster CA (set a kube-context that has it)")
-			}
-
-			if clusterName == "" {
-				clusterName = "kubernetes"
-			}
-			if contextName == "" {
-				contextName = fmt.Sprintf("%s@%s", saName, clusterName)
-			}
-
-			generated := buildSAKubeconfig(saName, clusterName, contextName, defaultNS, server, ca, token)
-
-			data, err := yaml.Marshal(generated)
-			if err != nil {
-				return fmt.Errorf("❌ encode kubeconfig: %w", err)
-			}
-
-			if outputFile != "" {
-				if err := os.WriteFile(outputFile, data, 0600); err != nil {
-					return fmt.Errorf("❌ write %q: %w", outputFile, err)
-				}
-				log.Infof("✅ Kubeconfig written to %q (context %q, default namespace %q)", outputFile, contextName, defaultNS)
-				return nil
-			}
-
-			b64 := base64.StdEncoding.EncodeToString(data)
-			if err := kubeconfig.ProcessConfig(b64, ""); err != nil {
-				return fmt.Errorf("❌ %w", err)
-			}
-
-			log.Infof("✅ Context %q added to kubeconfig (default namespace: %q)", contextName, defaultNS)
-			return nil
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return RunFromSA(opts)
 		},
 	}
 
-	cmd.Flags().StringVar(&saName, "sa", "", "ServiceAccount name (required)")
-	cmd.Flags().StringVar(&saNamespace, "namespace", "kube-system", "Namespace where the ServiceAccount/Secret lives")
-	cmd.Flags().StringVar(&secretName, "secret", "", "Token Secret name (default: <sa>-token)")
-	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Cluster name to use in the generated kubeconfig (default: kubernetes)")
-	cmd.Flags().StringVar(&contextName, "context-name", "", "Context name to use (default: <sa>@<cluster-name>)")
-	cmd.Flags().StringVar(&defaultNS, "default-namespace", "default", "Default namespace for the generated context")
-	cmd.Flags().StringVar(&serverOverride, "server", "", "Cluster API server URL (default: read from active kubeconfig)")
-	cmd.Flags().StringVar(&kubeContext, "kube-context", "", "Kube context to read server/CA from (default: current)")
-	cmd.Flags().StringVar(&outputFile, "output-file", "", "Write the generated kubeconfig to this path instead of merging into the active kubeconfig")
+	cmd.Flags().StringVar(&opts.ServiceAccount, "sa", "", "ServiceAccount name (required)")
+	cmd.Flags().StringVar(&opts.ServiceAccountNamespace, "namespace", "kube-system", "Namespace where the ServiceAccount/Secret lives")
+	cmd.Flags().StringVar(&opts.SecretName, "secret", "", "Token Secret name (default: <sa>-token)")
+	cmd.Flags().StringVar(&opts.ClusterName, "cluster-name", "", "Cluster name to use in the generated kubeconfig (default: kubernetes)")
+	cmd.Flags().StringVar(&opts.ContextName, "context-name", "", "Context name to use (default: <sa>@<cluster-name>)")
+	cmd.Flags().StringVar(&opts.DefaultNamespace, "default-namespace", "default", "Default namespace for the generated context")
+	cmd.Flags().StringVar(&opts.ServerOverride, "server", "", "Cluster API server URL (default: read from active kubeconfig)")
+	cmd.Flags().StringVar(&opts.KubeContext, "kube-context", "", "Kube context to read server/CA from (default: current)")
+	cmd.Flags().StringVar(&opts.OutputFile, "output-file", "", "Write the generated kubeconfig to this path instead of merging into the active kubeconfig")
 
 	return cmd
 }
