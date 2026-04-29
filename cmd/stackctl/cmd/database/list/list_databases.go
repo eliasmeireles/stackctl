@@ -59,7 +59,8 @@ Examples:
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
 	cmd.Flags().StringVar(&flags.Database, "database", "", "Database name (required for --schemas with postgres)")
-	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "", "Vault path to load admin credentials from (e.g. databases/data/mongodb/config)")
+	cmd.Flags().StringVar(&flags.VaultLogin, "vault-login", "",
+		fmt.Sprintf("Vault path to load admin credentials from (e.g. secret/databases/%s/admin)", dbType))
 	cmd.Flags().BoolVar(&flags.ListDbs, "dbs", false, "List databases")
 	cmd.Flags().BoolVar(&flags.ListUsers, "users", false, "List users")
 	cmd.Flags().BoolVar(&flags.ListSchemas, "schemas", false, "List schemas (PostgreSQL: schemas in --database; MongoDB/MySQL: shown inline with --dbs)")
