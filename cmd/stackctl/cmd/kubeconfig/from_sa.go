@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -124,6 +125,53 @@ func RunFromSA(opts FromSAOptions) error {
 	}
 
 	log.Infof("✅ Context %q added to kubeconfig (default namespace: %q)", contextName, defaultNS)
+	return nil
+}
+
+// RevertFromSA undoes a previous RunFromSA. When OutputFile is set, the file
+// is removed; otherwise the context (and orphaned cluster/user entries) is
+// removed from the active kubeconfig. Idempotent: missing file or context
+// produces a warning, not an error.
+func RevertFromSA(opts FromSAOptions) error {
+	if err := opts.Validate(); err != nil {
+		return err
+	}
+
+	clusterName := opts.ClusterName
+	if clusterName == "" {
+		clusterName = "kubernetes"
+	}
+	contextName := opts.ContextName
+	if contextName == "" {
+		contextName = fmt.Sprintf("%s@%s", opts.ServiceAccount, clusterName)
+	}
+
+	if opts.OutputFile != "" {
+		if err := os.Remove(opts.OutputFile); err != nil {
+			if os.IsNotExist(err) {
+				log.Warnf("⚠️  %q already absent — nothing to revert", opts.OutputFile)
+				return nil
+			}
+			return fmt.Errorf("remove %q: %w", opts.OutputFile, err)
+		}
+		log.Infof("🗑️  Kubeconfig %q removed", opts.OutputFile)
+		return nil
+	}
+
+	path := kubeconfig.GetPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Warnf("⚠️  Kubeconfig %q does not exist — nothing to revert", path)
+		return nil
+	}
+
+	if err := kubeconfig.RemoveConfig(path, contextName); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			log.Warnf("⚠️  Context %q not present in %q — nothing to revert", contextName, path)
+			return nil
+		}
+		return err
+	}
+	log.Infof("✅ Context %q removed from %q", contextName, path)
 	return nil
 }
 

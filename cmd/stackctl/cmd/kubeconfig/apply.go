@@ -19,11 +19,20 @@ type Manifest struct {
 	Spec       yaml.Node `yaml:"spec"`
 }
 
-// SupportedKinds lists every kind value `kubeconfig apply` knows how to run.
-// Keep this list aligned with the switch in runApply.
+// SupportedKinds lists every kind value `kubeconfig apply`/`revert` knows how
+// to run. Keep this list aligned with the switches in runApply/runRevert.
 var SupportedKinds = []string{
 	"KubeconfigFromSA",
 }
+
+// flowAction identifies whether a manifest run is forward (apply) or reverse
+// (revert). Used by error messages so they reference the right verb.
+type flowAction string
+
+const (
+	actionApply  flowAction = "apply"
+	actionRevert flowAction = "revert"
+)
 
 // kubeconfigFromSASpec is the YAML payload for kind: KubeconfigFromSA.
 // Field names mirror FromSAOptions but in idiomatic camelCase YAML.
@@ -42,6 +51,41 @@ type kubeconfigFromSASpec struct {
 // NewApplyCmd creates the kubeconfig apply subcommand.
 func NewApplyCmd() *cobra.Command {
 	return newApplyCmdFunc()
+}
+
+// NewRevertCmd creates the kubeconfig revert subcommand.
+func NewRevertCmd() *cobra.Command {
+	return newRevertCmdFunc()
+}
+
+var newRevertCmdFunc = func() *cobra.Command {
+	var manifestPath string
+
+	cmd := &cobra.Command{
+		Use:   "revert",
+		Short: "Undo a kubeconfig flow previously applied from a YAML manifest",
+		Long: `Read the same YAML manifest that was passed to "kubeconfig apply" and
+undo its effects.
+
+For kind: KubeconfigFromSA this removes the generated context (and its orphan
+cluster/user entries) from the active kubeconfig, or deletes the file pointed
+to by spec.outputFile when set. The operation is idempotent — a missing file
+or context produces a warning, not an error.
+
+Examples:
+  stackctl kubeconfig revert -f kubeconfig-from-sa.yaml`,
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if manifestPath == "" {
+				return fmt.Errorf("-f/--file is required")
+			}
+			return runRevert(manifestPath)
+		},
+	}
+
+	cmd.Flags().StringVarP(&manifestPath, "file", "f", "", "Path to the YAML manifest (required)")
+
+	return cmd
 }
 
 var newApplyCmdFunc = func() *cobra.Command {
@@ -89,6 +133,14 @@ Examples:
 }
 
 func runApply(path string) error {
+	return runManifest(path, actionApply)
+}
+
+func runRevert(path string) error {
+	return runManifest(path, actionRevert)
+}
+
+func runManifest(path string, action flowAction) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read manifest %q: %w", path, err)
@@ -105,7 +157,7 @@ func runApply(path string) error {
 
 	switch m.Kind {
 	case "KubeconfigFromSA":
-		return runKubeconfigFromSAManifest(&m)
+		return runKubeconfigFromSAManifest(&m, action)
 	default:
 		return fmt.Errorf("unsupported kind %q (supported: %s)", m.Kind, strings.Join(SupportedKinds, ", "))
 	}
@@ -121,7 +173,7 @@ func validateManifest(m *Manifest) error {
 	return nil
 }
 
-func runKubeconfigFromSAManifest(m *Manifest) error {
+func runKubeconfigFromSAManifest(m *Manifest, action flowAction) error {
 	var spec kubeconfigFromSASpec
 	if err := m.Spec.Decode(&spec); err != nil {
 		return fmt.Errorf("parse KubeconfigFromSA spec: %w", err)
@@ -142,5 +194,13 @@ func runKubeconfigFromSAManifest(m *Manifest) error {
 	if err := opts.Validate(); err != nil {
 		return fmt.Errorf("KubeconfigFromSA: %w", err)
 	}
-	return RunFromSA(opts)
+
+	switch action {
+	case actionApply:
+		return RunFromSA(opts)
+	case actionRevert:
+		return RevertFromSA(opts)
+	default:
+		return fmt.Errorf("unknown flow action %q", action)
+	}
 }

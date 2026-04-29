@@ -165,6 +165,7 @@ Automatically retries Vault authentication every 5 seconds if the token is not y
 | `contexts`                              | List kubeconfigs stored in Vault                  |
 | `from-sa`                               | Build a kubeconfig from a ServiceAccount token    |
 | `apply -f <manifest>`                   | Run a flow described by a YAML manifest           |
+| `revert -f <manifest>`                  | Undo what `apply` did, using the same manifest    |
 
 **`add` flags:**
 
@@ -235,8 +236,11 @@ spec:
 ```
 
 ```bash
-stackctl kubeconfig apply -f kubeconfig-from-sa.yaml
+stackctl kubeconfig apply  -f kubeconfig-from-sa.yaml   # forward
+stackctl kubeconfig revert -f kubeconfig-from-sa.yaml   # undo using the same file
 ```
+
+`revert` uses the same kind switch as `apply`. For `KubeconfigFromSA` it removes the generated context (and orphaned cluster/user entries) from the active kubeconfig, or deletes the file pointed to by `spec.outputFile` when set. The operation is idempotent — a missing file or context produces a warning rather than an error.
 
 A working example lives at [`example/kubeconfig-from-sa.yaml`](example/kubeconfig-from-sa.yaml). New kinds will be added here as they ship.
 

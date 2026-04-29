@@ -137,3 +137,70 @@ func TestSupportedKindsContainsKubeconfigFromSA(t *testing.T) {
 		require.Contains(t, SupportedKinds, "KubeconfigFromSA")
 	})
 }
+
+func TestRunRevertValidationErrors(t *testing.T) {
+	t.Run("when manifest file does not exist then error mentions the path", func(t *testing.T) {
+		err := runRevert("/no/such/manifest.yaml")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "/no/such/manifest.yaml")
+	})
+
+	t.Run("when manifest has no kind then validation error", func(t *testing.T) {
+		path := writeManifest(t, "spec:\n  serviceAccount: dev-user\n")
+		err := runRevert(path)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `"kind"`)
+	})
+
+	t.Run("when KubeconfigFromSA spec misses serviceAccount then validation error", func(t *testing.T) {
+		path := writeManifest(t, `kind: KubeconfigFromSA
+spec:
+  namespace: kube-system
+`)
+		err := runRevert(path)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "serviceAccount is required")
+	})
+}
+
+func TestRevertFromSAIdempotency(t *testing.T) {
+	t.Run("when outputFile does not exist then warns and succeeds", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "missing.kubeconfig")
+		err := RevertFromSA(FromSAOptions{
+			ServiceAccount: "dev-user",
+			OutputFile:     path,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("when outputFile exists then it is removed", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "ghost.kubeconfig")
+		require.NoError(t, os.WriteFile(path, []byte("placeholder"), 0600))
+
+		err := RevertFromSA(FromSAOptions{
+			ServiceAccount: "dev-user",
+			OutputFile:     path,
+		})
+		require.NoError(t, err)
+
+		_, statErr := os.Stat(path)
+		require.True(t, os.IsNotExist(statErr), "expected outputFile to be removed")
+	})
+
+	t.Run("when serviceAccount is empty then validation error", func(t *testing.T) {
+		err := RevertFromSA(FromSAOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "serviceAccount is required")
+	})
+}
+
+func TestNewRevertCmdMetadata(t *testing.T) {
+	t.Run("must declare -f/--file as a flag", func(t *testing.T) {
+		cmd := NewRevertCmd()
+		require.Equal(t, "revert", cmd.Use)
+		require.NotNil(t, cmd.Flags().Lookup("file"))
+		shorthand := cmd.Flags().ShorthandLookup("f")
+		require.NotNil(t, shorthand)
+		require.Equal(t, "file", shorthand.Name)
+	})
+}

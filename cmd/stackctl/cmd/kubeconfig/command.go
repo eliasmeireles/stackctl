@@ -58,6 +58,7 @@ func NewCommand() *cobra.Command {
 	configCmd.AddCommand(NewRemoveCmd())
 	configCmd.AddCommand(NewFromSACmd())
 	configCmd.AddCommand(NewApplyCmd())
+	configCmd.AddCommand(NewRevertCmd())
 
 	// Add vault commands
 	configCmd.AddCommand(NewAddFromVaultCmd())
