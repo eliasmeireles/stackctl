@@ -210,7 +210,7 @@ func (s *VaultKubeconfigService) readSecretFieldValue(dataPath string) (string, 
 	data, readErr := s.client.ReadSecret(dataPath)
 	if readErr != nil {
 		if err != nil {
-			return "", fmt.Errorf("ReadSecretField: %w; ReadSecret: %v", err, readErr)
+			return "", fmt.Errorf("readSecretField: %w; ReadSecret: %v", err, readErr)
 		}
 		return "", fmt.Errorf("failed to read secret at %s: %w", dataPath, readErr)
 	}

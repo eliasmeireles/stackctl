@@ -90,7 +90,7 @@ var runSecretCmd = func(path *string, toFile *string, decodeFromB64 *bool, repla
 
 		client, err := vaultpkg.ApiClient.EnvVaultClient()
 		if err != nil {
-			return fmt.Errorf("Failed to connect to Vault: %w", err)
+			return fmt.Errorf("failed to connect to Vault: %w", err)
 		}
 
 		value, err := client.ReadSecretField(secretPath, key)
@@ -98,7 +98,7 @@ var runSecretCmd = func(path *string, toFile *string, decodeFromB64 *bool, repla
 			if isSecretNotFound(err) {
 				return fmt.Errorf("secret '%s' not found", key)
 			}
-			return fmt.Errorf("Failed to read '%s': %w", key, err)
+			return fmt.Errorf("failed to read '%s': %w", key, err)
 		}
 
 		factory := decoder.NewFactory()
@@ -123,7 +123,7 @@ var runSecretCmd = func(path *string, toFile *string, decodeFromB64 *bool, repla
 		}
 
 		if err := clipboard.WriteAll(value); err != nil {
-			return fmt.Errorf("Failed to copy to clipboard: %w", err)
+			return fmt.Errorf("failed to copy to clipboard: %w", err)
 		}
 
 		fmt.Printf("✅ '%s' copied to clipboard\n", key)
@@ -161,11 +161,11 @@ func writeToFile(filePath, content string, replace bool) error {
 
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("Failed to create directory: %w", err)
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	if err := os.WriteFile(filePath, []byte(content), 0600); err != nil {
-		return fmt.Errorf("Failed to write to file: %w", err)
+		return fmt.Errorf("failed to write to file: %w", err)
 	}
 
 	return nil

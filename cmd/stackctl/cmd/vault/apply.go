@@ -45,18 +45,18 @@ Examples:
 
 			data, err := os.ReadFile(vaultApplyFile)
 			if err != nil {
-				return fmt.Errorf("Failed to read file %q: %v", vaultApplyFile, err)
+				return fmt.Errorf("failed to read file %q: %v", vaultApplyFile, err)
 			}
 
 			var cfg vaultpkg.ApplyConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
-				return fmt.Errorf("Failed to parse YAML: %v", err)
+				return fmt.Errorf("failed to parse YAML: %v", err)
 			}
 
 			if dryRun {
 				if cfg.Kubernetes != nil {
 					if err := cfg.Kubernetes.Validate(); err != nil {
-						return fmt.Errorf("Validation failed: %w", err)
+						return fmt.Errorf("validation failed: %w", err)
 					}
 				}
 				log.Infof("✅ Manifest %q is valid (dry-run, no Vault or cluster contact)", vaultApplyFile)
@@ -74,12 +74,12 @@ Examples:
 			apiClient, err := vaultpkg.ApiClient.Client()
 
 			if err != nil {
-				return fmt.Errorf("Failed to get Vault API client: %v", err)
+				return fmt.Errorf("failed to get Vault API client: %v", err)
 			}
 
 			applier := vaultpkg.NewApplier(apiClient, evClient)
 			if err := applier.Apply(&cfg); err != nil {
-				return fmt.Errorf("Apply failed: %v", err)
+				return fmt.Errorf("apply failed: %v", err)
 			}
 
 			log.Info("✅ All operations completed")

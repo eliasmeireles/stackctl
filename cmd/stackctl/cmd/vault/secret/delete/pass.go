@@ -58,7 +58,7 @@ var runDeletePassCmd = func(path *string) func(cmd *cobra.Command, args []string
 
 		client, err := vaultpkg.ApiClient.EnvVaultClient()
 		if err != nil {
-			return fmt.Errorf("Failed to connect to Vault: %w", err)
+			return fmt.Errorf("failed to connect to Vault: %w", err)
 		}
 
 		existing, err := client.ReadSecret(secretPath)
@@ -66,7 +66,7 @@ var runDeletePassCmd = func(path *string) func(cmd *cobra.Command, args []string
 			if isPassNotFound(err) {
 				return fmt.Errorf("password '%s' not found", key)
 			}
-			return fmt.Errorf("Failed to read secret: %w", err)
+			return fmt.Errorf("failed to read secret: %w", err)
 		}
 
 		if _, ok := existing[key]; !ok {
@@ -76,7 +76,7 @@ var runDeletePassCmd = func(path *string) func(cmd *cobra.Command, args []string
 		delete(existing, key)
 
 		if err := client.WriteSecret(secretPath, existing); err != nil {
-			return fmt.Errorf("Failed to write secret: %w", err)
+			return fmt.Errorf("failed to write secret: %w", err)
 		}
 
 		fmt.Printf("✅ '%s' deleted\n", key)

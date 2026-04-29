@@ -40,12 +40,12 @@ Examples:
 
 			data, err := os.ReadFile(revertFile)
 			if err != nil {
-				return fmt.Errorf("Failed to read file %q: %v", revertFile, err)
+				return fmt.Errorf("failed to read file %q: %v", revertFile, err)
 			}
 
 			var cfg vaultpkg.ApplyConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
-				return fmt.Errorf("Failed to parse YAML: %v", err)
+				return fmt.Errorf("failed to parse YAML: %v", err)
 			}
 
 			flags.Resolve()
@@ -57,12 +57,12 @@ Examples:
 
 			apiClient, err := vaultpkg.ApiClient.Client()
 			if err != nil {
-				return fmt.Errorf("Failed to get Vault API client: %v", err)
+				return fmt.Errorf("failed to get Vault API client: %v", err)
 			}
 
 			applier := vaultpkg.NewApplier(apiClient, evClient)
 			if err := applier.Revert(&cfg); err != nil {
-				return fmt.Errorf("Revert failed: %v", err)
+				return fmt.Errorf("revert failed: %v", err)
 			}
 
 			log.Info("✅ All resources reverted")

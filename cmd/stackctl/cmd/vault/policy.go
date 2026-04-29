@@ -134,7 +134,7 @@ Examples:
 			name := args[0]
 			content, err := os.ReadFile(args[1])
 			if err != nil {
-				return fmt.Errorf("Failed to read file %q: %v", args[1], err)
+				return fmt.Errorf("failed to read file %q: %v", args[1], err)
 			}
 
 			if err := PolicyClient.Put(name, string(content)); err != nil {
