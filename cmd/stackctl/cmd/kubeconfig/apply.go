@@ -59,7 +59,10 @@ func NewRevertCmd() *cobra.Command {
 }
 
 var newRevertCmdFunc = func() *cobra.Command {
-	var manifestPath string
+	var (
+		manifestPath string
+		dryRun       bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "revert",
@@ -73,17 +76,22 @@ to by spec.outputFile when set. The operation is idempotent — a missing file
 or context produces a warning, not an error.
 
 Examples:
-  stackctl kubeconfig revert -f kubeconfig-from-sa.yaml`,
+  stackctl kubeconfig revert -f kubeconfig-from-sa.yaml
+  stackctl kubeconfig revert -f kubeconfig-from-sa.yaml --dry-run    # validate only, no side effects`,
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if manifestPath == "" {
 				return fmt.Errorf("-f/--file is required")
+			}
+			if dryRun {
+				return validateManifestFile(manifestPath)
 			}
 			return runRevert(manifestPath)
 		},
 	}
 
 	cmd.Flags().StringVarP(&manifestPath, "file", "f", "", "Path to the YAML manifest (required)")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate the manifest schema without contacting any cluster or removing anything")
 
 	return cmd
 }
