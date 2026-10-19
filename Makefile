@@ -91,6 +91,12 @@ install: binary
 	@chmod +x $(GOPATH)/bin/$(BINARY_NAME)
 	@echo "✅ Installed successfully to $(GOPATH)/bin/$(BINARY_NAME)"
 
+install-sudo: binary
+	@echo "Installing $(BINARY_NAME) to $(GOPATH)/bin..."
+	@sudo cp $(BUILD_DIR)/$(BINARY_NAME) $(GOPATH)/bin/
+	@sudo chmod +x $(GOPATH)/bin/$(BINARY_NAME)
+	@echo "✅ Installed successfully to $(GOPATH)/bin/$(BINARY_NAME)"
+
 multipass:
 	@bash .dev/multipass/setup-new.sh
 
