@@ -25,7 +25,7 @@ func NewPushCmd() *cobra.Command {
 <vault-mount>/data/<vault-path>/<server-name> with the fields SERVER_NAME,
 HOST, PORT, USER, PRIVATE_KEY and PUB_KEY.
 
-Without a server name in a terminal, pick the server from a list.
+Without a server name in a terminal, check the servers from a list.
 
 Examples:
   stackctl ssh push oracle-vps-01
@@ -60,7 +60,7 @@ func NewPullCmd() *cobra.Command {
 ~/.ssh/config. A local key with different content is only replaced with
 --overwrite-key.
 
-Without a server name in a terminal, pick the server from a list.
+Without a server name in a terminal, check the servers from a list.
 
 Examples:
   stackctl ssh pull oracle-vps-01
@@ -119,11 +119,11 @@ func pushTargets(args []string, entries []sshserver.Entry, all bool) ([]sshserve
 		return withKey, nil
 	}
 	if len(args) == 0 {
-		name, err := pickServer("Select the server to push to Vault", entryNames(entries))
+		picked, err := pickServers("Select the servers to push to Vault", entryNames(entries))
 		if err != nil {
 			return nil, err
 		}
-		args = []string{name}
+		args = picked
 	}
 	byName := make(map[string]sshserver.Entry, len(entries))
 	for _, e := range entries {
@@ -159,11 +159,9 @@ func runPull(args []string, opts sshserver.Options, vault vaultFlags, all bool) 
 		}
 		names = stored
 		if !all {
-			name, err := pickServer("Select the server to pull from Vault", stored)
-			if err != nil {
+			if names, err = pickServers("Select the servers to pull from Vault", stored); err != nil {
 				return err
 			}
-			names = []string{name}
 		}
 	}
 

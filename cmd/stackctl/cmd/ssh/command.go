@@ -26,6 +26,7 @@ Examples:
   stackctl ssh list
   stackctl ssh push oracle-vps-01
   stackctl ssh pull --all
+  stackctl ssh vault-remove elias-oracle
   stackctl ssh remove oracle-vps-01 --delete-key`,
 	}
 
@@ -36,5 +37,6 @@ Examples:
 	sshCmd.AddCommand(NewRemoveCmd())
 	sshCmd.AddCommand(NewPushCmd())
 	sshCmd.AddCommand(NewPullCmd())
+	sshCmd.AddCommand(NewVaultRemoveCmd())
 	return sshCmd
 }

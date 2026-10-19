@@ -42,8 +42,8 @@ var newVaultSync = func(v vaultFlags) (*sshserver.VaultSync, error) {
 	return sshserver.NewVaultSync(store, v.mount, v.path, output.Progress), nil
 }
 
-// selectFromList is a variable so tests can bypass the arrow-key selector.
-var selectFromList = ui.SelectFromList
+// multiSelectFromList is a variable so tests can bypass the checkbox selector.
+var multiSelectFromList = ui.MultiSelectFromList
 
 // pathFlags locate the local SSH files.
 type pathFlags struct {
@@ -80,15 +80,16 @@ func (v *vaultFlags) bind(c *cobra.Command) {
 		fmt.Sprintf("Vault KV v2 mount (env: %s, default: %s)", sshserver.EnvVaultMount, sshserver.DefaultVaultMount))
 }
 
-// pickServer asks the user to choose one of names, or fails when not in a terminal.
-func pickServer(title string, names []string) (string, error) {
+// pickServers lets the user check one or more of names, or fails when not
+// in a terminal.
+func pickServers(title string, names []string) ([]string, error) {
 	if !isInteractiveTerminal() {
-		return "", fmt.Errorf("server name is required")
+		return nil, fmt.Errorf("server name is required")
 	}
 	if len(names) == 0 {
-		return "", fmt.Errorf("no servers found")
+		return nil, fmt.Errorf("no servers found")
 	}
-	return selectFromList(title, names)
+	return multiSelectFromList(title, names)
 }
 
 func entryNames(entries []sshserver.Entry) []string {

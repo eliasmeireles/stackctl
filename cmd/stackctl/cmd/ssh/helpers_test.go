@@ -88,7 +88,7 @@ func newEnv(t *testing.T, interactive bool) *env {
 	t.Setenv(sshserver.EnvVaultMount, "")
 	t.Setenv(sshserver.EnvVaultPath, "")
 
-	origService, origSync, origTTY, origSelect := newService, newVaultSync, isInteractiveTerminal, selectFromList
+	origService, origSync, origTTY, origSelect := newService, newVaultSync, isInteractiveTerminal, multiSelectFromList
 	newService = func() *sshserver.Service { return sshserver.NewService(e.runner, nil) }
 	newVaultSync = func(v vaultFlags) (*sshserver.VaultSync, error) {
 		return sshserver.NewVaultSync(e.store, v.mount, v.path, nil), nil
@@ -96,7 +96,7 @@ func newEnv(t *testing.T, interactive bool) *env {
 	isInteractiveTerminal = func() bool { return interactive }
 	output.SetWriter(output.FormatJSON, e.out)
 	t.Cleanup(func() {
-		newService, newVaultSync, isInteractiveTerminal, selectFromList = origService, origSync, origTTY, origSelect
+		newService, newVaultSync, isInteractiveTerminal, multiSelectFromList = origService, origSync, origTTY, origSelect
 		output.SetWriter(output.FormatTable, os.Stdout)
 	})
 	return e
