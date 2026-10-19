@@ -16,6 +16,7 @@ import (
 	kubecmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/kubeconfig"
 	mbcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
+	sshcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/ssh"
 	vaultcmd "github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
@@ -27,6 +28,7 @@ func RunUI() {
 			mbcmd.Menu,
 			kubecmd.Menu,
 			netbird.Menu,
+			sshcmd.Menu,
 			vaultcmd.Menu,
 			gencmd.Menu,
 		}

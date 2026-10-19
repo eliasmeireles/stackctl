@@ -13,6 +13,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/messagebroker"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/netbird"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/selfupdate"
+	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/ssh"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/add"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/vault/secret/delete"
@@ -38,6 +39,7 @@ It bundles:
   • NetBird VPN setup
   • Databases (PostgreSQL, MySQL, MongoDB) — users, schemas, tests
   • Message brokers (RabbitMQ) — users, tests
+  • SSH server access (key generation + ~/.ssh/config)
 
 Run with no arguments to open the interactive TUI, or use a subcommand
 directly. See "stackctl <command> --help" for details.`,
@@ -102,6 +104,7 @@ func init() {
 	rootCmd.AddCommand(kubeconfig.NewCommand())
 	rootCmd.AddCommand(database.NewDatabaseCommand())
 	rootCmd.AddCommand(messagebroker.NewMessageBrokerCommand())
+	rootCmd.AddCommand(ssh.NewCommand())
 	rootCmd.AddCommand(selfupdate.NewCommand())
 	rootCmd.AddCommand(versionCmd)
 }
