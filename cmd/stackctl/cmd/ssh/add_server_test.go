@@ -71,7 +71,7 @@ func TestAddServerCommand(t *testing.T) {
 		err := e.run(t, "", "add-server", "--host", "10.0.0.5", "--server-name", "web-1", "--skip-copy-id", "--vault-push")
 
 		require.NoError(t, err)
-		stored := e.store.data["secret/data/resources/vps/web-1"]
+		stored := e.store.data["secret/data/resources/ssh/web-1"]
 		assert.Equal(t, "10.0.0.5", stored["HOST"])
 		assert.Equal(t, "private", stored["PRIVATE_KEY"])
 		assert.Equal(t, "true", e.record(t)["vault_pushed"])

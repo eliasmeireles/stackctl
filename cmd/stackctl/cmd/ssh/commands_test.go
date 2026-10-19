@@ -46,11 +46,11 @@ func TestListCommand(t *testing.T) {
 
 	t.Run("given vault flag then lists servers in Vault", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/vps/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
 
 		require.NoError(t, e.run(t, "", "list", "--vault"))
 
-		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/vps/web-1"}}, e.list(t))
+		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/ssh/web-1"}}, e.list(t))
 	})
 }
 
@@ -59,7 +59,7 @@ func TestRemoveCommand(t *testing.T) {
 		e := newEnv(t, false)
 		e.writeConfig(t, twoServers)
 		key := e.writeKey(t, "web-1")
-		e.store.data["secret/data/resources/vps/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
 
 		require.NoError(t, e.run(t, "", "remove", "web-1", "--delete-key", "--vault"))
 
@@ -155,7 +155,7 @@ func TestPushPullCommands(t *testing.T) {
 
 		require.NoError(t, e.run(t, "", "push", "web-1"))
 
-		assert.Equal(t, "private-web-1", e.store.data["secret/data/resources/vps/web-1"]["PRIVATE_KEY"])
+		assert.Equal(t, "private-web-1", e.store.data["secret/data/resources/ssh/web-1"]["PRIVATE_KEY"])
 	})
 
 	t.Run("given custom vault path then pushes there", func(t *testing.T) {
@@ -177,8 +177,8 @@ func TestPushPullCommands(t *testing.T) {
 
 	t.Run("given all then pulls every server", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/vps/web-1"] = map[string]any{"HOST": "10.0.0.5", "USER": "ubuntu", "PORT": "22", "PRIVATE_KEY": "k1"}
-		e.store.data["secret/data/resources/vps/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2", "PUB_KEY": "p2"}
+		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5", "USER": "ubuntu", "PORT": "22", "PRIVATE_KEY": "k1"}
+		e.store.data["secret/data/resources/ssh/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2", "PUB_KEY": "p2"}
 
 		require.NoError(t, e.run(t, "", "pull", "--all"))
 
@@ -192,8 +192,8 @@ func TestPushPullCommands(t *testing.T) {
 
 	t.Run("given no name in terminal then pulls the selected server", func(t *testing.T) {
 		e := newEnv(t, true)
-		e.store.data["secret/data/resources/vps/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
-		e.store.data["secret/data/resources/vps/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
+		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
+		e.store.data["secret/data/resources/ssh/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
 		selectFromList = func(string, []string) (string, error) { return "db", nil }
 
 		require.NoError(t, e.run(t, "", "pull", "--key-dir", "lab"))

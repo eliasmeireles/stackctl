@@ -11,7 +11,7 @@ import (
 
 const (
 	DefaultVaultMount = "secret"
-	DefaultVaultPath  = "resources/vps"
+	DefaultVaultPath  = "resources/ssh"
 	EnvVaultMount     = "STACK_CTL_SSH_VAULT_MOUNT"
 	EnvVaultPath      = "STACK_CTL_SSH_VAULT_PATH"
 
@@ -42,7 +42,7 @@ type VaultSync struct {
 
 // NewVaultSync builds a VaultSync. Empty mount/basePath fall back to
 // $STACK_CTL_SSH_VAULT_MOUNT / $STACK_CTL_SSH_VAULT_PATH, then to
-// "secret" / "resources/vps".
+// "secret" / "resources/ssh".
 func NewVaultSync(store SecretStore, mount, basePath string, progress func(string, ...any)) *VaultSync {
 	if progress == nil {
 		progress = func(string, ...any) {}

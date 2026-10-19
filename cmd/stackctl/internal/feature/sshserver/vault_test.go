@@ -22,7 +22,7 @@ func TestNewVaultSync(t *testing.T) {
 		v := NewVaultSync(newFakeStore(), "", "", nil)
 
 		assert.Equal(t, "secret", v.MountPath())
-		assert.Equal(t, "secret/data/resources/vps/web-1", v.DataPath("web-1"))
+		assert.Equal(t, "secret/data/resources/ssh/web-1", v.DataPath("web-1"))
 	})
 
 	t.Run("given env then uses env values", func(t *testing.T) {
@@ -62,7 +62,7 @@ func TestVaultSyncPush(t *testing.T) {
 			"USER":        "ubuntu",
 			"PRIVATE_KEY": "private",
 			"PUB_KEY":     "public",
-		}, store.data["secret/data/resources/vps/web-1"])
+		}, store.data["secret/data/resources/ssh/web-1"])
 	})
 
 	t.Run("given missing public key then omits PUB_KEY", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestVaultSyncPush(t *testing.T) {
 		err := NewVaultSync(store, "", "", nil).Push(Entry{Name: "web-1", Port: 22, IdentityFile: key})
 
 		require.NoError(t, err)
-		assert.NotContains(t, store.data["secret/data/resources/vps/web-1"], "PUB_KEY")
+		assert.NotContains(t, store.data["secret/data/resources/ssh/web-1"], "PUB_KEY")
 	})
 
 	t.Run("given no identity file then returns error", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestVaultSyncPull(t *testing.T) {
 		clearVaultEnv(t)
 		dir := t.TempDir()
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = storedServer()
+		store.data["secret/data/resources/ssh/web-1"] = storedServer()
 
 		o, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: dir, KeyDir: "vps"})
 
@@ -141,7 +141,7 @@ func TestVaultSyncPull(t *testing.T) {
 		dir := t.TempDir()
 		writeKeyPair(t, filepath.Join(dir, "vps", "web-1"))
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = storedServer()
+		store.data["secret/data/resources/ssh/web-1"] = storedServer()
 
 		_, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: dir, KeyDir: "vps"})
 
@@ -155,7 +155,7 @@ func TestVaultSyncPull(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(key), 0o700))
 		require.NoError(t, os.WriteFile(key, []byte("other"), 0o600))
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = storedServer()
+		store.data["secret/data/resources/ssh/web-1"] = storedServer()
 
 		_, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: dir, KeyDir: "vps"})
 
@@ -172,7 +172,7 @@ func TestVaultSyncPull(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(key), 0o700))
 		require.NoError(t, os.WriteFile(key, []byte("other"), 0o644))
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = storedServer()
+		store.data["secret/data/resources/ssh/web-1"] = storedServer()
 
 		_, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: dir, KeyDir: "vps", OverwriteKey: true})
 
@@ -188,7 +188,7 @@ func TestVaultSyncPull(t *testing.T) {
 	t.Run("given secret without private key then returns error", func(t *testing.T) {
 		clearVaultEnv(t)
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = map[string]any{"HOST": "10.0.0.5"}
+		store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5"}
 
 		_, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: t.TempDir()})
 
@@ -198,7 +198,7 @@ func TestVaultSyncPull(t *testing.T) {
 	t.Run("given secret without host then returns validation error", func(t *testing.T) {
 		clearVaultEnv(t)
 		store := newFakeStore()
-		store.data["secret/data/resources/vps/web-1"] = map[string]any{"PRIVATE_KEY": "k"}
+		store.data["secret/data/resources/ssh/web-1"] = map[string]any{"PRIVATE_KEY": "k"}
 
 		_, err := NewVaultSync(store, "", "", nil).Pull("web-1", Options{SSHDir: t.TempDir()})
 
@@ -224,7 +224,7 @@ func TestVaultSyncList(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"web-1", "web-2"}, names)
-		assert.Equal(t, []string{"secret/metadata/resources/vps"}, store.listed)
+		assert.Equal(t, []string{"secret/metadata/resources/ssh"}, store.listed)
 	})
 
 	t.Run("when store fails then returns error", func(t *testing.T) {
@@ -245,7 +245,7 @@ func TestVaultSyncDelete(t *testing.T) {
 		err := NewVaultSync(store, "", "", nil).Delete("web-1")
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"secret/metadata/resources/vps/web-1"}, store.deleted)
+		assert.Equal(t, []string{"secret/metadata/resources/ssh/web-1"}, store.deleted)
 	})
 
 	t.Run("when store fails then returns error", func(t *testing.T) {
