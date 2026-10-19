@@ -11,10 +11,10 @@ import (
 
 func TestKeyLoginCheckArgs(t *testing.T) {
 	t.Run("must force key-only batch login", func(t *testing.T) {
-		o := Options{Host: "10.0.0.5", Port: 2222, User: "ubuntu", SSHDir: "/d", KeyDir: "vps", KeyName: "k"}
+		o := Options{Host: "10.0.0.5", Port: 2222, User: "ubuntu", SSHDir: "/d", KeyDir: "servers", KeyName: "k"}
 
 		assert.Equal(t, []string{
-			"-i", "/d/vps/k", "-p", "2222",
+			"-i", "/d/servers/k", "-p", "2222",
 			"-o", "IdentitiesOnly=yes", "-o", "PreferredAuthentications=publickey",
 			"-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
 			"ubuntu@10.0.0.5", "true",
@@ -24,7 +24,7 @@ func TestKeyLoginCheckArgs(t *testing.T) {
 
 func TestDisablePasswordAuthArgs(t *testing.T) {
 	t.Run("must send the embedded script base64 encoded with a tty", func(t *testing.T) {
-		o := Options{Host: "10.0.0.5", Port: 22, User: "ubuntu", SSHDir: "/d", KeyDir: "vps", KeyName: "k"}
+		o := Options{Host: "10.0.0.5", Port: 22, User: "ubuntu", SSHDir: "/d", KeyDir: "servers", KeyName: "k"}
 
 		args := disablePasswordAuthArgs(o)
 

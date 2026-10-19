@@ -29,7 +29,7 @@ func TestHostBlock(t *testing.T) {
 			"  HostName 10.0.0.5\n" +
 			"  User deploy\n" +
 			"  Port 2222\n" +
-			"  IdentityFile ~/.ssh/vps/web-1\n"
+			"  IdentityFile ~/.ssh/servers/web-1\n"
 		assert.Equal(t, expected, HostBlock(o))
 	})
 
@@ -41,7 +41,7 @@ func TestHostBlock(t *testing.T) {
 		expected := "Host web-1\n" +
 			"  HostName 10.0.0.5\n" +
 			"  User deploy\n" +
-			"  IdentityFile ~/.ssh/vps/web-1\n"
+			"  IdentityFile ~/.ssh/servers/web-1\n"
 		assert.Equal(t, expected, HostBlock(o))
 	})
 
@@ -49,7 +49,7 @@ func TestHostBlock(t *testing.T) {
 		t.Setenv("HOME", "/home/maria")
 		o := testOptions("/srv/ssh")
 
-		assert.Contains(t, HostBlock(o), "  IdentityFile /srv/ssh/vps/web-1\n")
+		assert.Contains(t, HostBlock(o), "  IdentityFile /srv/ssh/servers/web-1\n")
 	})
 }
 
@@ -191,7 +191,7 @@ func TestParseHosts(t *testing.T) {
 	t.Run("must parse entries with defaults and skip patterns", func(t *testing.T) {
 		content := "# comment\n" +
 			"Host *\n  User global\n\n" +
-			"Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  Port 2222\n  IdentityFile ~/.ssh/vps/web-1\n\n" +
+			"Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  Port 2222\n  IdentityFile ~/.ssh/servers/web-1\n\n" +
 			"Host a b\n  User multi\n\n" +
 			"Host db\n  HostName=10.0.0.2\n\n" +
 			"Match host x\n  User matched\n"
@@ -199,7 +199,7 @@ func TestParseHosts(t *testing.T) {
 		got := ParseHosts(content)
 
 		assert.Equal(t, []Entry{
-			{Name: "web-1", HostName: "10.0.0.5", User: "ubuntu", Port: 2222, IdentityFile: "~/.ssh/vps/web-1"},
+			{Name: "web-1", HostName: "10.0.0.5", User: "ubuntu", Port: 2222, IdentityFile: "~/.ssh/servers/web-1"},
 			{Name: "db", HostName: "10.0.0.2", Port: DefaultPort},
 		}, got)
 	})
@@ -219,7 +219,7 @@ func TestTildePath(t *testing.T) {
 	t.Setenv("HOME", "/home/maria")
 
 	t.Run("given path under home then replaces prefix", func(t *testing.T) {
-		assert.Equal(t, "~/.ssh/vps/a", TildePath("/home/maria/.ssh/vps/a"))
+		assert.Equal(t, "~/.ssh/servers/a", TildePath("/home/maria/.ssh/servers/a"))
 	})
 
 	t.Run("given home itself then returns tilde", func(t *testing.T) {
@@ -239,7 +239,7 @@ func TestExpandTilde(t *testing.T) {
 	t.Setenv("HOME", "/home/maria")
 
 	t.Run("given tilde path then expands home", func(t *testing.T) {
-		assert.Equal(t, "/home/maria/.ssh/vps/a", ExpandTilde("~/.ssh/vps/a"))
+		assert.Equal(t, "/home/maria/.ssh/servers/a", ExpandTilde("~/.ssh/servers/a"))
 	})
 
 	t.Run("given bare tilde then returns home", func(t *testing.T) {

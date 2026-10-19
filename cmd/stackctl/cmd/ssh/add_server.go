@@ -30,7 +30,7 @@ func NewAddServerCmd() *cobra.Command {
 		Long: `Set up key-based SSH access to a server in one go:
 
   1. generate a key pair at ~/.ssh/<key-dir>/<key-name> (+ .pub)
-     (reused if it already exists; key-dir defaults to "vps")
+     (reused if it already exists; key-dir defaults to "servers")
   2. install the public key on the server with ssh-copy-id
   3. add or replace the "Host <server-name>" entry in ~/.ssh/config
   4. optionally disable password login on the server, allowing key access

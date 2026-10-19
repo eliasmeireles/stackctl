@@ -11,23 +11,23 @@ import (
 
 func TestKeygenArgs(t *testing.T) {
 	t.Run("given rsa then adds 4096 bits", func(t *testing.T) {
-		o := Options{KeyType: KeyTypeRSA, Comment: "c", SSHDir: "/d", KeyDir: "vps", KeyName: "k"}
+		o := Options{KeyType: KeyTypeRSA, Comment: "c", SSHDir: "/d", KeyDir: "servers", KeyName: "k"}
 
-		assert.Equal(t, []string{"-q", "-t", "rsa", "-b", "4096", "-C", "c", "-f", "/d/vps/k", "-N", ""}, keygenArgs(o))
+		assert.Equal(t, []string{"-q", "-t", "rsa", "-b", "4096", "-C", "c", "-f", "/d/servers/k", "-N", ""}, keygenArgs(o))
 	})
 
 	t.Run("given ed25519 then omits bits", func(t *testing.T) {
-		o := Options{KeyType: KeyTypeEd25519, Comment: "c", SSHDir: "/d", KeyDir: "vps", KeyName: "k"}
+		o := Options{KeyType: KeyTypeEd25519, Comment: "c", SSHDir: "/d", KeyDir: "servers", KeyName: "k"}
 
-		assert.Equal(t, []string{"-q", "-t", "ed25519", "-C", "c", "-f", "/d/vps/k", "-N", ""}, keygenArgs(o))
+		assert.Equal(t, []string{"-q", "-t", "ed25519", "-C", "c", "-f", "/d/servers/k", "-N", ""}, keygenArgs(o))
 	})
 }
 
 func TestCopyIDArgs(t *testing.T) {
 	t.Run("must include key, port and target", func(t *testing.T) {
-		o := Options{Host: "10.0.0.5", Port: 2222, User: "deploy", SSHDir: "/d", KeyDir: "vps", KeyName: "k"}
+		o := Options{Host: "10.0.0.5", Port: 2222, User: "deploy", SSHDir: "/d", KeyDir: "servers", KeyName: "k"}
 
-		assert.Equal(t, []string{"-i", "/d/vps/k.pub", "-p", "2222", "deploy@10.0.0.5"}, copyIDArgs(o))
+		assert.Equal(t, []string{"-i", "/d/servers/k.pub", "-p", "2222", "deploy@10.0.0.5"}, copyIDArgs(o))
 	})
 }
 

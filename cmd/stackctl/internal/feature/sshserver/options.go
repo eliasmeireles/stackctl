@@ -20,7 +20,7 @@ const (
 	KeyTypeRSA     = "rsa"
 	KeyTypeEd25519 = "ed25519"
 
-	DefaultKeyDir = "vps"
+	DefaultKeyDir = "servers"
 	EnvKeyDir     = "STACK_CTL_SSH_KEY_DIR"
 
 	rsaKeyBits = "4096"
@@ -184,7 +184,7 @@ func ValidateKeyDir(v string) error {
 	return nil
 }
 
-// DefaultKeyDirName returns $STACK_CTL_SSH_KEY_DIR or "vps".
+// DefaultKeyDirName returns $STACK_CTL_SSH_KEY_DIR or "servers".
 func DefaultKeyDirName() string {
 	if v := strings.TrimSpace(os.Getenv(EnvKeyDir)); v != "" {
 		return v

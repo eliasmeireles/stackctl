@@ -63,7 +63,7 @@ func TestServiceFind(t *testing.T) {
 func TestServiceRemove(t *testing.T) {
 	t.Run("given delete key then removes entry and key pair", func(t *testing.T) {
 		dir := t.TempDir()
-		key := filepath.Join(dir, "vps", "a")
+		key := filepath.Join(dir, "servers", "a")
 		writeKeyPair(t, key)
 		cfg := filepath.Join(dir, "config")
 		require.NoError(t, os.WriteFile(cfg, []byte("Host a\n  IdentityFile "+key+"\n\nHost b\n  HostName 2.2.2.2\n"), 0o600))
@@ -81,7 +81,7 @@ func TestServiceRemove(t *testing.T) {
 
 	t.Run("given no delete key then keeps key files", func(t *testing.T) {
 		dir := t.TempDir()
-		key := filepath.Join(dir, "vps", "a")
+		key := filepath.Join(dir, "servers", "a")
 		writeKeyPair(t, key)
 		cfg := filepath.Join(dir, "config")
 		require.NoError(t, os.WriteFile(cfg, []byte("Host a\n  IdentityFile "+key+"\n"), 0o600))
@@ -95,7 +95,7 @@ func TestServiceRemove(t *testing.T) {
 
 	t.Run("given key shared with another host then keeps it", func(t *testing.T) {
 		dir := t.TempDir()
-		key := filepath.Join(dir, "vps", "a")
+		key := filepath.Join(dir, "servers", "a")
 		writeKeyPair(t, key)
 		cfg := filepath.Join(dir, "config")
 		require.NoError(t, os.WriteFile(cfg, []byte("Host a\n  IdentityFile "+key+"\n\nHost a2\n  IdentityFile "+key+"\n"), 0o600))

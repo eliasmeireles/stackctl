@@ -13,7 +13,7 @@ func TestEntryKeyPath(t *testing.T) {
 	t.Run("must expand tilde", func(t *testing.T) {
 		t.Setenv("HOME", "/home/maria")
 
-		assert.Equal(t, "/home/maria/.ssh/vps/a", Entry{IdentityFile: "~/.ssh/vps/a"}.KeyPath())
+		assert.Equal(t, "/home/maria/.ssh/servers/a", Entry{IdentityFile: "~/.ssh/servers/a"}.KeyPath())
 	})
 }
 
@@ -58,7 +58,7 @@ func TestOptionsEntry(t *testing.T) {
 			HostName:     "10.0.0.5",
 			User:         "deploy",
 			Port:         2222,
-			IdentityFile: "~/.ssh/vps/web-1",
+			IdentityFile: "~/.ssh/servers/web-1",
 		}, o.Entry())
 	})
 }

@@ -14,11 +14,11 @@ func NewCommand() *cobra.Command {
 		Long: `Set up and manage key-based SSH access to servers.
 
 Keys follow the layout ~/.ssh/<key-dir>/<server-name> (+ .pub) (key-dir
-defaults to "vps", override with --key-dir or STACK_CTL_SSH_KEY_DIR) and each
+defaults to "servers", override with --key-dir or STACK_CTL_SSH_KEY_DIR) and each
 server gets a "Host <server-name>" entry in ~/.ssh/config.
 
 Servers can be backed up to and restored from Vault (KV v2) at
-secret/data/resources/ssh/<server-name> (override with --vault-path /
+secret/data/resources/ssh/server/<server-name> (override with --vault-path /
 STACK_CTL_SSH_VAULT_PATH and --vault-mount / STACK_CTL_SSH_VAULT_MOUNT).
 
 Examples:

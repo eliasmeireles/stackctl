@@ -37,11 +37,11 @@ func TestOptionsWithDefaults(t *testing.T) {
 
 func TestOptionsKeyPaths(t *testing.T) {
 	t.Run("given relative key dir then joins ssh dir, key dir and key name", func(t *testing.T) {
-		o := Options{SSHDir: "/home/maria/.ssh", KeyDir: "vps", KeyName: "web-1"}
+		o := Options{SSHDir: "/home/maria/.ssh", KeyDir: "servers", KeyName: "web-1"}
 
-		assert.Equal(t, "/home/maria/.ssh/vps", o.KeyDirPath())
-		assert.Equal(t, "/home/maria/.ssh/vps/web-1", o.PrivateKeyPath())
-		assert.Equal(t, "/home/maria/.ssh/vps/web-1.pub", o.PublicKeyPath())
+		assert.Equal(t, "/home/maria/.ssh/servers", o.KeyDirPath())
+		assert.Equal(t, "/home/maria/.ssh/servers/web-1", o.PrivateKeyPath())
+		assert.Equal(t, "/home/maria/.ssh/servers/web-1.pub", o.PublicKeyPath())
 	})
 
 	t.Run("given absolute key dir then ignores ssh dir", func(t *testing.T) {
@@ -114,11 +114,11 @@ func TestValidators(t *testing.T) {
 	})
 
 	t.Run("ValidateKeyDir", func(t *testing.T) {
-		assert.NoError(t, ValidateKeyDir("vps"))
+		assert.NoError(t, ValidateKeyDir("servers"))
 		assert.NoError(t, ValidateKeyDir("lab/servers"))
 		assert.NoError(t, ValidateKeyDir("/srv/keys"))
 		assert.Error(t, ValidateKeyDir("../keys"))
-		assert.Error(t, ValidateKeyDir("vps/../../x"))
+		assert.Error(t, ValidateKeyDir("servers/../../x"))
 	})
 
 	t.Run("ValidateKeyType", func(t *testing.T) {
@@ -143,7 +143,7 @@ func TestDefaultComment(t *testing.T) {
 }
 
 func TestDefaultKeyDirName(t *testing.T) {
-	t.Run("given no env then returns vps", func(t *testing.T) {
+	t.Run("given no env then returns servers", func(t *testing.T) {
 		t.Setenv(EnvKeyDir, "")
 
 		assert.Equal(t, DefaultKeyDir, DefaultKeyDirName())

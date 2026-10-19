@@ -27,9 +27,9 @@ func TestAddServerCommand(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"ssh-keygen", "ssh-copy-id"}, e.runner.calls)
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "web-1"))
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "web-1.pub"))
-		assert.Equal(t, "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/vps/web-1\n", e.readConfig(t))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "web-1"))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "web-1.pub"))
+		assert.Equal(t, "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/servers/web-1\n", e.readConfig(t))
 		rec := e.record(t)
 		assert.Equal(t, true, rec["success"])
 		assert.Equal(t, "false", rec["password_auth_disabled"])
@@ -71,7 +71,7 @@ func TestAddServerCommand(t *testing.T) {
 		err := e.run(t, "", "add-server", "--host", "10.0.0.5", "--server-name", "web-1", "--skip-copy-id", "--vault-push")
 
 		require.NoError(t, err)
-		stored := e.store.data["secret/data/resources/ssh/web-1"]
+		stored := e.store.data["secret/data/resources/ssh/server/web-1"]
 		assert.Equal(t, "10.0.0.5", stored["HOST"])
 		assert.Equal(t, "private", stored["PRIVATE_KEY"])
 		assert.Equal(t, "true", e.record(t)["vault_pushed"])

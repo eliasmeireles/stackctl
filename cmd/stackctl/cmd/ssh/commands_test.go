@@ -12,7 +12,7 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/sshserver"
 )
 
-const twoServers = "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/vps/web-1\n\nHost db\n  HostName 10.0.0.2\n  User root\n  IdentityFile ~/.ssh/vps/db\n"
+const twoServers = "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/servers/web-1\n\nHost db\n  HostName 10.0.0.2\n  User root\n  IdentityFile ~/.ssh/servers/db\n"
 
 func TestPathFlagsResolvedConfig(t *testing.T) {
 	t.Run("given config flag then returns it", func(t *testing.T) {
@@ -39,18 +39,18 @@ func TestListCommand(t *testing.T) {
 		require.NoError(t, e.run(t, "", "list"))
 
 		assert.Equal(t, []map[string]string{
-			{"name": "web-1", "host": "10.0.0.5", "user": "ubuntu", "port": "22", "identity_file": "~/.ssh/vps/web-1", "key_exists": "true"},
-			{"name": "db", "host": "10.0.0.2", "user": "root", "port": "22", "identity_file": "~/.ssh/vps/db", "key_exists": "false"},
+			{"name": "web-1", "host": "10.0.0.5", "user": "ubuntu", "port": "22", "identity_file": "~/.ssh/servers/web-1", "key_exists": "true"},
+			{"name": "db", "host": "10.0.0.2", "user": "root", "port": "22", "identity_file": "~/.ssh/servers/db", "key_exists": "false"},
 		}, e.list(t))
 	})
 
 	t.Run("given vault flag then lists servers in Vault", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
 
 		require.NoError(t, e.run(t, "", "list", "--vault"))
 
-		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/ssh/web-1"}}, e.list(t))
+		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/ssh/server/web-1"}}, e.list(t))
 	})
 }
 
@@ -59,7 +59,7 @@ func TestRemoveCommand(t *testing.T) {
 		e := newEnv(t, false)
 		e.writeConfig(t, twoServers)
 		key := e.writeKey(t, "web-1")
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
 
 		require.NoError(t, e.run(t, "", "remove", "web-1", "--delete-key", "--vault"))
 
@@ -82,8 +82,8 @@ func TestRemoveCommand(t *testing.T) {
 	t.Run("given several checked servers in terminal then removes them after one confirmation", func(t *testing.T) {
 		e := newEnv(t, true)
 		e.writeConfig(t, twoServers)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{}
 		multiSelectFromList = func(string, []string) ([]string, error) { return []string{"web-1", "db"}, nil }
 
 		require.NoError(t, e.run(t, "n\ny\ny\n", "remove"))
@@ -178,7 +178,7 @@ func TestPushPullCommands(t *testing.T) {
 
 		require.NoError(t, e.run(t, "", "push", "web-1"))
 
-		assert.Equal(t, "private-web-1", e.store.data["secret/data/resources/ssh/web-1"]["PRIVATE_KEY"])
+		assert.Equal(t, "private-web-1", e.store.data["secret/data/resources/ssh/server/web-1"]["PRIVATE_KEY"])
 	})
 
 	t.Run("given custom vault path then pushes there", func(t *testing.T) {
@@ -200,29 +200,29 @@ func TestPushPullCommands(t *testing.T) {
 
 	t.Run("given all then pulls every server", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5", "USER": "ubuntu", "PORT": "22", "PRIVATE_KEY": "k1"}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2", "PUB_KEY": "p2"}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{"HOST": "10.0.0.5", "USER": "ubuntu", "PORT": "22", "PRIVATE_KEY": "k1"}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2", "PUB_KEY": "p2"}
 
 		require.NoError(t, e.run(t, "", "pull", "--all"))
 
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "web-1"))
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "db.pub"))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "web-1"))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "db.pub"))
 		cfg := e.readConfig(t)
-		assert.Contains(t, cfg, "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/vps/web-1\n")
+		assert.Contains(t, cfg, "Host web-1\n  HostName 10.0.0.5\n  User ubuntu\n  IdentityFile ~/.ssh/servers/web-1\n")
 		assert.Contains(t, cfg, "Host db\n  HostName 10.0.0.2\n  User root\n")
 		assert.Len(t, e.list(t), 2)
 	})
 
 	t.Run("given several checked servers in terminal then pulls all of them", func(t *testing.T) {
 		e := newEnv(t, true)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
 		multiSelectFromList = func(string, []string) ([]string, error) { return []string{"db", "web-1"}, nil }
 
 		require.NoError(t, e.run(t, "", "pull"))
 
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "db"))
-		assert.FileExists(t, filepath.Join(e.sshDir(), "vps", "web-1"))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "db"))
+		assert.FileExists(t, filepath.Join(e.sshDir(), "servers", "web-1"))
 	})
 
 	t.Run("given several checked servers in terminal then pushes all of them", func(t *testing.T) {
@@ -239,8 +239,8 @@ func TestPushPullCommands(t *testing.T) {
 
 	t.Run("given no name in terminal then pulls the selected server", func(t *testing.T) {
 		e := newEnv(t, true)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{"HOST": "10.0.0.5", "PRIVATE_KEY": "k1"}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{"HOST": "10.0.0.2", "PRIVATE_KEY": "k2"}
 		multiSelectFromList = func(string, []string) ([]string, error) { return []string{"db"}, nil }
 
 		require.NoError(t, e.run(t, "", "pull", "--key-dir", "lab"))
@@ -260,20 +260,20 @@ func TestVaultRemoveCommand(t *testing.T) {
 	t.Run("given names then deletes them from Vault only", func(t *testing.T) {
 		e := newEnv(t, false)
 		e.writeConfig(t, twoServers)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{}
 
 		require.NoError(t, e.run(t, "", "vault-remove", "web-1"))
 
-		assert.NotContains(t, e.store.data, "secret/data/resources/ssh/web-1")
-		assert.Contains(t, e.store.data, "secret/data/resources/ssh/db")
+		assert.NotContains(t, e.store.data, "secret/data/resources/ssh/server/web-1")
+		assert.Contains(t, e.store.data, "secret/data/resources/ssh/server/db")
 		assert.Equal(t, twoServers, e.readConfig(t))
-		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/ssh/web-1"}}, e.list(t))
+		assert.Equal(t, []map[string]string{{"name": "web-1", "path": "secret/data/resources/ssh/server/web-1"}}, e.list(t))
 	})
 
 	t.Run("given unknown names then returns error and deletes nothing", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
 
 		err := e.run(t, "", "vault-remove", "web-1", "x")
 
@@ -283,8 +283,8 @@ func TestVaultRemoveCommand(t *testing.T) {
 
 	t.Run("given checked servers in terminal then deletes after confirmation", func(t *testing.T) {
 		e := newEnv(t, true)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
-		e.store.data["secret/data/resources/ssh/db"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/db"] = map[string]any{}
 		multiSelectFromList = func(string, []string) ([]string, error) { return []string{"web-1", "db"}, nil }
 
 		require.NoError(t, e.run(t, "y\n", "vault-remove"))
@@ -294,7 +294,7 @@ func TestVaultRemoveCommand(t *testing.T) {
 
 	t.Run("when user declines then deletes nothing", func(t *testing.T) {
 		e := newEnv(t, true)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
 		multiSelectFromList = func(string, []string) ([]string, error) { return []string{"web-1"}, nil }
 
 		err := e.run(t, "\n", "vault-remove")
@@ -305,7 +305,7 @@ func TestVaultRemoveCommand(t *testing.T) {
 
 	t.Run("given no name without terminal then returns error", func(t *testing.T) {
 		e := newEnv(t, false)
-		e.store.data["secret/data/resources/ssh/web-1"] = map[string]any{}
+		e.store.data["secret/data/resources/ssh/server/web-1"] = map[string]any{}
 
 		require.ErrorContains(t, e.run(t, "", "vault-remove"), "server name is required")
 	})

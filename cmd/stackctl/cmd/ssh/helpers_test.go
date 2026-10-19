@@ -113,7 +113,7 @@ func (e *env) writeConfig(t *testing.T, content string) {
 
 func (e *env) writeKey(t *testing.T, name string) string {
 	t.Helper()
-	path := filepath.Join(e.sshDir(), "vps", name)
+	path := filepath.Join(e.sshDir(), "servers", name)
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
 	require.NoError(t, os.WriteFile(path, []byte("private-"+name), 0o600))
 	return path
