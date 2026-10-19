@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -80,6 +82,68 @@ func TestMultiSelectModel(t *testing.T) {
 		assert.Contains(t, view, "> ● a")
 		assert.Contains(t, view, "  ○ b")
 		assert.Contains(t, view, "1 of 3 selected")
+	})
+}
+
+func manyItems(n int) []string {
+	items := make([]string, n)
+	for i := range items {
+		items[i] = fmt.Sprintf("item-%02d", i)
+	}
+	return items
+}
+
+func sized(m multiSelectModel, height int) multiSelectModel {
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: height})
+	return next.(multiSelectModel)
+}
+
+func TestMultiSelectScrolling(t *testing.T) {
+	t.Run("given unknown height then renders every row", func(t *testing.T) {
+		view := newMultiSelectModel("t", manyItems(30)).View()
+
+		assert.Contains(t, view, "item-00")
+		assert.Contains(t, view, "item-29")
+		assert.NotContains(t, view, "more")
+	})
+
+	t.Run("given small terminal then renders a window with the title and a down hint", func(t *testing.T) {
+		m := sized(newMultiSelectModel("Pick", manyItems(30)), 14)
+
+		view := m.View()
+
+		assert.Contains(t, view, "Pick")
+		assert.Contains(t, view, "item-00")
+		assert.NotContains(t, view, "item-05")
+		assert.Contains(t, view, "↓ 25 more")
+		assert.NotRegexp(t, `↑ \d+ more`, view)
+		assert.LessOrEqual(t, strings.Count(view, "\n"), 14)
+	})
+
+	t.Run("when moving down then the window follows the cursor", func(t *testing.T) {
+		m := press(sized(newMultiSelectModel("t", manyItems(30)), 14), keyDown, keyDown, keyDown, keyDown, keyDown, keyDown, keyDown, keyDown, keyDown, keyDown)
+
+		view := m.View()
+
+		assert.Contains(t, view, "> ○ item-10")
+		assert.Contains(t, view, "↑ 8 more")
+		assert.Contains(t, view, "↓ 17 more")
+	})
+
+	t.Run("when pressing end and home then jumps to the edges", func(t *testing.T) {
+		m := press(sized(newMultiSelectModel("t", manyItems(30)), 14), tea.KeyMsg{Type: tea.KeyEnd})
+
+		assert.Equal(t, 29, m.cursor)
+		assert.Contains(t, m.View(), "↑ 25 more")
+		assert.Equal(t, 0, press(m, tea.KeyMsg{Type: tea.KeyHome}).cursor)
+	})
+
+	t.Run("when paging then moves by the visible rows within bounds", func(t *testing.T) {
+		m := press(sized(newMultiSelectModel("t", manyItems(30)), 14), tea.KeyMsg{Type: tea.KeyPgDown})
+
+		assert.Equal(t, 5, m.cursor)
+		assert.Equal(t, 0, press(m, tea.KeyMsg{Type: tea.KeyPgUp}, tea.KeyMsg{Type: tea.KeyPgUp}).cursor)
+		assert.Equal(t, 29, press(m, tea.KeyMsg{Type: tea.KeyPgDown}, tea.KeyMsg{Type: tea.KeyPgDown}, tea.KeyMsg{Type: tea.KeyPgDown}, tea.KeyMsg{Type: tea.KeyPgDown}, tea.KeyMsg{Type: tea.KeyPgDown}, tea.KeyMsg{Type: tea.KeyPgDown}).cursor)
 	})
 }
 

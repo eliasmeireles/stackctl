@@ -34,7 +34,12 @@ type multiSelectModel struct {
 	checked   []bool
 	cursor    int
 	cancelled bool
+	height    int
 }
+
+// multiSelectChrome is the number of lines used around the rows: title,
+// counter, blank lines, scroll indicators and help.
+const multiSelectChrome = 9
 
 func newMultiSelectModel(title string, items []string) multiSelectModel {
 	return multiSelectModel{title: title, items: items, checked: make([]bool, len(items))}
@@ -43,6 +48,10 @@ func newMultiSelectModel(title string, items []string) multiSelectModel {
 func (m multiSelectModel) Init() tea.Cmd { return nil }
 
 func (m multiSelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.height = size.Height
+		return m, nil
+	}
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -59,6 +68,14 @@ func (m multiSelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.cursor < len(m.items)-1 {
 			m.cursor++
 		}
+	case "pgup":
+		m.cursor = max(m.cursor-m.visibleRows(), 0)
+	case "pgdown":
+		m.cursor = min(m.cursor+m.visibleRows(), len(m.items)-1)
+	case "home", "g":
+		m.cursor = 0
+	case "end", "G":
+		m.cursor = len(m.items) - 1
 	case " ", "x":
 		m.checked = toggled(m.checked, m.cursor)
 	case "a":
@@ -95,11 +112,41 @@ func (m multiSelectModel) View() string {
 	var b strings.Builder
 	b.WriteString("\n" + titleStyle.Render(m.title) + "\n\n")
 	b.WriteString("  " + msMutedStyle.Render(fmt.Sprintf("%d of %d selected", countChecked(m.checked), len(m.items))) + "\n\n")
-	for i, item := range m.items {
-		b.WriteString(m.renderRow(i, item) + "\n")
+	start, end := m.window()
+	b.WriteString(m.scrollHint("↑ %d more", start) + "\n")
+	for i := start; i < end; i++ {
+		b.WriteString(m.renderRow(i, m.items[i]) + "\n")
 	}
-	b.WriteString("\n  " + msMutedStyle.Render("↑/↓ move • space select • a all • enter confirm • q cancel") + "\n")
+	b.WriteString(m.scrollHint("↓ %d more", len(m.items)-end) + "\n")
+	b.WriteString("  " + msMutedStyle.Render("↑/↓ move • pgup/pgdn page • space select • a all • enter confirm • q cancel") + "\n")
 	return b.String()
+}
+
+// visibleRows returns how many rows fit on screen; all rows before the
+// terminal size is known.
+func (m multiSelectModel) visibleRows() int {
+	if m.height <= 0 {
+		return len(m.items)
+	}
+	return max(m.height-multiSelectChrome, 1)
+}
+
+// window returns the [start, end) range of rows to render, keeping the
+// cursor visible.
+func (m multiSelectModel) window() (int, int) {
+	rows := m.visibleRows()
+	if rows >= len(m.items) {
+		return 0, len(m.items)
+	}
+	start := min(max(m.cursor-rows/2, 0), len(m.items)-rows)
+	return start, start + rows
+}
+
+func (m multiSelectModel) scrollHint(format string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return "    " + msMutedStyle.Render(fmt.Sprintf(format, n))
 }
 
 func (m multiSelectModel) renderRow(i int, item string) string {
