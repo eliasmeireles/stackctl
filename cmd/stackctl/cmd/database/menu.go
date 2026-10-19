@@ -120,10 +120,17 @@ func initMenu() {
 			),
 			vaultLoginSubMenu(
 				"Delete User",
-				"Delete an existing database user",
+				"Delete one or more existing database users",
 				e.cliType,
 				nil,
 				dbDeleteUserAction(e.cliType),
+			),
+			vaultLoginSubMenu(
+				"Delete Database",
+				"Delete one or more existing databases",
+				e.cliType,
+				nil,
+				dbDeleteDatabaseAction(e.cliType),
 			),
 			ui.CreateMultiPromptItemWithArgs(
 				"Test Connection",
@@ -298,16 +305,25 @@ func dbCreateUserAction(dbType string) func(args []string) tea.Cmd {
 	}
 }
 
+// dbDeleteUserAction runs "delete user" without names or --force so the CLI
+// opens the checkbox selector and asks one confirmation for the batch.
+// args: [vaultLogin]
 func dbDeleteUserAction(dbType string) func(args []string) tea.Cmd {
+	return dbDeleteAction(dbType, "user")
+}
+
+// dbDeleteDatabaseAction runs "delete database" without names or --force so
+// the CLI opens the checkbox selector and asks one confirmation for the batch.
+// args: [vaultLogin]
+func dbDeleteDatabaseAction(dbType string) func(args []string) tea.Cmd {
+	return dbDeleteAction(dbType, "database")
+}
+
+func dbDeleteAction(dbType, resource string) func(args []string) tea.Cmd {
 	return func(args []string) tea.Cmd {
 		return func() tea.Msg {
-			// args: [vaultLogin]
-			// No --username: the CLI will list existing users and prompt for selection.
-			// No --force: the CLI will ask for irreversible-action confirmation.
-			cmdArgs := buildVaultLoginArgs(args, 0)
-
 			cmd := ui.SilenceInteractive(dbdelete.NewDeleteCommand(dbType))
-			cmd.SetArgs(append([]string{"user"}, cmdArgs...))
+			cmd.SetArgs(append([]string{resource}, buildVaultLoginArgs(args, 0)...))
 			return cmd.Execute()
 		}
 	}

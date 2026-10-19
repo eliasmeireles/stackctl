@@ -10,8 +10,7 @@ import (
 
 var (
 	addConfigItems = []list.Item{
-		ui.CreateDynamicSubMenu("From Vault", "Import kubeconfig from Vault", VaultList,
-			"Select the Vault path containing the kubeconfig to import."),
+		ui.CreateMultiPromptItemWithArgs("From Vault", "Import kubeconfigs from Vault", nil, runAction("add-from-vault")),
 		ui.CreatePromptItem("From Base64", "Import from a base64 string", "Base64 String", nil),
 		ui.CreatePromptItem("From Local File", "Import from a local yaml file", "File Path", nil),
 		ui.CreateMultiPromptItem("From Remote (SSH)", "Fetch config from a remote VPS", []string{"Host (IP/DNS)", "SSH User (default: root)", "Remote Path"}, nil),
@@ -25,10 +24,8 @@ var (
 		ui.CreateDynamicSubMenu("Set Current Context", "Switch to another context", getContextItems,
 			"Select the context to set as current."),
 		ui.CreateItem("Clean Duplicates", "Remove duplicate entries", ui.HoopAction),
-		ui.CreateDynamicSubMenu("Remove Context", "Delete a context from config", getContextItems,
-			"Select the context to remove from the local kubeconfig."),
-		ui.CreateDynamicSubMenu("Save to Vault", "Save local context to Vault", LocalContext,
-			"Select the local context to save to Vault."),
+		ui.CreateMultiPromptItemWithArgs("Remove Context", "Delete contexts from config", nil, runAction("remove")),
+		ui.CreateMultiPromptItemWithArgs("Save to Vault", "Save local contexts to Vault", nil, runAction("save-to-vault")),
 		ui.CreateDynamicSubMenu("Contexts", "List kubeconfig contexts stored in Vault", VaultContexts,
 			"Browse Vault-stored kubeconfig contexts."),
 	}
@@ -36,6 +33,17 @@ var (
 	Menu = ui.CreateSubMenu("K8s Config", "Manage Kubernetes configurations", configItems,
 		"Select a Kubernetes configuration operation.")
 )
+
+// runAction executes "kubeconfig <args...>" on a fresh command after the TUI exits.
+func runAction(args ...string) func([]string) tea.Cmd {
+	return func([]string) tea.Cmd {
+		return func() tea.Msg {
+			c := ui.SilenceInteractive(NewCommand())
+			c.SetArgs(args)
+			return c.Execute()
+		}
+	}
+}
 
 func getContextItems() ([]list.Item, error) {
 	names, err := kubeconfig.GetContextNames(kubeconfig.GetPath())

@@ -15,7 +15,8 @@ var NewCommandFunc = func() *cobra.Command {
 		Long: `Top-level shortcut for removing a secret from Vault.
 
 Examples:
-  stackctl delete pass MY_KEY                # delete from the default path
+  stackctl delete pass                       # check keys to delete (terminal)
+  stackctl delete pass MY_KEY OTHER_KEY      # delete from the default path
   stackctl delete pass MY_KEY --path apps/x  # delete from a custom path`,
 	}
 

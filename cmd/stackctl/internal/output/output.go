@@ -123,6 +123,10 @@ func (p *Printer) PrintList(title string, headers []string, items []ListItem) {
 }
 
 func (p *Printer) printListTable(title string, headers []string, items []ListItem) {
+	if p.styled() {
+		_, _ = io.WriteString(p.w, renderStyledList(title, headers, items))
+		return
+	}
 	if title != "" {
 		_, _ = fmt.Fprintln(p.w, title)
 	}

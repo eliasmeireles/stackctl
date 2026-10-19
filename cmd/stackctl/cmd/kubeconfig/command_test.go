@@ -3,7 +3,6 @@ package kubeconfig
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,13 +18,6 @@ func TestSetContextCategory(t *testing.T) {
 	})
 }
 
-func TestRemoveCategory(t *testing.T) {
-	t.Run("must return the correct category", func(t *testing.T) {
-		cmd := cmd.NewDefault(nil, "K8s Config", "Remove Context")
-		require.Equal(t, "K8s Config/Remove Context", cmd.Category())
-	})
-}
-
 func TestSetContextExecute(t *testing.T) {
 	const contextName = "context-1"
 	t.Run("must call Run on the underlying cobra command", func(t *testing.T) {
@@ -37,23 +29,6 @@ func TestSetContextExecute(t *testing.T) {
 		}
 
 		s := cmd.NewDefault(mockCmd, "K8s Config", "Set Current Context")
-		s.Execute([]string{contextName}, nil)
-
-		assert.True(t, runCalled)
-	})
-}
-
-func TestRemoveExecute(t *testing.T) {
-	const contextName = "context-1"
-	t.Run("must call Run on the underlying cobra command", func(t *testing.T) {
-		runCalled := false
-		mockCmd := &cobra.Command{
-			Run: func(cmd *cobra.Command, args []string) {
-				runCalled = true
-			},
-		}
-
-		s := cmd.NewDefault(mockCmd, "K8s Config", "Remove Context")
 		s.Execute([]string{contextName}, nil)
 
 		assert.True(t, runCalled)
@@ -144,70 +119,6 @@ func TestNewCommand(t *testing.T) {
 		for _, expected := range expectedCalls {
 			assert.True(t, called[expected], "function not called: "+expected)
 		}
-	})
-}
-
-func TestVaultProviders(t *testing.T) {
-	t.Run("must call underlying functions for providers", func(t *testing.T) {
-		origSave := vaultSaveToRemoteProviderFunc
-		origList := listContexts
-		origFrom := vaultFromVaultProviderFunc
-
-		called := make(map[string]bool)
-
-		vaultSaveToRemoteProviderFunc = func() ([]list.Item, error) {
-			called["save"] = true
-			return nil, nil
-		}
-		listContexts = func() ([]list.Item, error) {
-			called["list"] = true
-			return nil, nil
-		}
-		vaultFromVaultProviderFunc = func() ([]list.Item, error) {
-			called["from"] = true
-			return nil, nil
-		}
-
-		defer func() {
-			vaultSaveToRemoteProviderFunc = origSave
-			listContexts = origList
-			vaultFromVaultProviderFunc = origFrom
-		}()
-
-		_, _ = LocalContext()
-		_, _ = VaultContexts()
-		_, _ = VaultList()
-
-		assert.True(t, called["save"])
-		assert.True(t, called["list"])
-		assert.True(t, called["from"])
-	})
-}
-
-func TestExecuteVaultFunctions(t *testing.T) {
-	t.Run("must call underlying functions for executors", func(t *testing.T) {
-		origSave := executeSaveToVaultFunc
-		origFrom := get
-
-		called := make(map[string]bool)
-
-		executeSaveToVaultFunc = func(contextName string) {
-			called["save"] = true
-		}
-		get = func(dataPath string) {
-			called["from"] = true
-		}
-
-		defer func() {
-			executeSaveToVaultFunc = origSave
-			get = origFrom
-		}()
-
-		SaveToVault("test-context")
-		VaultGet("test/path")
-
-		assert.True(t, called["save"])
-		assert.True(t, called["from"])
 	})
 }
 

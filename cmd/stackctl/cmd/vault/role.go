@@ -203,31 +203,3 @@ For AppRole auth:
 
 	return cmd
 }
-
-// NewRoleDeleteCmd creates the role delete subcommand.
-func NewRoleDeleteCmd() *cobra.Command {
-	return NewRoleDeleteCmdFunc()
-}
-
-// NewRoleDeleteCmdFunc is a function variable for creating the role delete command.
-var NewRoleDeleteCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <auth-mount> <role-name>",
-		Short: "Delete a role",
-		Long: `Delete a role under an auth method.
-
-Examples:
-  stackctl vault role delete auth/kubernetes ci-kubeconfig
-  stackctl vault role delete auth/approle ci-kubeconfig`,
-		Args:         cobra.ExactArgs(2),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := RoleClient.Delete(args[0], args[1]); err != nil {
-				return fmt.Errorf("%v", err)
-			}
-
-			log.Infof("✅ Role %q deleted from %q", args[1], args[0])
-			return nil
-		},
-	}
-}
