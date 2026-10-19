@@ -10,6 +10,36 @@ inside a CI/CD pipeline with no extra tooling.
 Whether you are a solo developer, a startup, or a small ops team, `stackctl` gives you the same security practices used
 at scale — without the complexity.
 
+---
+
+## Sponsor this project
+
+<table>
+  <tr>
+    <td>
+      <a href="https://github.com/sponsors/eliasmeireles">
+        <img src="https://github.com/eliasmeireles.png" width="48" height="48" alt="eliasmeireles" />
+      </a>
+    </td>
+    <td>
+      <strong>eliasmeireles</strong> Elias Meireles
+      <a href="https://github.com/sponsors/eliasmeireles">
+        <img src="https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23e14d4d" alt="GitHub Sponsors" />
+      </a>
+    </td>
+  </tr>
+</table>
+
+<a href="https://buymeacoffee.com/eliasmeireles">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="150" />
+</a>
+
+> Learn more about [GitHub Sponsors](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-to-support-your-work/repository-features/about-github-sponsors).
+
+---
+
+## Installation
+
 **Install via curl (recommended):**
 
 ```bash
