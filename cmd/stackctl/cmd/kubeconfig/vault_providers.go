@@ -5,71 +5,19 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/kubeconfig"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vault"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
-// LocalContext returns a dynamic submenu listing local kubeconfig
-// contexts. Selecting a context saves it to Vault under the configured base path.
-func LocalContext() ([]list.Item, error) {
-	return listContexts()
-}
-
-var listContexts = func() ([]list.Item, error) {
-	return localContext()
-}
-
-var localContext = func() ([]list.Item, error) {
-	names, err := kubeconfig.GetContextNames(kubeconfig.GetPath())
-	if err != nil {
-		log.Errorf("❌ Failed to load local contexts: %v", err)
-		return nil, fmt.Errorf("failed to load contexts: %w", err)
-	}
-
-	if len(names) == 0 {
-		return []list.Item{
-			ui.CreateItem("No contexts found", "No local contexts available", nil),
-		}, nil
-	}
-
-	items := make([]list.Item, 0, len(names))
-	for _, name := range names {
-		ctxName := name
-		// Create an actionable item that quits the TUI with the context name as choice.
-		// The category "K8s Config/LocalContext to Vault" is used by ui.go to dispatch the action.
-		items = append(items, ui.CreateItem(
-			ctxName,
-			fmt.Sprintf("LocalContext '%s' to Vault", ctxName),
-			func() tea.Cmd { return nil },
-		))
-	}
-	return items, nil
-}
-
-// VaultContexts fetches all kubeconfig secrets from Vault,
-// decodes each one, and displays the context names found inside.
+// VaultContexts fetches all kubeconfig secrets from Vault, decodes each one
+// and returns detail items showing the context names found inside.
 func VaultContexts() ([]list.Item, error) {
-	return vaultSaveToRemoteProviderFunc()
-}
-
-var vaultSaveToRemoteProviderFunc = func() ([]list.Item, error) {
-	return vaultContexts()
-}
-
-var vaultContexts = func() ([]list.Item, error) {
-	resolveVaultFlags()
-	client, err := vault.ApiClient.EnvVaultClient()
-
+	store, err := newVaultStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Vault client: %w", err)
+		return nil, err
 	}
-
-	svc := kubeconfig.NewVaultKubeconfigService(client)
-	remotes, err := svc.ListRemoteKubeconfigs()
+	remotes, err := store.ListRemoteKubeconfigs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list kubeconfigs: %w", err)
 	}
@@ -82,16 +30,11 @@ var vaultContexts = func() ([]list.Item, error) {
 
 	items := make([]list.Item, 0, len(remotes))
 	for _, r := range remotes {
-		contextList := strings.Join(r.ContextNames, ", ")
-		desc := fmt.Sprintf("Contexts: %s", contextList)
+		desc := fmt.Sprintf("Contexts: %s", strings.Join(r.ContextNames, ", "))
 		if len(r.ContextNames) == 0 {
 			desc = "No contexts found"
 		}
-		items = append(items, ui.CreateDetailItem(
-			r.SecretName,
-			desc,
-			vaultFetch(r),
-		))
+		items = append(items, ui.CreateDetailItem(r.SecretName, desc, vaultFetch(r)))
 	}
 	return items, nil
 }
@@ -117,124 +60,8 @@ func vaultFetch(r kubeconfig.RemoteKubeconfig) func() (string, string) {
 	}
 }
 
-// VaultList lists remote kubeconfig secrets from Vault.
-// Selecting one fetches it and merges it into the local kubeconfig.
-func VaultList() ([]list.Item, error) {
-	return vaultFromVaultProviderFunc()
-}
-
-var vaultFromVaultProviderFunc = func() ([]list.Item, error) {
-	return vaultList()
-}
-
-var vaultList = func() ([]list.Item, error) {
-	resolveVaultFlags()
-	client, err := vault.ApiClient.EnvVaultClient()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Vault client: %w", err)
-	}
-
-	svc := kubeconfig.NewVaultKubeconfigService(client)
-	remotes, err := svc.ListRemoteKubeconfigs()
-	if err != nil {
-		log.Errorf("❌ Failed to Clusters configuration kubeconfigs: %v", err)
-		return nil, fmt.Errorf("failed to list kubeconfigs: %w", err)
-	}
-
-	if len(remotes) == 0 {
-		return []list.Item{
-			ui.CreateItem("No remote kubeconfigs", "No kubeconfigs found in Vault", nil),
-		}, nil
-	}
-
-	items := make([]list.Item, 0, len(remotes))
-	for _, r := range remotes {
-		remote := r
-		contextList := strings.Join(remote.ContextNames, ", ")
-		desc := fmt.Sprintf("Contexts: %s", contextList)
-		if len(remote.ContextNames) == 0 {
-			desc = "No contexts found"
-		}
-		// Create an actionable item that quits the TUI with the data path as choice.
-		// The category containing "From Vault" is used by ui.go to dispatch the vaultFetch action.
-		items = append(items, ui.CreateItem(
-			remote.DataPath,
-			desc,
-			func() tea.Cmd { return nil },
-		))
-	}
-	return items, nil
-}
-
-// SaveToVault saves a local kubeconfig context to Vault.
-// It uses the context name as the default secret name.
-func SaveToVault(contextName string) {
-	executeSaveToVaultFunc(contextName)
-}
-
-var executeSaveToVaultFunc = func(contextName string) {
-	saveToVault(contextName)
-}
-
-var saveToVault = func(contextName string) {
-	resolveVaultFlags()
-	client, err := vault.ApiClient.EnvVaultClient()
-
-	if err != nil {
-		fmt.Printf("Failed to create Vault client: %v", err)
-		return
-	}
-
-	svc := kubeconfig.NewVaultKubeconfigService(client)
-	kubeconfigPath := kubeconfig.GetPath()
-
-	if err := svc.SaveContextToVault(kubeconfigPath, contextName, contextName); err != nil {
-		fmt.Printf("❌ Failed to save context '%s' to Vault: %v\n", contextName, err)
-		return
-	}
-
-	fmt.Printf("✅ Context '%s' saved to Vault\n", contextName)
-}
-
-// VaultGet fetches a kubeconfig from Vault and merges it into the local config.
-func VaultGet(dataPath string) {
-	get(dataPath)
-}
-
-var get = func(dataPath string) {
-	vaultGet(dataPath)
-}
-
-var vaultGet = func(dataPath string) {
-	resolveVaultFlags()
-	client, err := vault.ApiClient.EnvVaultClient()
-
-	if err != nil {
-		fmt.Printf("Failed to create Vault client: %v", err)
-		return
-	}
-
-	svc := kubeconfig.NewVaultKubeconfigService(client)
-	kubeconfigPath := kubeconfig.GetPath()
-
-	// Derive resource name from the data path (last segment)
-	name := deriveResourceName(dataPath)
-
-	if err := svc.FetchKubeconfigFromVault(dataPath, kubeconfigPath, name); err != nil {
-		log.Errorf("❌ Failed to fetch kubeconfig from Vault: %v", err)
-		fmt.Printf("❌ Failed to fetch kubeconfig from Vault: %v\n", err)
-		return
-	}
-
-	fmt.Printf("✅ Kubeconfig from '%s' merged into %s\n", dataPath, kubeconfigPath)
-}
-
 // deriveResourceName extracts the last path segment as resource name.
 func deriveResourceName(path string) string {
 	parts := strings.Split(strings.TrimRight(path, "/"), "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	return ""
+	return parts[len(parts)-1]
 }

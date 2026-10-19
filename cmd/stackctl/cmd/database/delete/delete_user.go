@@ -3,17 +3,11 @@ package delete
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	stackctlctx "github.com/eliasmeireles/stackctl/cmd/stackctl/internal/context"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/dbtype"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/domain/entity"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/database/infrastructure/client"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/feature/vaultlogin"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/output"
-	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
 type DeleteUserFlags struct {
@@ -22,29 +16,66 @@ type DeleteUserFlags struct {
 	Port          int
 	AdminUser     string
 	AdminPassword string
-	Username      string
+	Usernames     []string
 	Database      string
 	Force         bool
 	VaultLogin    string
+}
+
+// userStore is what "delete user" needs from a connected client.
+type userStore interface {
+	ListUsers(ctx context.Context) ([]entity.UserInfo, error)
+	UserExists(ctx context.Context, username string) (bool, error)
+	RemoveUser(ctx context.Context, username string) error
+	Close() error
+}
+
+// newUserStore is a variable so tests can inject a fake client. database is
+// the MongoDB database the users live in; other engines ignore it.
+var newUserStore = func(ctx context.Context, t serverTarget, database string) (userStore, error) {
+	if t.dbType != "mongodb" {
+		database = adminDatabases[t.dbType]
+	}
+	c, err := connectClient(ctx, t, database)
+	if err != nil {
+		return nil, err
+	}
+	store, ok := c.(userStore)
+	if !ok {
+		_ = c.Close()
+		return nil, unsupportedTypeError(t.dbType)
+	}
+	return store, nil
 }
 
 func newDeleteUserCommand(dbType string) *cobra.Command {
 	flags := &DeleteUserFlags{DBType: dbType}
 
 	cmd := &cobra.Command{
-		Use:   "user",
-		Short: "Delete a database user",
-		Long: fmt.Sprintf(`Delete a user from the specified %s server.
+		Use:   "user [username...]",
+		Short: "Delete one or more database users",
+		Long: fmt.Sprintf(`Delete one or more users from the specified %s server.
 
-Omit --username to pick from a numbered list. Requires y/yes confirmation
-unless --force is set.
+Usernames can be given as positional args, by repeating --username, or as a
+comma-separated --username list. Without usernames in a terminal, check the
+users to delete from a list. The connected admin user is never offered and
+cannot be deleted.
+
+On MongoDB a user may be written as "name@database" to target the database
+it lives in; otherwise --database is used.
+
+One y/yes confirmation covers the whole batch unless --force is set. Every
+user is attempted even if one fails; a per-user result is printed.
 
 Examples:
   stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin --username old_user
-  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin            # interactive list
+  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin maria joao
+  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin --username maria,joao
+  stackctl database %[1]s delete user --vault-login secret/databases/%[1]s/admin            # interactive checklist
   stackctl database %[1]s delete user --host localhost --admin-user admin --admin-password '...' --username old_user --force`, dbType),
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDeleteUser(flags)
+			return runDeleteUser(flags, args)
 		},
 	}
 
@@ -52,11 +83,11 @@ Examples:
 	cmd.Flags().IntVar(&flags.Port, "port", 0, "Database port")
 	cmd.Flags().StringVar(&flags.AdminUser, "admin-user", "", "Admin username")
 	cmd.Flags().StringVar(&flags.AdminPassword, "admin-password", "", "Admin password")
-	cmd.Flags().StringVar(&flags.Username, "username", "", "Username to delete (omit to select from list)")
+	cmd.Flags().StringSliceVar(&flags.Usernames, "username", nil,
+		"Username(s) to delete; repeatable or comma-separated (omit to select from list)")
 
 	// --database is only meaningful for MongoDB. On postgres/mysql the user lives
-	// at server scope, so the flag is ignored — keep it hidden there to avoid
-	// confusing default values in the help.
+	// at server scope, so the flag is not registered there.
 	if dbType == "mongodb" {
 		cmd.Flags().StringVar(&flags.Database, "database", "admin", "MongoDB authentication database (where the user lives)")
 	}
@@ -68,252 +99,60 @@ Examples:
 	return cmd
 }
 
-func runDeleteUser(flags *DeleteUserFlags) error {
-	if ctx, err := stackctlctx.LoadFromCWD(); err == nil {
-		defaults := ctx.DatabaseDefaults(flags.DBType)
-		stackctlctx.ApplyDatabaseDefaults(defaults, &flags.Host, &flags.Port, &flags.AdminUser, &flags.AdminPassword, &flags.VaultLogin)
-	}
-
-	if err := vaultlogin.Resolve(flags.VaultLogin, &flags.AdminUser, &flags.AdminPassword, &flags.Host, &flags.Port); err != nil {
+func runDeleteUser(flags *DeleteUserFlags, args []string) error {
+	t, err := resolveServerTarget(flags.DBType, &flags.Host, &flags.Port, &flags.AdminUser, &flags.AdminPassword, &flags.VaultLogin)
+	if err != nil {
 		return err
 	}
-	if err := vaultlogin.ValidateAdminCreds(flags.AdminUser, flags.AdminPassword); err != nil {
-		return err
-	}
-	if flags.Host == "" {
-		flags.Host = "localhost"
-	}
-	if err := dbtype.ApplyDefaultPort(flags.DBType, &flags.Port); err != nil {
-		return err
-	}
-
-	var dispatchErr error
-	switch flags.DBType {
-	case "postgres":
-		dispatchErr = deletePostgresUser(flags)
-	case "mysql":
-		dispatchErr = deleteMySQLUser(flags)
-	case "mongodb":
-		dispatchErr = deleteMongoUser(flags)
-	default:
-		return fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, mongodb)", flags.DBType)
-	}
-	if dispatchErr == nil && output.IsStructured() {
-		output.PrintRecord("", output.NewItem(
-			"username", flags.Username,
-			"dbType", flags.DBType,
-			"host", fmt.Sprintf("%s:%d", flags.Host, flags.Port),
-			"status", "deleted",
-		))
-	}
-	return dispatchErr
+	return deleteUsers(context.Background(), t, flags.Database, collectNames(flags.Usernames, args), flags.Force)
 }
 
-func deletePostgresUser(flags *DeleteUserFlags) error {
-	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.PostgreSQL, Host: flags.Host, Port: flags.Port, Database: "postgres"}
+// deleteUsers connects, resolves the names (picker when empty), confirms the
+// batch and removes each user, refusing to remove the connected admin.
+func deleteUsers(ctx context.Context, t serverTarget, authDB string, names []string, force bool) error {
+	pool := newUserPool(ctx, t)
+	defer pool.close()
 
-	output.Progress("📡 Connecting to PostgreSQL at %s:%d...\n", flags.Host, flags.Port)
-	pgClient, err := client.NewPostgresClient(config)
+	primary, err := pool.get(authDB)
 	if err != nil {
-		return fmt.Errorf("failed to create PostgreSQL client: %w", err)
+		return err
 	}
-
-	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
-	if err := pgClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-	defer func() { _ = pgClient.Close() }()
-
-	if flags.Username == "" {
-		users, err := pgClient.ListUsers(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to list users: %w", err)
-		}
-		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
-		if err != nil {
-			return err
-		}
-		flags.Username = selected
-	}
-
-	if !flags.Force {
-		if err := confirmDeletion("user", flags.Username); err != nil {
+	if len(names) == 0 {
+		if names, err = pickUsers(ctx, primary, t, authDB); err != nil {
 			return err
 		}
 	}
+	targets := resolveUserTargets(t.dbType, names, authDB)
+	if !force {
+		if err := confirmBatch("user", userLabels(t.dbType, targets)); err != nil {
+			return err
+		}
+	}
+	results := deleteEach(targets, func(u userTarget) string { return u.name }, func(u userTarget) error {
+		if u.isSelf(t.user, authDB) {
+			return fmt.Errorf("cannot delete the connected admin user")
+		}
+		return pool.remove(u)
+	})
+	return reportResults("Deleted users", results)
+}
 
-	exists, err := pgClient.UserExists(ctx, flags.Username)
+func pickUsers(ctx context.Context, store userStore, t serverTarget, authDB string) ([]string, error) {
+	users, err := store.ListUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	return pickNames("user", "Select the users to delete", userCandidates(t.dbType, users, t.user, authDB))
+}
+
+func deleteOneUser(ctx context.Context, store userStore, u userTarget) error {
+	exists, err := store.UserExists(ctx, u.username)
 	if err != nil {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("user '%s' does not exist in PostgreSQL", flags.Username)
+		return fmt.Errorf("user does not exist")
 	}
-
-	output.Progress("🗑️  Deleting user '%s'...\n", flags.Username)
-	if err := pgClient.RemoveUser(ctx, flags.Username); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	output.Progress("✅ User '%s' deleted successfully from PostgreSQL.\n", flags.Username)
-	return nil
-}
-
-func deleteMySQLUser(flags *DeleteUserFlags) error {
-	ctx := context.Background()
-	config := &entity.DatabaseConfig{Type: entity.MySQL, Host: flags.Host, Port: flags.Port, Database: ""}
-
-	output.Progress("📡 Connecting to MySQL at %s:%d...\n", flags.Host, flags.Port)
-	mysqlClient, err := client.NewMySQLClient(config)
-	if err != nil {
-		return fmt.Errorf("failed to create MySQL client: %w", err)
-	}
-
-	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
-	if err := mysqlClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-	defer func() { _ = mysqlClient.Close() }()
-
-	if flags.Username == "" {
-		users, err := mysqlClient.ListUsers(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to list users: %w", err)
-		}
-		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
-		if err != nil {
-			return err
-		}
-		flags.Username = selected
-	}
-
-	if !flags.Force {
-		if err := confirmDeletion("user", flags.Username); err != nil {
-			return err
-		}
-	}
-
-	exists, err := mysqlClient.UserExists(ctx, flags.Username)
-	if err != nil {
-		return fmt.Errorf("failed to check if user exists: %w", err)
-	}
-	if !exists {
-		return fmt.Errorf("user '%s' does not exist in MySQL", flags.Username)
-	}
-
-	output.Progress("🗑️  Deleting user '%s'...\n", flags.Username)
-	if err := mysqlClient.RemoveUser(ctx, flags.Username); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	output.Progress("✅ User '%s' deleted successfully from MySQL.\n", flags.Username)
-	return nil
-}
-
-func deleteMongoUser(flags *DeleteUserFlags) error {
-	ctx := context.Background()
-	// Connect to admin DB first for listing users
-	config := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: flags.Database}
-
-	output.Progress("📡 Connecting to MongoDB at %s:%d...\n", flags.Host, flags.Port)
-	mongoClient, err := client.NewMongoDBClient(config)
-	if err != nil {
-		return fmt.Errorf("failed to create MongoDB client: %w", err)
-	}
-
-	adminCreds := &entity.Credentials{Username: flags.AdminUser, Password: flags.AdminPassword}
-	if err := mongoClient.Connect(ctx, adminCreds); err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-
-	if flags.Username == "" {
-		users, err := mongoClient.ListUsers(ctx)
-		if err != nil {
-			_ = mongoClient.Close()
-			return fmt.Errorf("failed to list users: %w", err)
-		}
-		selected, err := ui.SelectFromList("Select user to delete:", filterAdminUser(users, flags.AdminUser))
-		if err != nil {
-			_ = mongoClient.Close()
-			return err
-		}
-		flags.Username = selected
-	}
-
-	// MongoDB lists users as "username@database" — parse to get the actual DB
-	actualUsername, actualDB := parseMongoUser(flags.Username, flags.Database)
-
-	if !flags.Force {
-		displayName := fmt.Sprintf("%s (database: %s)", actualUsername, actualDB)
-		if err := confirmDeletion("user", displayName); err != nil {
-			_ = mongoClient.Close()
-			return err
-		}
-	}
-
-	// If the user belongs to a different database, reconnect against that DB
-	if actualDB != flags.Database {
-		_ = mongoClient.Close()
-		config2 := &entity.DatabaseConfig{Type: entity.MongoDB, Host: flags.Host, Port: flags.Port, Database: actualDB}
-		mongoClient, err = client.NewMongoDBClient(config2)
-		if err != nil {
-			return fmt.Errorf("failed to create MongoDB client for database '%s': %w", actualDB, err)
-		}
-		if err := mongoClient.Connect(ctx, adminCreds); err != nil {
-			return fmt.Errorf("failed to connect to database '%s': %w", actualDB, err)
-		}
-	}
-	defer func() { _ = mongoClient.Close() }()
-
-	exists, err := mongoClient.UserExists(ctx, actualUsername)
-	if err != nil {
-		return fmt.Errorf("failed to check if user exists: %w", err)
-	}
-	if !exists {
-		return fmt.Errorf("user '%s' does not exist in MongoDB database '%s'", actualUsername, actualDB)
-	}
-
-	output.Progress("🗑️  Deleting user '%s' from database '%s'...\n", actualUsername, actualDB)
-	if err := mongoClient.RemoveUser(ctx, actualUsername); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	output.Progress("✅ User '%s' deleted successfully from MongoDB (database: %s).\n", actualUsername, actualDB)
-	return nil
-}
-
-// parseMongoUser splits "username@database" into (username, database).
-// If there is no "@", returns (username, defaultDB).
-func parseMongoUser(name, defaultDB string) (username, db string) {
-	if idx := strings.LastIndex(name, "@"); idx != -1 {
-		return name[:idx], name[idx+1:]
-	}
-	return name, defaultDB
-}
-
-// filterAdminUser returns user names excluding the current admin (cannot delete self).
-func filterAdminUser(users []entity.UserInfo, adminUser string) []string {
-	var names []string
-	for _, u := range users {
-		if u.Name != adminUser {
-			names = append(names, u.Name)
-		}
-	}
-	return names
-}
-
-// confirmDeletion shows an irreversible-action warning and asks for y/yes confirmation.
-func confirmDeletion(kind, name string) error {
-	fmt.Printf("\n⚠️  You are about to delete %s '%s'.\n", kind, name)
-	fmt.Println("This action is irreversible.")
-	fmt.Print("Type 'yes' to confirm: ")
-	var input string
-	if _, err := fmt.Scanln(&input); err != nil {
-		return fmt.Errorf("failed to read confirmation: %w", err)
-	}
-	if strings.ToLower(strings.TrimSpace(input)) != "yes" {
-		return fmt.Errorf("deletion cancelled")
-	}
-	return nil
+	output.Progress("🗑️  Deleting user '%s'...\n", u.name)
+	return store.RemoveUser(ctx, u.username)
 }

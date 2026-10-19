@@ -2,6 +2,7 @@ package vault
 
 import (
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
@@ -20,6 +21,8 @@ func initMenu() {
 		ui.CreateItem("Put", "Create/update a secret (use CLI)", nil),
 		ui.CreateDynamicSubMenu("Delete", "Select a secret to delete", SecretClient.Delete,
 			"Select the secret to delete."),
+		ui.CreateMultiPromptItemWithArgs("Delete secrets", "Check secrets under the default path and delete them",
+			nil, runAction("secret", "delete")),
 	}
 
 	vaultPolicyItems := []list.Item{
@@ -29,6 +32,8 @@ func initMenu() {
 		ui.CreateItem("Put", "Create/update a policy (use CLI)", nil),
 		ui.CreateDynamicSubMenu("Delete", "Select a policy to delete", PolicyClient.DeleteProvider,
 			"Select the policy to delete."),
+		ui.CreateMultiPromptItemWithArgs("Delete policies", "Check policies and delete them",
+			nil, runAction("policy", "delete")),
 	}
 
 	vaultAdminItems := []list.Item{
@@ -37,11 +42,17 @@ func initMenu() {
 		ui.CreateItem("Enable Auth", "Enable an auth method (use CLI)", nil),
 		ui.CreateDynamicSubMenu("Disable Auth", "Select an auth method to disable", AuthMethodClient.DisableProvider,
 			"Select the auth method to disable."),
+		ui.CreateMultiPromptItemWithArgs("Disable auth methods", "Check auth methods and disable them",
+			nil, runAction("auth", "disable")),
 		ui.CreateDynamicSubMenu("List Engines", "List enabled secrets engines", EngineClient.ListForMenu,
 			"Browse enabled secrets engines."),
 		ui.CreateItem("Enable Engine", "Enable a secrets engine (use CLI)", nil),
 		ui.CreateDynamicSubMenu("Disable Engine", "Select a secrets engine to disable", EngineClient.DisableProvider,
 			"Select the secrets engine to disable."),
+		ui.CreateMultiPromptItemWithArgs("Disable engines", "Check secrets engines and disable them",
+			nil, runAction("engine", "disable")),
+		ui.CreateMultiPromptItemWithArgs("Delete roles", "Check roles of an auth mount and delete them",
+			[]string{"Auth mount (e.g. auth/kubernetes)"}, runAction("role", "delete")),
 	}
 
 	vaultItems := []list.Item{
@@ -55,4 +66,21 @@ func initMenu() {
 
 	Menu = ui.CreateSubMenu("Vault", "Manage HashiCorp Vault resources", vaultItems,
 		"Select a Vault resource category to manage.")
+}
+
+// runAction executes "vault <args...> <prompt answers...>" on a fresh
+// command after the TUI exits, so bulk operations open their checkbox
+// selector.
+func runAction(args ...string) func([]string) tea.Cmd {
+	return func(answers []string) tea.Cmd {
+		return func() tea.Msg {
+			full := append(append([]string{}, args...), answers...)
+			c := ui.SilenceInteractive(NewCommand())
+			if target, _, err := c.Find(full); err == nil {
+				ui.SilenceInteractive(target)
+			}
+			c.SetArgs(full)
+			return c.Execute()
+		}
+	}
 }

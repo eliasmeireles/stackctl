@@ -14,7 +14,7 @@ func TestNewPassCmd(t *testing.T) {
 	t.Run("must create pass command with correct attributes", func(t *testing.T) {
 		cmd := NewPassCmd()
 		require.NotNil(t, cmd)
-		assert.Equal(t, "pass <KEY>", cmd.Use)
+		assert.Equal(t, "pass [KEY...]", cmd.Use)
 		assert.NotEmpty(t, cmd.Short)
 	})
 

@@ -146,28 +146,3 @@ Examples:
 		},
 	}
 }
-
-func NewPolicyDeleteCmd() *cobra.Command {
-	return NewPolicyDeleteCmdFunc()
-}
-
-var NewPolicyDeleteCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <name>",
-		Short: "Delete a policy",
-		Long: `Remove a policy from Vault.
-
-Examples:
-  stackctl vault policy delete my-app-read`,
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := PolicyClient.Delete(args[0]); err != nil {
-				return fmt.Errorf("%v", err)
-			}
-
-			log.Infof("✅ Policy %q deleted successfully", args[0])
-			return nil
-		},
-	}
-}

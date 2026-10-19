@@ -191,39 +191,3 @@ Examples:
 		},
 	}
 }
-
-func NewSecretDeleteCmd() *cobra.Command {
-	return NewSecretDeleteCmdFunc()
-}
-
-var NewSecretDeleteCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <path>",
-		Short: "Delete a secret from Vault",
-		Long: `Delete a secret at the given KV v2 metadata path.
-
-The path should include the 'secret/metadata/' prefix for permanent deletion.
-
-Examples:
-  stackctl vault secret delete secret/metadata/ci/kubeconfig/home-lab`,
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			flags.Resolve()
-			client, err := vaultpkg.ApiClient.EnvVaultClient()
-			if err != nil {
-				return fmt.Errorf("failed to create Vault client: %v", err)
-			}
-
-			path := args[0]
-			log.Info("🗑️  Deleting secret")
-
-			if err := client.DeleteSecret(path); err != nil {
-				return fmt.Errorf("failed to delete secret: %v", err)
-			}
-
-			log.Info("✅ Secret deleted successfully")
-			return nil
-		},
-	}
-}

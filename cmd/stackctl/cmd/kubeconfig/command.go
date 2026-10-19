@@ -20,24 +20,17 @@ const (
 	CategoryCleanDuplicates       = "K8s Config/Clean Duplicates"
 	CategoryGetContext            = "K8s Config/Get Context"
 	CategorySetCurrentContext     = "K8s Config/Set Current Context"
-	CategoryRemoveContext         = "K8s Config/Remove Context"
 	CategoryAddConfiguration      = "K8s Config/Add Configuration"
-	CategoryAddFromVault          = "K8s Config/Add Configuration/From Vault"
 	CategoryFromServiceAccount    = "K8s Config/Generate from ServiceAccount"
-	CategorySaveToVault           = "K8s Config/Save to Vault"
 	CategoryClustersConfiguration = "K8s Config/Clusters configuration"
 )
 
 func init() {
-	cmd.Add(cmd.NewDefault(NewAddFromVaultCmd(), CategoryAddFromVault))
 	cmd.Add(cmd.NewDefault(NewListContextsCmd(), CategoryListContexts))
 	cmd.Add(cmd.NewDefault(NewCleanCmd(), CategoryCleanDuplicates))
 	cmd.Add(cmd.NewDefault(NewGetContextCmd(), CategoryGetContext))
 	cmd.Add(cmd.NewDefault(NewSetContextCmd(), CategorySetCurrentContext))
-	cmd.Add(cmd.NewDefault(NewRemoveCmd(), CategoryRemoveContext))
 	cmd.Add(cmd.NewDefault(NewAddCmd(), CategoryAddConfiguration))
-	cmd.Add(cmd.NewDefault(NewAddFromVaultCmd(), CategoryAddFromVault))
-	cmd.Add(cmd.NewDefault(NewSaveToVaultCmd(), CategorySaveToVault))
 	cmd.Add(cmd.NewDefault(NewListRemoteCmd(), CategoryClustersConfiguration))
 	cmd.Add(cmd.NewDefault(NewFromSACmd(), CategoryFromServiceAccount))
 }
@@ -412,91 +405,6 @@ Examples:
 		return originalRunE(cmd, args)
 	}
 
-	return cmd
-}
-
-// NewRemoveCmd creates the remove subcommand.
-func NewRemoveCmd() *cobra.Command {
-	return newRemoveCmdFunc()
-}
-
-var newRemoveCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:          "remove [context-name]",
-		Aliases:      []string{"delete", "rm"},
-		Short:        "Remove a context (and orphan cluster/user) from kubeconfig",
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("error: context-name is required")
-			}
-			contextName := args[0]
-			kubeconfigPath := kubeconfig.GetPath()
-			if err := kubeconfig.RemoveConfig(kubeconfigPath, contextName); err != nil {
-				return fmt.Errorf("failed to remove config: %v", err)
-			}
-			log.Infof("✅ Successfully removed '%s' from kubeconfig", contextName)
-			return nil
-		},
-	}
-}
-
-// NewAddFromVaultCmd creates the add-from-vault subcommand.
-func NewAddFromVaultCmd() *cobra.Command {
-	return newAddFromVaultCmdFunc()
-}
-
-var newAddFromVaultCmdFunc = func() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add-from-vault [path]",
-		Short: "Download a kubeconfig from Vault and merge it into the local kubeconfig",
-		Long: `Read a kubeconfig stored in Vault (KV v2) and merge it into the local
-kubeconfig. The default storage convention is secret/data/resources/kubeconfig/<name>.
-
-Examples:
-  stackctl kubeconfig add-from-vault secret/data/resources/kubeconfig/home-lab
-  stackctl kubeconfig add-from-vault secret/data/ci/kubeconfig/prod`,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("error: vault path is required")
-			}
-			dataPath := args[0]
-			VaultGet(dataPath)
-			return nil
-		},
-	}
-	flags.SharedFlags(cmd)
-	return cmd
-}
-
-// NewSaveToVaultCmd creates the save-to-vault subcommand.
-func NewSaveToVaultCmd() *cobra.Command {
-	return newSaveToVaultCmdFunc()
-}
-
-var newSaveToVaultCmdFunc = func() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "save-to-vault [context-name]",
-		Short: "Upload a local kubeconfig context to Vault",
-		Long: `Encode a local kubeconfig context as base64 and store it in Vault under
-secret/data/resources/kubeconfig/<context-name>.
-
-Examples:
-  stackctl kubeconfig save-to-vault home-lab
-  stackctl kubeconfig save-to-vault dev-user@homelab`,
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return fmt.Errorf("error: context name is required")
-			}
-			contextName := args[0]
-			SaveToVault(contextName)
-			return nil
-		},
-	}
-	flags.SharedFlags(cmd)
 	return cmd
 }
 

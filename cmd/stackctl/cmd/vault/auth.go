@@ -103,29 +103,3 @@ Examples:
 
 	return cmd
 }
-
-func NewAuthDisableCmd() *cobra.Command {
-	return NewAuthDisableCmdFunc()
-}
-
-var NewAuthDisableCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:   "disable <path>",
-		Short: "Disable an auth method",
-		Long: `Disable an auth method at the given path.
-
-Examples:
-  stackctl vault auth disable approle
-  stackctl vault auth disable k8s-vps-01`,
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := AuthMethodClient.Disable(args[0]); err != nil {
-				return fmt.Errorf("%v", err)
-			}
-
-			log.Infof("✅ Auth method at %q disabled", args[0])
-			return nil
-		},
-	}
-}

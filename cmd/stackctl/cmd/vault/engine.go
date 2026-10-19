@@ -106,29 +106,3 @@ Examples:
 
 	return cmd
 }
-
-func NewEngineDisableCmd() *cobra.Command {
-	return NewEngineDisableCmdFunc()
-}
-
-var NewEngineDisableCmdFunc = func() *cobra.Command {
-	return &cobra.Command{
-		Use:   "disable <path>",
-		Short: "Disable a secrets engine",
-		Long: `Disable a secrets engine at the given path.
-
-Examples:
-  stackctl vault engine disable secret
-  stackctl vault engine disable transit`,
-		Args:         cobra.ExactArgs(1),
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := EngineClient.Disable(args[0]); err != nil {
-				return fmt.Errorf("%v", err)
-			}
-
-			log.Infof("✅ Secrets engine at %q disabled", args[0])
-			return nil
-		},
-	}
-}
