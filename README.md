@@ -38,6 +38,8 @@ at scale — without the complexity.
 
 ---
 
+## Installation
+
 **Install via curl (recommended):**
 
 ```bash
