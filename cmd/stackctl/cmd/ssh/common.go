@@ -1,7 +1,6 @@
 package ssh
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,9 @@ import (
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/internal/ui"
 )
 
-var errCancelled = errors.New("cancelled by user")
+// errCancelled makes a declined confirmation behave like a cancelled
+// selection: the TUI returns straight to the menu.
+var errCancelled = ui.ErrCancelled
 
 // isInteractiveTerminal is a variable so tests can force either mode.
 var isInteractiveTerminal = func() bool {

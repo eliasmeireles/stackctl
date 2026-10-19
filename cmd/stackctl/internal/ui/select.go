@@ -22,7 +22,7 @@ func SelectFromList(title string, items []string) (string, error) {
 	}
 	result := final.(selectorModel)
 	if result.cancelled {
-		return "", fmt.Errorf("selection cancelled")
+		return "", ErrCancelled
 	}
 	return result.items[result.cursor], nil
 }

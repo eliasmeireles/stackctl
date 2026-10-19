@@ -77,9 +77,9 @@ func TestMultiSelectModel(t *testing.T) {
 		view := press(newMultiSelectModel("Pick", items), keySpace).View()
 
 		assert.Contains(t, view, "Pick")
-		assert.Contains(t, view, "[x] a")
-		assert.Contains(t, view, "[ ] b")
-		assert.Contains(t, view, "(1 selected)")
+		assert.Contains(t, view, "> ● a")
+		assert.Contains(t, view, "  ○ b")
+		assert.Contains(t, view, "1 of 3 selected")
 	})
 }
 
@@ -88,5 +88,11 @@ func TestMultiSelectFromListEmpty(t *testing.T) {
 		_, err := MultiSelectFromList("t", nil)
 
 		require.ErrorContains(t, err, "no items")
+	})
+}
+
+func TestErrCancelled(t *testing.T) {
+	t.Run("must keep the user facing message", func(t *testing.T) {
+		assert.EqualError(t, ErrCancelled, "selection cancelled")
 	})
 }

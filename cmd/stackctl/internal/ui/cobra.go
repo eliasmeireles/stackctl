@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,14 +23,19 @@ func SilenceInteractive(cmd *cobra.Command) *cobra.Command {
 }
 
 // runPendingCmd executes a tea.Cmd returned by an action and prints any error
-// cleanly. This replaces the previous pattern of discarding the return value.
-func runPendingCmd(cmd tea.Cmd) {
+// cleanly. It returns true when the user cancelled the action (ErrCancelled),
+// which is not reported as an error.
+func runPendingCmd(cmd tea.Cmd) bool {
 	if cmd == nil {
-		return
+		return false
 	}
-	if result := cmd(); result != nil {
-		if err, ok := result.(error); ok {
-			fmt.Printf("\n❌ %v\n", err)
-		}
+	err, ok := cmd().(error)
+	if !ok || err == nil {
+		return false
 	}
+	if errors.Is(err, ErrCancelled) {
+		return true
+	}
+	fmt.Printf("\n❌ %v\n", err)
+	return false
 }

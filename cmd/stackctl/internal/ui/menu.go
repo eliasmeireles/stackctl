@@ -99,6 +99,11 @@ const (
 
 const retryInterval = 5 * time.Second
 
+// noteReservedLines is the vertical space kept below the list for the
+// leading newline and the sub-menu note, so the list title is never pushed
+// off screen.
+const noteReservedLines = 4
+
 // dynamicProviderResultMsg is sent when an async dynamic provider finishes loading.
 type dynamicProviderResultMsg struct {
 	title string
@@ -150,7 +155,7 @@ type Model struct {
 	action        func(args []string) tea.Cmd
 	// pendingAction stores an action to be executed AFTER the TUI exits.
 	// This is needed because the TUI uses AltScreen which captures stdout.
-	pendingAction func(args []string)
+	pendingAction func(args []string) bool
 	pendingArgs   []string
 }
 
@@ -374,8 +379,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if i.actionWithArgs != nil {
 						m.action = i.actionWithArgs
 						actionFn := i.actionWithArgs
-						m.pendingAction = func(args []string) {
-							runPendingCmd(actionFn(args))
+						m.pendingAction = func(args []string) bool {
+							return runPendingCmd(actionFn(args))
 						}
 					} else if i.action != nil {
 						m.action = func(args []string) tea.Cmd { return i.action() }
@@ -386,8 +391,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// actionWithArgs with no prompts: execute immediately after TUI exits.
 				if i.actionWithArgs != nil {
 					actionFn := i.actionWithArgs
-					m.pendingAction = func(args []string) {
-						runPendingCmd(actionFn(args))
+					m.pendingAction = func(args []string) bool {
+						return runPendingCmd(actionFn(args))
 					}
 					m.pendingArgs = []string{}
 					return m, tea.Quit
@@ -406,7 +411,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
-		h, v := msg.Width, msg.Height
+		h, v := msg.Width, max(msg.Height-noteReservedLines, 1)
 		for i := range m.listStack {
 			m.listStack[i].SetSize(h, v)
 		}
@@ -549,7 +554,8 @@ func (m Model) WasQuitted() bool {
 }
 
 // GetPendingAction returns the action to be executed after the TUI exits.
-func (m Model) GetPendingAction() func(args []string) {
+// The action returns true when the user cancelled it.
+func (m Model) GetPendingAction() func(args []string) bool {
 	return m.pendingAction
 }
 

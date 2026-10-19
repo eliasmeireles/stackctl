@@ -8,22 +8,22 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// MultiSelectFromList presents an inline checkbox list and returns the
+// MultiSelectFromList presents a full-screen checkbox list and returns the
 // chosen items in list order. Space toggles the item under the cursor, "a"
 // toggles all, enter confirms. Confirming with nothing checked returns the
-// item under the cursor. Does not use alt-screen.
+// item under the cursor. Cancelling returns ErrCancelled.
 func MultiSelectFromList(title string, items []string) ([]string, error) {
 	if len(items) == 0 {
 		return nil, fmt.Errorf("no items to select from")
 	}
-	p := tea.NewProgram(newMultiSelectModel(title, items))
+	p := tea.NewProgram(newMultiSelectModel(title, items), tea.WithAltScreen())
 	final, err := p.Run()
 	if err != nil {
 		return nil, fmt.Errorf("selector error: %w", err)
 	}
 	result := final.(multiSelectModel)
 	if result.cancelled {
-		return nil, fmt.Errorf("selection cancelled")
+		return nil, ErrCancelled
 	}
 	return result.Selected(), nil
 }
@@ -84,27 +84,35 @@ func (m multiSelectModel) Selected() []string {
 	return out
 }
 
-func (m multiSelectModel) View() string {
-	cursorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(DefaultSelectedItemColor)).Bold(true)
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(DefaultItemStyleColor))
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+var (
+	msCursorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(DefaultSelectedItemColor)).Bold(true)
+	msItemStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(DefaultItemStyleColor))
+	msCheckedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(DefaultSelectedItemColor))
+	msMutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+)
 
+func (m multiSelectModel) View() string {
 	var b strings.Builder
-	b.WriteString("\n  " + titleStyle.Render(m.title) + "\n\n")
+	b.WriteString("\n" + titleStyle.Render(m.title) + "\n\n")
+	b.WriteString("  " + msMutedStyle.Render(fmt.Sprintf("%d of %d selected", countChecked(m.checked), len(m.items))) + "\n\n")
 	for i, item := range m.items {
-		box := "[ ]"
-		if m.checked[i] {
-			box = "[x]"
-		}
-		if i == m.cursor {
-			b.WriteString(cursorStyle.Render("  ❯ "+box+" "+item) + "\n")
-		} else {
-			b.WriteString(normalStyle.Render("    "+box+" "+item) + "\n")
-		}
+		b.WriteString(m.renderRow(i, item) + "\n")
 	}
-	_, _ = fmt.Fprintf(&b, "\n%s\n", helpStyle.Render(fmt.Sprintf(
-		"  ↑/↓ navigate  space toggle  a all  enter confirm (%d selected)  q cancel", countChecked(m.checked))))
+	b.WriteString("\n  " + msMutedStyle.Render("↑/↓ move • space select • a all • enter confirm • q cancel") + "\n")
 	return b.String()
+}
+
+func (m multiSelectModel) renderRow(i int, item string) string {
+	pointer, marker := "  ", msMutedStyle.Render("○")
+	if m.checked[i] {
+		marker = msCheckedStyle.Render("●")
+	}
+	name := msItemStyle.Render(item)
+	if i == m.cursor {
+		pointer = msCursorStyle.Render("> ")
+		name = msCursorStyle.Render(item)
+	}
+	return "  " + pointer + marker + " " + name
 }
 
 func toggled(checked []bool, i int) []bool {

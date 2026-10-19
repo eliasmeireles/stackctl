@@ -22,6 +22,9 @@ import (
 )
 
 func RunUI() {
+	// nav keeps the menu position so the TUI reopens where the user was
+	// after an action finishes.
+	var nav ui.Navigation
 	for {
 		mainItems := []list.Item{
 			dbcmd.Menu,
@@ -33,7 +36,7 @@ func RunUI() {
 			gencmd.Menu,
 		}
 
-		m := ui.NewMenu(mainItems)
+		m := ui.NewMenu(mainItems).Restore(nav)
 		p := tea.NewProgram(m, tea.WithAltScreen())
 
 		finalModel, err := p.Run()
@@ -46,10 +49,13 @@ func RunUI() {
 		if m.WasQuitted() {
 			break
 		}
+		nav = m.GetNavigation()
 
 		if pendingAction := m.GetPendingAction(); pendingAction != nil {
 			fmt.Print("\033[H\033[2J")
-			pendingAction(m.GetPendingArgs())
+			if cancelled := pendingAction(m.GetPendingArgs()); cancelled {
+				continue
+			}
 			if !waitForReturn() {
 				break
 			}
