@@ -472,7 +472,7 @@ func (m Model) View() string {
 			m.spinner.View(),
 			titleStyle.Render("Waiting for Vault authentication..."),
 			warnStyle.Render("⚠️  "+m.errorMsg),
-			helpStyle.Render("Retrying every 5 seconds  •  esc to go back"),
+			helpStyle.Render("Retrying every 5 seconds  •  sign in with 'stackctl vault login'  •  esc to go back"),
 		)
 	}
 

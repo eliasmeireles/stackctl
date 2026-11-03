@@ -1,8 +1,10 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -56,8 +58,30 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 		return a.envVaultApi, nil
 	}
 
+	client, err := a.connect()
+	var authErr *authError
+	if errors.As(err, &authErr) && loginFallback != nil {
+		if loginErr := loginFallback(); loginErr != nil {
+			return nil, fmt.Errorf("%w\n  automatic login failed: %v", err, loginErr)
+		}
+		client, err = a.connect()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	a.envVaultApi = client
+	return client, nil
+}
+
+// connect builds an authenticated client from the current environment.
+// Token problems are returned as *authError so EnvVaultClient can offer a login.
+func (a *apiImpl) connect() (*envvault.Client, error) {
 	cfg, err := envvault.ConfigFromEnvForReadOnly()
 	if err != nil {
+		if os.Getenv(envvault.EnvVaultAddr) != "" && !otherAuthConfigured() {
+			return nil, &authError{err: fmt.Errorf("failed to load Vault config: %w", err)}
+		}
 		return nil, fmt.Errorf("failed to load Vault config: %w", err)
 	}
 
@@ -68,7 +92,7 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 	client := envvault.NewClient(cfg)
 
 	if err := client.Authenticate(); err != nil {
-		return nil, fmt.Errorf("vault authentication failed: %w", err)
+		return nil, tokenAuthError(cfg, fmt.Errorf("vault authentication failed: %w", err))
 	}
 
 	apiClient, err := client.VaultClient()
@@ -80,10 +104,9 @@ func (a *apiImpl) EnvVaultClient() (*envvault.Client, error) {
 
 	if err := a.validateToken(); err != nil {
 		a.clientApi = nil // don't cache a client with a bad/expired token
-		return nil, err
+		return nil, tokenAuthError(cfg, err)
 	}
 
-	a.envVaultApi = client
 	return client, nil
 }
 
@@ -130,8 +153,8 @@ func (a *apiImpl) validateToken() error {
 	if err != nil {
 		return fmt.Errorf(
 			"vault token is invalid or expired: %w\n"+
-				"  Run 'vault login' to refresh your token or "+
-				"set VAULT_TOKEN with a valid token",
+				"  Run 'stackctl vault login' (browser SSO) or 'vault login' "+
+				"to refresh your token, or set VAULT_TOKEN with a valid token",
 			err,
 		)
 	}

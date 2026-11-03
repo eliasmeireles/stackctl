@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>stackctl · Vault login</title>
+<style>
+  body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #f6f7f9; color: #1f2328; }
+  main { background: #fff; padding: 2rem 2.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); max-width: 28rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+  p { margin: 0; line-height: 1.5; }
+  .ok h1 { color: #1a7f37; }
+  .fail h1 { color: #cf222e; }
+</style>
+</head>
+<body>
+<main class="{{if .OK}}ok{{else}}fail{{end}}">
+  <h1>{{.Title}}</h1>
+  <p>{{.Message}}</p>
+</main>
+</body>
+</html>

@@ -56,6 +56,8 @@ func initMenu() {
 	}
 
 	vaultItems := []list.Item{
+		ui.CreateMultiPromptItemWithArgs("Login (SSO)", "Sign in through the browser with Vault's OIDC auth method",
+			nil, runAction("login")),
 		ui.CreateSubMenu("Secrets", "Read, create, and delete KV v2 secrets", vaultSecretItems,
 			"Select an operation to perform on Vault secrets."),
 		ui.CreateSubMenu("Policies", "Read, create, and delete Vault policies", vaultPolicyItems,
