@@ -5,6 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/context"
 	"github.com/eliasmeireles/stackctl/cmd/stackctl/cmd/database"
@@ -54,6 +55,11 @@ directly. See "stackctl <command> --help" for details.`,
 			return err
 		}
 		output.Set(f)
+		// The TUI (root without a subcommand) draws on the terminal, so the
+		// automatic browser login is only offered to direct commands.
+		if cmd.HasParent() {
+			vault.ConfigureAutoLogin(isTerminal(os.Stdin) && isTerminal(os.Stderr), os.Stderr)
+		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -68,6 +74,10 @@ directly. See "stackctl <command> --help" for details.`,
 		}
 		_ = cmd.Help()
 	},
+}
+
+func isTerminal(f *os.File) bool {
+	return term.IsTerminal(int(f.Fd()))
 }
 
 func Execute() {

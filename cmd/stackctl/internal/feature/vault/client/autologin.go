@@ -17,6 +17,11 @@ func SetLoginFallback(fn func() error) {
 	loginFallback = fn
 }
 
+// HasLoginFallback reports whether an automatic login is registered.
+func HasLoginFallback() bool {
+	return loginFallback != nil
+}
+
 // authError marks a failure that a new token could fix.
 type authError struct {
 	err error
