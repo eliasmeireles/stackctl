@@ -83,13 +83,48 @@ All Vault commands resolve credentials in this order:
 | :------- | :------------------------------------------------------------------------------------------ |
 | 1        | CLI flags: `--addr`, `--token`, `--role-id`/`--secret-id`, `--k8s-role`                     |
 | 2        | Env vars: `VAULT_ADDR`, `VAULT_TOKEN`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `VAULT_K8S_ROLE` |
-| 3        | `~/.vault-token` file (written by `vault login`)                                            |
+| 3        | `~/.vault-token` file (written by `stackctl vault login` or `vault login`)                  |
 
 | Auth method   | Required                                                                                   |
 | :------------ | :----------------------------------------------------------------------------------------- |
 | Token         | `VAULT_ADDR` + `VAULT_TOKEN`                                                               |
 | AppRole       | `VAULT_ADDR` + `VAULT_ROLE_ID` + `VAULT_SECRET_ID`                                         |
 | Kubernetes SA | `VAULT_ADDR` + `VAULT_K8S_ROLE` (+ optional `VAULT_K8S_MOUNT_PATH`, `VAULT_SA_TOKEN_PATH`) |
+
+### Browser login (OIDC / SSO) — `stackctl vault login`
+
+When Vault has an [OIDC auth method](https://developer.hashicorp.com/vault/docs/auth/jwt) backed by your identity
+provider (Keycloak, Okta, Entra ID, Google…), `stackctl vault login` opens the provider login in the browser and saves
+the resulting Vault token to `~/.vault-token` (mode `0600`). Every later `stackctl` command, and the Vault CLI, reuses
+it until it expires. It is the same flow as `vault login -method=oidc`, so a role that works there works here.
+
+```bash
+export VAULT_ADDR=https://vault.example.com
+stackctl vault login                       # mount "oidc", the mount's default_role
+stackctl vault login --role operators      # another role
+stackctl vault login --no-browser          # print the URL instead (SSH sessions, containers)
+export VAULT_TOKEN="$(stackctl vault login --no-store)"   # token to stdout, nothing saved
+```
+
+| Flag           | Env var                        | Default          | Description                                   |
+| :------------- | :----------------------------- | :--------------- | :-------------------------------------------- |
+| `--mount`      | `STACK_CTL_VAULT_OIDC_MOUNT`   | `oidc`           | OIDC auth mount path                          |
+| `--role`       | `STACK_CTL_VAULT_OIDC_ROLE`    | mount default    | OIDC role                                     |
+| `--listen`     | `STACK_CTL_VAULT_OIDC_LISTEN`  | `localhost:8250` | Local address that receives the redirect      |
+| `--timeout`    | `STACK_CTL_VAULT_OIDC_TIMEOUT` | `5m`             | How long to wait for the browser              |
+| `--no-browser` |                                | `false`          | Print the login URL instead of opening it     |
+| `--no-store`   |                                | `false`          | Print the token instead of saving it          |
+
+The Vault role must allow the local callback: include `http://localhost:8250/oidc/callback` (or your `--listen`
+address) in its `allowed_redirect_uris`, and in the redirect URIs of the identity provider client. Vault checks state,
+nonce and PKCE; the token is returned to the CLI by Vault and never goes through the browser.
+
+**Automatic login.** Set `STACK_CTL_VAULT_AUTO_LOGIN=oidc` (for example in your shell profile) and any `stackctl`
+command that finds no valid token opens the browser login, saves the new token and carries on. It only runs in an
+interactive terminal with token auth: CI jobs, AppRole and Kubernetes auth are never affected. In the TUI, use
+**Vault → Login (SSO)**; screens waiting for authentication pick up the new token on their next retry.
+
+> A `VAULT_TOKEN` exported in your shell takes precedence over `~/.vault-token`; unset it to use the browser login.
 
 ---
 
@@ -277,6 +312,14 @@ A working example lives at [`example/kubeconfig-from-sa.yaml`](example/kubeconfi
 ---
 
 ### Vault — `stackctl vault`
+
+#### Login
+
+```bash
+stackctl vault login [--role <role>] [--mount <path>] [--no-browser] [--no-store]
+```
+
+Browser sign-in through Vault's OIDC auth method; see [Browser login](#browser-login-oidc--sso--stackctl-vault-login).
 
 #### Secrets
 
