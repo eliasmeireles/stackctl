@@ -16,6 +16,7 @@ const (
 	CategoryEngine   = "Vault/Admin/Engines"
 	CategoryRole     = "Vault/Roles"
 	CategoryGenerate = "Vault/Generate"
+	CategoryLogin    = "Vault/Login"
 )
 
 func init() {
@@ -38,6 +39,7 @@ func init() {
 	cmd.Add(cmd.NewDefault(NewRevertCmd(), CategoryApply))
 	cmd.Add(cmd.NewDefault(NewGenerateManifestCmd(), CategoryGenerate))
 	cmd.Add(cmd.NewDefault(NewFetchCommand(), CategoryFetch))
+	cmd.Add(cmd.NewDefault(NewLoginCmd(), CategoryLogin))
 }
 
 func NewCommand() *cobra.Command {
@@ -53,9 +55,10 @@ var NewCommandFunc = func() *cobra.Command {
 Authentication is resolved automatically in this order:
   1. --addr / --token flags
   2. VAULT_ADDR / VAULT_TOKEN / VAULT_ROLE_ID / VAULT_SECRET_ID env vars
-  3. $HOME/.vault-token file (created by 'vault login')
+  3. $HOME/.vault-token file (created by 'stackctl vault login' or 'vault login')
 
 Subcommands:
+  login     - Sign in through the browser (OIDC / SSO)
   secret    - CRUD operations on KV v2 secrets
   policy    - CRUD operations on Vault policies
   auth      - Manage auth methods
@@ -63,6 +66,7 @@ Subcommands:
   role      - Manage auth roles`,
 	}
 
+	cmd.AddCommand(NewLoginCmd())
 	cmd.AddCommand(NewSecretCmd())
 	cmd.AddCommand(NewPolicyCmd())
 	cmd.AddCommand(NewAuthCmd())

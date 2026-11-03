@@ -36,7 +36,7 @@ func TestCommandsInitialization(t *testing.T) {
 
 		categories := []string{
 			CategoryFetch, CategoryApply, CategorySecret,
-			CategoryAuth, CategoryPolicy, CategoryEngine, CategoryRole,
+			CategoryAuth, CategoryPolicy, CategoryEngine, CategoryRole, CategoryLogin,
 		}
 
 		for _, cat := range categories {
